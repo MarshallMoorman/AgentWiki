@@ -1,0 +1,101 @@
+name: AgentWiki Update
+
+on:
+  schedule:
+    # Daily at 02:00 UTC
+    - cron: "0 2 * * *"
+  push:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "*.sln"
+      - "*.slnx"
+      - "Directory.Build.props"
+      - ".agentwiki/config.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-wiki:
+    name: Update agent wiki
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore & build AgentWiki
+        run: |
+          dotnet restore AgentWiki.slnx
+          dotnet build AgentWiki.slnx -c Release --no-restore
+
+      - name: Run agent-wiki update
+        env:
+          # Prefer Azure OpenAI via secrets; tool falls back to offline generation if unset.
+          AGENTWIKI_Provider: ${{ vars.AGENTWIKI_PROVIDER || 'azure-openai' }}
+          AGENTWIKI_DefaultModel: ${{ vars.AGENTWIKI_DEFAULT_MODEL || 'gpt-4o' }}
+          AGENTWIKI_AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AGENTWIKI_AzureOpenAI__DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o' }}
+          AGENTWIKI_AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          # Optional OpenAI-compatible / GitHub Models
+          AGENTWIKI_OpenAI__ApiKey: ${{ secrets.OPENAI_API_KEY }}
+          AGENTWIKI_OpenAI__Endpoint: ${{ secrets.OPENAI_ENDPOINT }}
+          AGENTWIKI_OpenAI__Model: ${{ vars.AGENTWIKI_OPENAI_MODEL }}
+        run: |
+          dotnet run --project src/AgentWiki.Cli -c Release --no-build -- \
+            update --repo-path . --output docs/wiki --force
+
+      - name: Detect wiki changes
+        id: changes
+        run: |
+          if git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Wiki output changed."
+            git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No wiki changes."
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs(wiki): refresh agent-optimized wiki"
+          title: "docs(wiki): refresh AgentWiki documentation"
+          body: |
+            ## AgentWiki automatic update
+
+            This PR was opened by the **AgentWiki Update** workflow after detecting documentation changes.
+
+            ### What changed
+            - Regenerated content under `docs/wiki/`
+            - Possibly updated `AGENTS.md` bootstrap instructions
+
+            ### Notes
+            - Content may be AI-generated and should be reviewed before merge.
+            - Incremental updates use git history since `.agentwiki/last-run.json` (local artifact; not always committed).
+
+            ### Workflow
+            - Trigger: schedule / push (code paths) / manual
+            - Command: `agent-wiki update --repo-path . --output docs/wiki`
+          branch: agent-wiki/update
+          delete-branch: true
+          labels: documentation, automated
+          add-paths: |
+            docs/wiki/**
+            AGENTS.md
+            CLAUDE.md

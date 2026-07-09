@@ -18,7 +18,7 @@
 - **GitProcess.cs** (`src/AgentWiki.Cli/Services/GitProcess.cs`): Source file (C#)
 - **InitService.cs** (`src/AgentWiki.Cli/Services/InitService.cs`): Source file (C#)
 - **LastRunStore.cs** (`src/AgentWiki.Cli/Services/LastRunStore.cs`): Source file (C#)
-- **MarkdownOutputWriter.cs** (`src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`): Source file (C#)
+- **LlmResilience.cs** (`src/AgentWiki.Cli/Services/LlmResilience.cs`): Source file (C#)
 
 ## Modules
 
@@ -30,7 +30,8 @@
 
 | Language | Files |
 |----------|------:|
-| C# | 64 |
-| Markdown | 3 |
-| JSON | 1 |
+| C# | 68 |
+| Markdown | 4 |
+| JSON | 2 |
+| YAML | 1 |
 

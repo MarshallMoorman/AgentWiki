@@ -62,6 +62,7 @@ _None listed._
 - `src/AgentWiki.Core/Analysis/RepoSummaryBuilder.cs`
 - `src/AgentWiki.Core/Constants/AgentWikiConstants.cs`
 - `src/AgentWiki.Core/Generation/ArchitectureMarkdownRenderer.cs`
+- `src/AgentWiki.Core/Generation/CostEstimator.cs`
 - `src/AgentWiki.Core/Generation/ModuleMarkdownRenderer.cs`
 - `src/AgentWiki.Core/Generation/OfflineArchitectureGenerator.cs`
 - `src/AgentWiki.Core/Generation/OfflineModulePlanner.cs`
@@ -69,7 +70,6 @@ _None listed._
 - `src/AgentWiki.Core/Models/AgentWikiConfig.cs`
 - `src/AgentWiki.Core/Models/ArchitectureDocument.cs`
 - `src/AgentWiki.Core/Models/GenerationResult.cs`
-- `src/AgentWiki.Core/Models/LastRunState.cs`
 
 ## Navigation
 

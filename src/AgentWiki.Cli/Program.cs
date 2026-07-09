@@ -6,17 +6,44 @@ using AgentWiki.Core.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Events;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-// Configure Serilog early so startup failures are captured.
+// Note: Spectre reserves -v for --version at the app level; use --verbose for debug logs.
+var verbose = args.Any(a =>
+    string.Equals(a, "--verbose", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(a, "/verbose", StringComparison.OrdinalIgnoreCase));
+
+var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentWiki", "logs");
+Directory.CreateDirectory(logDir);
+var logFile = Path.Combine(logDir, "agent-wiki-.log");
+
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
+    .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithProperty("Application", AgentWikiConstants.ProductName)
+    .Enrich.WithProperty("Version", AgentWikiConstants.Version)
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
     .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate: verbose
+            ? "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) {Message:lj}{NewLine}{Exception}"
+            : "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.File(
+        logFile,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        shared: true,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] ({SourceContext}) {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
+
+if (verbose)
+{
+    Log.Debug("Verbose logging enabled. File log: {LogFile}", logFile);
+}
 
 try
 {
@@ -31,6 +58,21 @@ try
         config.SetApplicationName(AgentWikiConstants.ToolName);
         config.SetApplicationVersion(AgentWikiConstants.Version);
         config.ValidateExamples();
+        config.SetExceptionHandler((ex, _) =>
+        {
+            Log.Error(ex, "Command failed");
+            if (verbose)
+            {
+                AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                AnsiConsole.MarkupLine("[grey]Re-run with --verbose for full details.[/]");
+            }
+
+            return -1;
+        });
 
         config.AddCommand<InitCommand>("init")
             .WithDescription("Scaffold .agentwiki/config.json, sample prompts, and .env.example")
@@ -51,9 +93,10 @@ try
             .WithExample("update", "--dry-run");
 
         config.AddCommand<StatusCommand>("status")
-            .WithDescription("Show current configuration and wiki status")
+            .WithDescription("Show current configuration, last-run state, and optional live inventory")
             .WithExample("status")
-            .WithExample("status", "--repo-path", ".");
+            .WithExample("status", "--repo-path", ".")
+            .WithExample("status", "--analyze");
     });
 
     return await app.RunAsync(args).ConfigureAwait(false);
@@ -90,7 +133,6 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<IChangeDetector, GitChangeDetector>();
     services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
-    // Spectre resolves command types from the container.
     services.AddSingleton<InitCommand>();
     services.AddSingleton<GenerateCommand>();
     services.AddSingleton<UpdateCommand>();

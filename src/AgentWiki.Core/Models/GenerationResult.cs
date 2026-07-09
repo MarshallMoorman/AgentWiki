@@ -1,3 +1,5 @@
+using AgentWiki.Core.Generation;
+
 namespace AgentWiki.Core.Models;
 
 /// <summary>
@@ -23,11 +25,14 @@ public sealed class GenerationResult
     /// <summary>Optional change-detection snapshot (incremental update mode).</summary>
     public ChangeDetectionResult? ChangeDetection { get; init; }
 
-    /// <summary>Approximate input tokens consumed (0 until SK integration).</summary>
+    /// <summary>Approximate input tokens consumed.</summary>
     public int InputTokens { get; init; }
 
-    /// <summary>Approximate output tokens consumed (0 until SK integration).</summary>
+    /// <summary>Approximate output tokens consumed.</summary>
     public int OutputTokens { get; init; }
+
+    /// <summary>Rough cost estimate when tokens were consumed.</summary>
+    public CostEstimate? CostEstimate { get; init; }
 
     /// <summary>Wall-clock duration of the run.</summary>
     public TimeSpan Duration { get; init; }
@@ -48,7 +53,8 @@ public sealed class GenerationResult
         RepoAnalysisResult? analysis = null,
         int inputTokens = 0,
         int outputTokens = 0,
-        ChangeDetectionResult? changeDetection = null) =>
+        ChangeDetectionResult? changeDetection = null,
+        CostEstimate? costEstimate = null) =>
         new()
         {
             Success = true,
@@ -60,7 +66,8 @@ public sealed class GenerationResult
             Analysis = analysis,
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
-            ChangeDetection = changeDetection
+            ChangeDetection = changeDetection,
+            CostEstimate = costEstimate
         };
 
     /// <summary>Creates a failed result.</summary>

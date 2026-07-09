@@ -72,9 +72,9 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - `src/AgentWiki.Cli/Services/GitProcess.cs`
 - `src/AgentWiki.Cli/Services/InitService.cs`
 - `src/AgentWiki.Cli/Services/LastRunStore.cs`
+- `src/AgentWiki.Cli/Services/LlmResilience.cs`
 - `src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`
 - `src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs`
-- `src/AgentWiki.Cli/Services/PromptManager.cs`
 
 ## Navigation
 

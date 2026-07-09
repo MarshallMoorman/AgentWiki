@@ -4,11 +4,11 @@
 
 ## Summary
 
-agent-wiki is a C#, Markdown, JSON codebase with 81 tracked files (~8,943 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
+agent-wiki is a C#, Markdown, JSON, YAML codebase with 89 tracked files (~9,728 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
 
 ## System context
 
-Primary languages: C#, Markdown, JSON. Category mix — Source: 50, Tests: 15, Config: 7, Docs: 9.
+Primary languages: C#, Markdown, JSON, YAML. Category mix — Source: 52, Tests: 17, Config: 9, Docs: 11.
 
 ## Diagram
 
@@ -17,6 +17,8 @@ flowchart TB
     Root[agent-wiki]
     Root --> N0[src]
     Root --> N1[tests]
+    Root --> N2[.github]
+    Root --> N3[examples]
 ```
 
 ## Layers
@@ -25,6 +27,8 @@ flowchart TB
 |-------|----------------|-----------|
 | src | Primary application and library source | `src/` |
 | tests | Automated tests | `tests/` |
+| .github | GitHub workflows and community files | `.github/` |
+| examples | Sample code | `examples/` |
 
 ## Key components
 
@@ -42,7 +46,7 @@ flowchart TB
 - **GitProcess.cs** (`src/AgentWiki.Cli/Services/GitProcess.cs`): Source file (C#)
 - **InitService.cs** (`src/AgentWiki.Cli/Services/InitService.cs`): Source file (C#)
 - **LastRunStore.cs** (`src/AgentWiki.Cli/Services/LastRunStore.cs`): Source file (C#)
-- **MarkdownOutputWriter.cs** (`src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`): Source file (C#)
+- **LlmResilience.cs** (`src/AgentWiki.Cli/Services/LlmResilience.cs`): Source file (C#)
 
 ## Important flows
 

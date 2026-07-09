@@ -8,11 +8,12 @@ using Spectre.Console.Cli;
 namespace AgentWiki.Cli.Commands;
 
 /// <summary>
-/// Displays current configuration, optional live inventory, and wiki status.
+/// Displays current configuration, last-run state, optional live inventory, and wiki status.
 /// </summary>
 public sealed class StatusCommand(
     IConfigLoader configLoader,
-    IRepoAnalyzer repoAnalyzer) : AsyncCommand<StatusCommand.Settings>
+    IRepoAnalyzer repoAnalyzer,
+    ILastRunStore lastRunStore) : AsyncCommand<StatusCommand.Settings>
 {
     /// <summary>CLI settings for <c>agent-wiki status</c>.</summary>
     public sealed class Settings : CommandSettingsBase
@@ -26,7 +27,7 @@ public sealed class StatusCommand(
     /// <inheritdoc />
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — status");
+        AnsiConsole.MarkupLine($"[bold blue]AgentWiki[/] v{AgentWikiConstants.Version} — status");
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
@@ -41,6 +42,7 @@ public sealed class StatusCommand(
             : Path.GetFullPath(Path.Combine(repoPath, config.OutputPath));
         var metaPath = Path.Combine(outputPath, AgentWikiConstants.MetaFileName);
         var agentMd = Path.Combine(repoPath, config.AgentMdPath);
+        var lastRun = await lastRunStore.LoadAsync(repoPath).ConfigureAwait(false);
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -64,8 +66,32 @@ public sealed class StatusCommand(
             : Markup.Escape(RedactEndpoint(config.AzureOpenAI.Endpoint)));
         table.AddRow("Azure API key", string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
         table.AddRow("Managed identity", config.AzureOpenAI.UseManagedIdentity ? "yes" : "no");
+        table.AddRow("LLM ready", HasLlmReady(config) ? "[green]yes[/]" : "[yellow]no (offline fallback)[/]");
 
         AnsiConsole.Write(table);
+
+        if (lastRun is not null)
+        {
+            AnsiConsole.WriteLine();
+            var last = new Table()
+                .Border(TableBorder.Rounded)
+                .Title("[bold]Last successful run[/]")
+                .AddColumn("Key")
+                .AddColumn("Value");
+
+            last.AddRow("Commit", Markup.Escape(lastRun.CommitSha ?? "—"));
+            last.AddRow("Timestamp (UTC)", lastRun.TimestampUtc.ToString("O"));
+            last.AddRow("Mode", Markup.Escape(lastRun.Mode));
+            last.AddRow("Modules", lastRun.ModuleIds.Count.ToString());
+            last.AddRow("Files written", lastRun.FilesWritten.Count.ToString());
+            last.AddRow("Tool version", Markup.Escape(lastRun.ToolVersion ?? "—"));
+            last.AddRow("Correlation ID", Markup.Escape(lastRun.CorrelationId ?? "—"));
+            AnsiConsole.Write(last);
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[grey]No .agentwiki/last-run.json yet. Run generate to create a baseline.[/]");
+        }
 
         if (settings.Analyze)
         {
@@ -88,7 +114,7 @@ public sealed class StatusCommand(
         if (File.Exists(metaPath))
         {
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[bold]Last generation metadata[/]");
+            AnsiConsole.MarkupLine("[bold]Wiki metadata[/] ([grey].agentwiki-meta.json[/])");
             try
             {
                 var json = await File.ReadAllTextAsync(metaPath).ConfigureAwait(false);
@@ -100,11 +126,15 @@ public sealed class StatusCommand(
 
                 foreach (var prop in doc.RootElement.EnumerateObject())
                 {
-                    if (prop.NameEquals("filesWritten") || prop.NameEquals("languages"))
+                    if (prop.NameEquals("filesWritten") || prop.NameEquals("languages")
+                        || prop.NameEquals("modules") || prop.NameEquals("crossCutting")
+                        || prop.NameEquals("steps") || prop.NameEquals("changeDetection"))
                     {
                         var text = prop.Value.ValueKind == JsonValueKind.Array
                             ? prop.Value.GetArrayLength().ToString() + " item(s)"
-                            : prop.Value.ToString();
+                            : prop.Value.ValueKind == JsonValueKind.Object
+                                ? "(object)"
+                                : prop.Value.ToString();
                         metaTable.AddRow(prop.Name, Markup.Escape(text));
                         continue;
                     }
@@ -126,10 +156,26 @@ public sealed class StatusCommand(
 
         if (!settings.Analyze)
         {
-            AnsiConsole.MarkupLine("[grey]Tip: pass --analyze to run a live repository inventory.[/]");
+            AnsiConsole.MarkupLine("[grey]Tip: pass --analyze for a live repository inventory.[/]");
         }
 
         return 0;
+    }
+
+    private static bool HasLlmReady(AgentWikiConfig config)
+    {
+        var provider = config.Provider?.Trim().ToLowerInvariant() ?? "azure-openai";
+        return provider switch
+        {
+            "azure-openai" or "azure" =>
+                !string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
+                && (!string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) || config.AzureOpenAI.UseManagedIdentity),
+            "openai" => !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey),
+            "github-models" or "github" =>
+                !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
+                || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_TOKEN")),
+            _ => false
+        };
     }
 
     private static void RenderAnalysis(RepoAnalysisResult analysis)

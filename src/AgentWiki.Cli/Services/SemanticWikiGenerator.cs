@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Constants;
+using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -172,10 +173,15 @@ public sealed class SemanticWikiGenerator(
             var mode = request.Incremental ? "update" : "generate";
             var source = bundle.UsedOfflineFallback ? "offline/multi-step" : "Semantic Kernel multi-step";
             var scopeLabel = scope.IsFull ? "full" : "selective";
+            var modelName = request.ModelOverride ?? request.Config.DefaultModel;
+            var cost = CostEstimator.Estimate(
+                modelName,
+                bundle.TokenUsage.InputTokens,
+                bundle.TokenUsage.OutputTokens);
 
             return GenerationResult.Ok(
                 message:
-                $"Phase 5 {mode} ({scopeLabel}) complete for '{analysis.RepoName}' using {source}: " +
+                $"{mode} ({scopeLabel}) complete for '{analysis.RepoName}' using {source}: " +
                 $"{analysis.Stats.TotalFiles} files analyzed, {bundle.Modules.Count} modules, " +
                 $"{filesWritten.Count} wiki files written.",
                 outputPath: request.OutputPath,
@@ -185,7 +191,8 @@ public sealed class SemanticWikiGenerator(
                 analysis: analysis,
                 inputTokens: bundle.TokenUsage.InputTokens,
                 outputTokens: bundle.TokenUsage.OutputTokens,
-                changeDetection: changes);
+                changeDetection: changes,
+                costEstimate: cost);
         }
         catch (OperationCanceledException)
         {
@@ -291,7 +298,7 @@ public sealed class SemanticWikiGenerator(
         {
             tool = AgentWikiConstants.ToolName,
             version = AgentWikiConstants.Version,
-            phase = 5,
+            phase = 6,
             mode = request.Incremental ? "update" : "generate",
             generatedAtUtc = DateTimeOffset.UtcNow,
             correlationId = request.CorrelationId,

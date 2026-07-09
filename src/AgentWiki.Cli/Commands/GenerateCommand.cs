@@ -84,8 +84,12 @@ public sealed class GenerateCommand(
         table.AddRow("Output", Markup.Escape(result.OutputPath ?? "—"));
         table.AddRow("Files written", result.FilesWritten.Count.ToString());
         table.AddRow("Duration", result.Duration.TotalSeconds.ToString("F2") + "s");
-        table.AddRow("Input tokens", result.InputTokens.ToString());
-        table.AddRow("Output tokens", result.OutputTokens.ToString());
+        table.AddRow("Input tokens", result.InputTokens.ToString("N0"));
+        table.AddRow("Output tokens", result.OutputTokens.ToString("N0"));
+        if (result.CostEstimate is { } cost && (result.InputTokens > 0 || result.OutputTokens > 0))
+        {
+            table.AddRow("Est. cost (USD)", $"~{cost.EstimatedUsd:F4} ({Markup.Escape(cost.Model)})");
+        }
 
         if (result.Analysis is { } analysis)
         {

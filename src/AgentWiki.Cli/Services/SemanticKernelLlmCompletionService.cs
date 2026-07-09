@@ -1,18 +1,29 @@
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Models;
+using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Polly;
 
 namespace AgentWiki.Cli.Services;
 
 /// <summary>
-/// Semantic Kernel-backed chat completion for Azure OpenAI and OpenAI-compatible endpoints.
+/// Semantic Kernel-backed chat completion for Azure OpenAI and OpenAI-compatible endpoints,
+/// with Polly retries for transient failures.
 /// </summary>
-public sealed class SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlmCompletionService> logger)
-    : ILlmCompletionService
+public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
 {
+    private readonly ILogger<SemanticKernelLlmCompletionService> _logger;
+    private readonly ResiliencePipeline _pipeline;
+
+    public SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlmCompletionService> logger)
+    {
+        _logger = logger;
+        _pipeline = LlmResilience.CreatePipeline(logger);
+    }
+
     /// <inheritdoc />
     public bool CanUseLiveLlm(AgentWikiConfig config, string? providerOverride = null)
     {
@@ -45,43 +56,45 @@ public sealed class SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlm
                 ? config.OpenAI.Model ?? config.DefaultModel
                 : config.AzureOpenAI.DeploymentName ?? config.DefaultModel);
 
-        logger.LogInformation("Invoking LLM provider={Provider} model={Model}", provider, model);
+        _logger.LogInformation("Invoking LLM provider={Provider} model={Model}", provider, model);
 
-        var kernel = BuildKernel(config, provider, model);
-        var chat = kernel.GetRequiredService<IChatCompletionService>();
-
-        var history = new ChatHistory();
-        history.AddSystemMessage(systemPrompt);
-        history.AddUserMessage(userPrompt);
-
-        var settings = new OpenAIPromptExecutionSettings
+        return await _pipeline.ExecuteAsync(async ct =>
         {
-            Temperature = 0.2,
-            // Encourage JSON-only responses for structured architecture generation.
-            ResponseFormat = "json_object"
-        };
+            var kernel = BuildKernel(config, provider, model);
+            var chat = kernel.GetRequiredService<IChatCompletionService>();
 
-        var message = await chat
-            .GetChatMessageContentAsync(history, settings, kernel, cancellationToken)
-            .ConfigureAwait(false);
+            var history = new ChatHistory();
+            history.AddSystemMessage(systemPrompt);
+            history.AddUserMessage(userPrompt);
 
-        var content = message.Content ?? string.Empty;
-        var usage = TryReadUsage(message);
+            var settings = new OpenAIPromptExecutionSettings
+            {
+                Temperature = 0.2,
+                ResponseFormat = "json_object"
+            };
 
-        logger.LogInformation(
-            "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output}",
-            provider,
-            model,
-            usage?.InputTokens ?? 0,
-            usage?.OutputTokens ?? 0);
+            var message = await chat
+                .GetChatMessageContentAsync(history, settings, kernel, ct)
+                .ConfigureAwait(false);
 
-        return new LlmCompletionResult
-        {
-            Content = content,
-            TokenUsage = usage,
-            Provider = provider,
-            Model = model ?? ""
-        };
+            var content = message.Content ?? string.Empty;
+            var usage = TryReadUsage(message);
+
+            _logger.LogInformation(
+                "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output}",
+                provider,
+                model,
+                usage?.InputTokens ?? 0,
+                usage?.OutputTokens ?? 0);
+
+            return new LlmCompletionResult
+            {
+                Content = content,
+                TokenUsage = usage,
+                Provider = provider,
+                Model = model ?? ""
+            };
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     private static Kernel BuildKernel(AgentWikiConfig config, string provider, string? model)
@@ -124,7 +137,6 @@ public sealed class SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlm
             }
             default:
             {
-                // azure-openai (default)
                 var endpoint = config.AzureOpenAI.Endpoint
                     ?? throw new InvalidOperationException("AzureOpenAI:Endpoint is not configured.");
                 var deployment = model
@@ -134,20 +146,22 @@ public sealed class SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlm
 
                 if (config.AzureOpenAI.UseManagedIdentity)
                 {
-                    // Token credential path — uses DefaultAzureCredential when Azure.Identity is available.
-                    // For v1 we require an API key unless managed identity packages are wired in Phase 6.
-                    throw new InvalidOperationException(
-                        "UseManagedIdentity is configured, but managed identity support requires Azure.Identity " +
-                        "(planned for Phase 6). Provide AzureOpenAI:ApiKey for now, or set UseManagedIdentity=false.");
+                    builder.AddAzureOpenAIChatCompletion(
+                        deploymentName: deployment,
+                        endpoint: endpoint,
+                        credentials: new DefaultAzureCredential());
+                }
+                else
+                {
+                    var apiKey = config.AzureOpenAI.ApiKey
+                        ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured.");
+
+                    builder.AddAzureOpenAIChatCompletion(
+                        deploymentName: deployment,
+                        endpoint: endpoint,
+                        apiKey: apiKey);
                 }
 
-                var apiKey = config.AzureOpenAI.ApiKey
-                    ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured.");
-
-                builder.AddAzureOpenAIChatCompletion(
-                    deploymentName: deployment,
-                    endpoint: endpoint,
-                    apiKey: apiKey);
                 break;
             }
         }
@@ -176,7 +190,6 @@ public sealed class SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlm
 
     private static TokenUsage? TryReadUsage(ChatMessageContent message)
     {
-        // Metadata keys vary by connector version; best-effort extraction.
         if (message.Metadata is null)
         {
             return null;

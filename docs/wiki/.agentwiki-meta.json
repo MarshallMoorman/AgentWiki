@@ -1,10 +1,10 @@
 {
   "tool": "agent-wiki",
-  "version": "0.5.0",
-  "phase": 5,
-  "mode": "update",
-  "generatedAtUtc": "2026-07-09T21:30:19.775111+00:00",
-  "correlationId": "4d172c33cdb0477ab957b10ca40d2d64",
+  "version": "1.0.0",
+  "phase": 6,
+  "mode": "generate",
+  "generatedAtUtc": "2026-07-09T21:34:09.738571+00:00",
+  "correlationId": "c8bab3f5fb2948208042affb16485772",
   "repoPath": "/Users/mmoorman/dev/ea/agent-wiki",
   "model": "gpt-4o",
   "provider": "azure-openai",
@@ -29,38 +29,19 @@
     "error-handling",
     "testing"
   ],
-  "totalFiles": 81,
-  "selectedFiles": 81,
-  "totalLines": 8943,
+  "totalFiles": 89,
+  "selectedFiles": 89,
+  "totalLines": 9728,
   "inputTokens": 0,
   "outputTokens": 0,
   "usedOfflineFallback": true,
   "languages": [
     "C#",
     "Markdown",
-    "JSON"
+    "JSON",
+    "YAML"
   ],
-  "changeDetection": {
-    "hasBaseline": true,
-    "requiresFullRegeneration": false,
-    "noChanges": false,
-    "baselineCommitSha": "be45da852514f1fb2a7345c47028c511b0ed01ce",
-    "currentCommitSha": "be45da852514f1fb2a7345c47028c511b0ed01ce",
-    "changedFileCount": 20,
-    "architectureAffected": true,
-    "affectedModules": [
-      "agentwiki-cli",
-      "agentwiki-core",
-      "agentwiki-cli-tests"
-    ],
-    "affectedCrossCutting": [
-      "configuration",
-      "error-handling",
-      "testing"
-    ],
-    "reason": "Detected 20 changed file(s) since be45da8.",
-    "detectionMethod": "git"
-  },
+  "changeDetection": null,
   "filesWritten": [
     "index.md",
     "architecture.md",
@@ -73,6 +54,7 @@
     "modules/agentwiki-core.md",
     "modules/agentwiki-cli-tests.md",
     "cross-cutting/configuration.md",
+    "cross-cutting/logging-and-telemetry.md",
     "cross-cutting/error-handling.md",
     "cross-cutting/testing.md"
   ]

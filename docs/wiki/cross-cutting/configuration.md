@@ -14,9 +14,11 @@ Configuration files and project settings discovered in the inventory.
 ## Key files
 
 - `.editorconfig`
+- `.github/workflows/agent-wiki-update.yml`
 - `.gitignore`
 - `AgentWiki.slnx`
 - `Directory.Build.props`
+- `examples/agentwiki.config.json`
 - `src/AgentWiki.Cli/AgentWiki.Cli.csproj`
 - `src/AgentWiki.Cli/appsettings.json`
 - `src/AgentWiki.Core/AgentWiki.Core.csproj`

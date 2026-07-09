@@ -1,0 +1,30 @@
+{
+  "outputPath": "docs/wiki",
+  "defaultModel": "gpt-4o",
+  "provider": "azure-openai",
+  "agentMdPath": "AGENTS.md",
+  "maxFilesToAnalyze": 500,
+  "enableIncrementalUpdates": true,
+  "ignorePatterns": [
+    "**/bin/**",
+    "**/obj/**",
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/packages/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/docs/wiki/**",
+    "**/.agentwiki/**"
+  ],
+  "azureOpenAI": {
+    "endpoint": "https://YOUR_RESOURCE.openai.azure.com/",
+    "deploymentName": "gpt-4o",
+    "apiKey": "",
+    "useManagedIdentity": false
+  },
+  "openAI": {
+    "endpoint": "",
+    "apiKey": "",
+    "model": "gpt-4o"
+  }
+}

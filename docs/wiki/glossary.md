@@ -13,4 +13,5 @@
 | C# | Detected language in repository inventory |
 | Markdown | Detected language in repository inventory |
 | JSON | Detected language in repository inventory |
+| YAML | Detected language in repository inventory |
 

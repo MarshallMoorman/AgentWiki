@@ -17,8 +17,8 @@ public class CommandSettingsBase : CommandSettings
     [Description("Optional path to an AgentWiki config JSON file")]
     public string? ConfigPath { get; init; }
 
-    [CommandOption("-v|--verbose")]
-    [Description("Enable verbose logging")]
+    [CommandOption("--verbose")]
+    [Description("Enable verbose (debug) logging to console and file")]
     [DefaultValue(false)]
     public bool Verbose { get; init; }
 }
