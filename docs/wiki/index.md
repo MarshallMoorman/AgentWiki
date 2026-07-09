@@ -1,13 +1,12 @@
 # agent-wiki — AgentWiki
 
-> **AI-generated documentation** optimized for coding agents.
-> Inventory stats below are real (Phase 2). Narrative sections remain placeholders until Phase 3.
+> **Agent-optimized documentation.** Architecture is generated via offline inventory heuristics.
 
 ## Navigation
 
 | Page | Description |
 |------|-------------|
-| [Architecture](architecture.md) | High-level system design |
+| [Architecture](architecture.md) | Structured system design (Phase 3) |
 | [Key Components](key-components.md) | Inventory-backed file map |
 | [Repository Inventory](inventory.md) | Full analysis summary |
 | [Getting Started for Agents](getting-started.md) | How agents should use this wiki |
@@ -15,19 +14,18 @@
 ## Quick facts
 
 - **Repository:** `agent-wiki`
-- **Generated at (UTC):** 2026-07-09T21:12:27.2732800+00:00
+- **Generated at (UTC):** 2026-07-09T21:19:15.5184220+00:00
 - **Mode:** full generate
-- **Discovery method:** `FileSystemWalk`
-- **Files (after ignores):** 43
-- **Selected for analysis:** 43
-- **Approx. lines:** 4,291
+- **Architecture source:** offline inventory heuristics
+- **Discovery method:** `Git`
+- **Files (after ignores):** 59
+- **Selected for analysis:** 59
+- **Approx. lines:** 5,874
 - **Languages:** C#, Markdown, JSON
-- **Model (configured):** `gpt-4o`
-- **Provider (configured):** `azure-openai`
-- **Correlation ID:** `bced1a9388f447e58b525dba908a643a`
+- **Correlation ID:** `389eeb1d78674650b47628f023c9e25f`
 
 ## How to use this wiki
 
-1. Read this index and [architecture.md](architecture.md) first.
-2. Use [key-components.md](key-components.md) and [inventory.md](inventory.md) to locate real paths.
-3. Prefer facts from the wiki over guessing — but always verify against source.
+1. Start with [architecture.md](architecture.md).
+2. Use [key-components.md](key-components.md) / [inventory.md](inventory.md) for real paths.
+3. Verify AI-generated guidance against source before large changes.

@@ -57,7 +57,7 @@ public sealed class GenerateCommand(
         GenerationResult result = default!;
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Dots)
-            .StartAsync("Analyzing repository and generating wiki…", async _ =>
+            .StartAsync("Analyzing repository and generating architecture…", async _ =>
             {
                 result = await wikiGenerator.GenerateAsync(request).ConfigureAwait(false);
             })

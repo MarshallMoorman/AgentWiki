@@ -1,0 +1,30 @@
+Analyze the repository inventory below and produce a structured architecture overview for coding agents.
+
+Repository: {{RepoName}}
+Provider/Model context: {{Provider}} / {{Model}}
+
+Repository summary:
+{{RepoSummary}}
+
+Respond with a single JSON object only (no markdown fences, no commentary) matching this schema:
+{
+  "title": "string",
+  "summary": "string — 2-4 sentences",
+  "systemContext": "string — how the system fits together",
+  "layers": [
+    { "name": "string", "responsibility": "string", "keyPaths": ["path/"] }
+  ],
+  "keyComponents": [
+    { "name": "string", "path": "optional/path", "purpose": "string" }
+  ],
+  "dataFlows": ["string steps"],
+  "decisions": ["string architectural decisions"],
+  "gotchas": ["string warnings for agents"],
+  "howToExtend": ["string guidance"],
+  "mermaidDiagram": "optional mermaid flowchart body without fences"
+}
+
+Requirements:
+- Use only paths that appear in the inventory when citing files/folders.
+- Prefer agent-actionable guidance over marketing language.
+- Keep mermaidDiagram simple (flowchart TB or LR).

@@ -42,7 +42,9 @@ public sealed class GenerationResult
         IReadOnlyList<string> filesWritten,
         TimeSpan duration,
         IReadOnlyList<string>? warnings = null,
-        RepoAnalysisResult? analysis = null) =>
+        RepoAnalysisResult? analysis = null,
+        int inputTokens = 0,
+        int outputTokens = 0) =>
         new()
         {
             Success = true,
@@ -51,7 +53,9 @@ public sealed class GenerationResult
             FilesWritten = filesWritten,
             Duration = duration,
             Warnings = warnings ?? [],
-            Analysis = analysis
+            Analysis = analysis,
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens
         };
 
     /// <summary>Creates a failed result.</summary>

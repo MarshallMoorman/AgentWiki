@@ -2,7 +2,7 @@
 
 **AgentWiki** (`agent-wiki`) is a native .NET 10 CLI that generates and maintains **agent-optimized documentation wikis** for codebases — a Microsoft/.NET alternative to LangChain OpenWiki.
 
-> **Status:** Phase 2 complete — repository analysis with `.gitignore` support, inventory stats, and inventory-backed placeholder wiki.
+> **Status:** Phase 3 complete — Semantic Kernel integration, structured architecture JSON, live LLM or offline fallback.
 
 ## Quick start
 
@@ -75,7 +75,7 @@ AgentWiki/
 |-------|--------|--------|
 | 1 | Foundation + CLI skeleton | ✅ |
 | 2 | RepoAnalyzer + gitignore | ✅ |
-| 3 | Semantic Kernel + basic generation | ⏳ |
+| 3 | Semantic Kernel + basic generation | ✅ |
 | 4 | Multi-step orchestrator + AGENTS.md | ⏳ |
 | 5 | Incremental updates | ⏳ |
 | 6 | Polish, CI, docs, tests | ⏳ |
