@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AgentWiki.Cli/AgentWiki.Cli.csproj" />
+    <Project Path="src/AgentWiki.Core/AgentWiki.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj" />
+  </Folder>
+</Solution>
