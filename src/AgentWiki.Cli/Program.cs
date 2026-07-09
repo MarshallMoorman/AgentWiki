@@ -83,6 +83,8 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<IPromptManager, PromptManager>();
     services.AddSingleton<ILlmCompletionService, SemanticKernelLlmCompletionService>();
     services.AddSingleton<IArchitectureGenerator, ArchitectureGenerator>();
+    services.AddSingleton<IWikiGenerationOrchestrator, WikiGenerationOrchestrator>();
+    services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
     services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
     // Spectre resolves command types from the container.

@@ -169,6 +169,17 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             Include: system context, major layers, key dependencies, and how to navigate the code.
             """);
 
+        yield return ("ModulePlanPrompt.txt",
+            """
+            Identify the major modules / bounded contexts in this repository for an agent-optimized wiki.
+
+            Repository: {{RepoName}}
+            Summary:
+            {{RepoSummary}}
+
+            Return JSON with a modules array (id, name, summary, rootPaths, relatedFiles). Max 8 modules.
+            """);
+
         yield return ("ModuleAnalysisPrompt.txt",
             """
             Document the module "{{ModuleName}}" for AI coding agents.
@@ -177,6 +188,16 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             {{RelatedFiles}}
 
             Cover: purpose, public entry points, dependencies, extension points, and gotchas.
+            """);
+
+        yield return ("CrossCuttingPrompt.txt",
+            """
+            Identify cross-cutting concerns for {{RepoName}} (configuration, logging, errors, testing).
+
+            Summary:
+            {{RepoSummary}}
+
+            Return JSON items with id, title, summary, patterns, keyFiles, guidance.
             """);
 
         yield return ("CrossLinkValidationPrompt.txt",

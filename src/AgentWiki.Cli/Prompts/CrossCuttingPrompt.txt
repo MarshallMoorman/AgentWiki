@@ -1,0 +1,21 @@
+Identify cross-cutting concerns for repository {{RepoName}} and document them for coding agents.
+
+Repository summary:
+{{RepoSummary}}
+
+Respond with a single JSON object only (no markdown fences):
+{
+  "items": [
+    {
+      "id": "kebab-case-id",
+      "title": "Human Title",
+      "summary": "string",
+      "patterns": ["string"],
+      "keyFiles": ["paths from inventory"],
+      "guidance": ["actionable agent guidance"]
+    }
+  ]
+}
+
+Include topics such as configuration, logging/telemetry, error handling, and testing when relevant.
+Use only real file paths from the inventory when listing keyFiles.

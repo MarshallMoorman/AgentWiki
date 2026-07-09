@@ -1,5 +1,6 @@
 using AgentWiki.Cli.Services;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -9,14 +10,15 @@ namespace AgentWiki.Cli.Tests.Services;
 public sealed class SemanticWikiGeneratorTests
 {
     [Fact]
-    public async Task GenerateAsync_WritesArchitectureFromGenerator()
+    public async Task GenerateAsync_WritesModulesAndBootstrapsAgentsMd()
     {
         var root = CreateTempDir();
         var output = Path.Combine(root, "docs", "wiki");
         try
         {
-            Directory.CreateDirectory(Path.Combine(root, "src"));
-            await File.WriteAllTextAsync(Path.Combine(root, "src", "Program.cs"), "Console.WriteLine();\n");
+            Directory.CreateDirectory(Path.Combine(root, "src", "App"));
+            await File.WriteAllTextAsync(Path.Combine(root, "src", "App", "App.csproj"), "<Project />\n");
+            await File.WriteAllTextAsync(Path.Combine(root, "src", "App", "Program.cs"), "Console.WriteLine();\n");
 
             var analyzer = new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance);
             var arch = new Mock<IArchitectureGenerator>();
@@ -26,47 +28,44 @@ public sealed class SemanticWikiGeneratorTests
                     It.IsAny<string?>(),
                     It.IsAny<string?>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((RepoAnalysisResult analysis, AgentWikiConfig _, string? _, string? _, CancellationToken _) =>
-                    new ArchitectureDocument
-                    {
-                        Title = "Mock Architecture",
-                        Summary = $"Architecture for {analysis.RepoName}",
-                        SystemContext = "Mocked system context.",
-                        Layers =
-                        [
-                            new ArchitectureLayer
-                            {
-                                Name = "src",
-                                Responsibility = "Source",
-                                KeyPaths = ["src/"]
-                            }
-                        ],
-                        UsedOfflineFallback = false,
-                        TokenUsage = new TokenUsage { InputTokens = 5, OutputTokens = 7 }
-                    });
+                .ReturnsAsync((RepoAnalysisResult a, AgentWikiConfig _, string? _, string? _, CancellationToken _) =>
+                    OfflineArchitectureGenerator.Generate(a));
+
+            var llm = new Mock<ILlmCompletionService>();
+            llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>())).Returns(false);
+
+            var orchestrator = new WikiGenerationOrchestrator(
+                arch.Object,
+                llm.Object,
+                new PromptManager(NullLogger<PromptManager>.Instance),
+                NullLogger<WikiGenerationOrchestrator>.Instance);
 
             var writer = new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance);
+            var bootstrapper = new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance);
             var sut = new SemanticWikiGenerator(
                 analyzer,
-                arch.Object,
+                orchestrator,
                 writer,
+                bootstrapper,
                 NullLogger<SemanticWikiGenerator>.Instance);
 
             var result = await sut.GenerateAsync(new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig(),
+                Config = new AgentWikiConfig { OutputPath = "docs/wiki", AgentMdPath = "AGENTS.md" },
                 RepoPath = root,
                 OutputPath = output,
                 Force = true
             });
 
             result.Success.ShouldBeTrue(result.Error);
-            result.InputTokens.ShouldBe(5);
-            result.OutputTokens.ShouldBe(7);
+            File.Exists(Path.Combine(output, "index.md")).ShouldBeTrue();
             File.Exists(Path.Combine(output, "architecture.md")).ShouldBeTrue();
-            var architecture = await File.ReadAllTextAsync(Path.Combine(output, "architecture.md"));
-            architecture.ShouldContain("Mock Architecture");
-            architecture.ShouldContain("Mocked system context");
+            Directory.Exists(Path.Combine(output, "modules")).ShouldBeTrue();
+            Directory.Exists(Path.Combine(output, "cross-cutting")).ShouldBeTrue();
+            File.Exists(Path.Combine(root, "AGENTS.md")).ShouldBeTrue();
+
+            var agents = await File.ReadAllTextAsync(Path.Combine(root, "AGENTS.md"));
+            agents.ShouldContain("docs/wiki/index.md");
         }
         finally
         {

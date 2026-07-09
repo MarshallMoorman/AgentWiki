@@ -1,20 +1,40 @@
 {
   "tool": "agent-wiki",
-  "version": "0.3.0",
-  "phase": 3,
+  "version": "0.4.0",
+  "phase": 4,
   "mode": "generate",
-  "generatedAtUtc": "2026-07-09T21:19:15.518422+00:00",
-  "correlationId": "389eeb1d78674650b47628f023c9e25f",
+  "generatedAtUtc": "2026-07-09T21:25:35.922479+00:00",
+  "correlationId": "4b8f03fdb1b140cbbe0fdc7a001f93ea",
   "repoPath": "/Users/mmoorman/dev/ea/agent-wiki",
   "model": "gpt-4o",
   "provider": "azure-openai",
   "discoveryMethod": "Git",
   "architectureSource": "offline",
-  "totalFiles": 59,
-  "selectedFiles": 59,
-  "totalLines": 5874,
+  "steps": [
+    "architecture",
+    "module-plan",
+    "modules:3",
+    "cross-cutting:4",
+    "cross-link-validation",
+    "index-and-support-pages"
+  ],
+  "modules": [
+    "agentwiki-cli",
+    "agentwiki-core",
+    "agentwiki-cli-tests"
+  ],
+  "crossCutting": [
+    "configuration",
+    "logging-and-telemetry",
+    "error-handling",
+    "testing"
+  ],
+  "totalFiles": 74,
+  "selectedFiles": 74,
+  "totalLines": 7742,
   "inputTokens": 0,
   "outputTokens": 0,
+  "usedOfflineFallback": true,
   "languages": [
     "C#",
     "Markdown",
@@ -24,7 +44,16 @@
     "index.md",
     "architecture.md",
     "key-components.md",
+    "data-flows.md",
     "inventory.md",
-    "getting-started.md"
+    "glossary.md",
+    "getting-started.md",
+    "modules/agentwiki-cli.md",
+    "modules/agentwiki-core.md",
+    "modules/agentwiki-cli-tests.md",
+    "cross-cutting/configuration.md",
+    "cross-cutting/logging-and-telemetry.md",
+    "cross-cutting/error-handling.md",
+    "cross-cutting/testing.md"
   ]
 }

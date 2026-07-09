@@ -1,0 +1,25 @@
+Identify the major modules / bounded contexts in this repository for an agent-optimized wiki.
+
+Repository: {{RepoName}}
+
+Repository summary:
+{{RepoSummary}}
+
+Respond with a single JSON object only (no markdown fences) matching:
+{
+  "modules": [
+    {
+      "id": "kebab-case-id",
+      "name": "Human Name",
+      "summary": "1-2 sentence purpose",
+      "rootPaths": ["src/SomeProject/"],
+      "relatedFiles": ["optional/paths/from/inventory"]
+    }
+  ]
+}
+
+Rules:
+- Prefer real project folders / .csproj areas from the inventory.
+- Limit to the most important modules (max 8).
+- Do not invent paths that are not present in the inventory.
+- Use stable kebab-case ids.

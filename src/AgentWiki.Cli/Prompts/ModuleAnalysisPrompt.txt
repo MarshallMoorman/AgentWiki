@@ -1,0 +1,22 @@
+Document the module "{{ModuleName}}" (id: {{ModuleId}}) for AI coding agents.
+
+Repository: {{RepoName}}
+Module summary: {{ModuleSummary}}
+
+Related files:
+{{RelatedFiles}}
+
+Respond with a single JSON object only (no markdown fences):
+{
+  "id": "{{ModuleId}}",
+  "title": "string",
+  "purpose": "string",
+  "entryPoints": ["path or symbol"],
+  "dependencies": ["module or package"],
+  "keyTypes": ["type or file names"],
+  "howToExtend": ["actionable guidance"],
+  "gotchas": ["warnings"],
+  "relatedFiles": ["paths"]
+}
+
+Focus on what an agent needs to change this module safely. Reference real paths only.

@@ -4,11 +4,11 @@
 
 ## Summary
 
-agent-wiki is a C#, Markdown, JSON codebase with 59 tracked files (~5,874 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
+agent-wiki is a C#, Markdown, JSON codebase with 74 tracked files (~7,742 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
 
 ## System context
 
-Primary languages: C#, Markdown, JSON. Category mix — Source: 37, Tests: 11, Config: 7, Docs: 4.
+Primary languages: C#, Markdown, JSON. Category mix — Source: 45, Tests: 13, Config: 7, Docs: 9.
 
 ## Diagram
 
@@ -35,6 +35,7 @@ flowchart TB
 - **UpdateCommand.cs** (`src/AgentWiki.Cli/Commands/UpdateCommand.cs`): Source file (C#)
 - **TypeRegistrar.cs** (`src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs`): Source file (C#)
 - **Program.cs** (`src/AgentWiki.Cli/Program.cs`): Source file (C#)
+- **AgentBootstrapper.cs** (`src/AgentWiki.Cli/Services/AgentBootstrapper.cs`): Source file (C#)
 - **ArchitectureGenerator.cs** (`src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`): Source file (C#)
 - **ConfigLoader.cs** (`src/AgentWiki.Cli/Services/ConfigLoader.cs`): Source file (C#)
 - **InitService.cs** (`src/AgentWiki.Cli/Services/InitService.cs`): Source file (C#)
@@ -42,7 +43,6 @@ flowchart TB
 - **PlaceholderWikiGenerator.cs** (`src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs`): Source file (C#)
 - **PromptManager.cs** (`src/AgentWiki.Cli/Services/PromptManager.cs`): Source file (C#)
 - **RepoAnalyzer.cs** (`src/AgentWiki.Cli/Services/RepoAnalyzer.cs`): Source file (C#)
-- **SemanticKernelLlmCompletionService.cs** (`src/AgentWiki.Cli/Services/SemanticKernelLlmCompletionService.cs`): Source file (C#)
 
 ## Important flows
 

@@ -1,0 +1,17 @@
+Review the following wiki page inventory and suggest link/navigation fixes.
+
+Repository: {{RepoName}}
+Pages:
+{{WikiPages}}
+
+Respond with JSON only:
+{
+  "issues": [
+    { "page": "path.md", "problem": "string", "suggestion": "string" }
+  ],
+  "indexAdditions": [
+    { "title": "string", "path": "relative.md", "description": "string" }
+  ]
+}
+
+Only suggest links to pages that exist in the provided list.

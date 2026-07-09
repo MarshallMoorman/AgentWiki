@@ -1,31 +1,49 @@
 # agent-wiki — AgentWiki
 
-> **Agent-optimized documentation.** Architecture is generated via offline inventory heuristics.
+> **Agent-optimized documentation** (offline multi-step generation). Review before relying on it.
 
 ## Navigation
 
 | Page | Description |
 |------|-------------|
-| [Architecture](architecture.md) | Structured system design (Phase 3) |
-| [Key Components](key-components.md) | Inventory-backed file map |
-| [Repository Inventory](inventory.md) | Full analysis summary |
-| [Getting Started for Agents](getting-started.md) | How agents should use this wiki |
+| [Architecture](architecture.md) | System design, layers, decisions |
+| [Key Components](key-components.md) | Component map |
+| [Data Flows](data-flows.md) | Important request/process flows |
+| [Repository Inventory](inventory.md) | File inventory summary |
+| [Glossary](glossary.md) | Terms and abbreviations |
+| [Getting Started](getting-started.md) | Agent usage guide |
+
+### Modules
+
+| Module | Purpose |
+|--------|---------|
+| [AgentWiki.Cli](modules/agentwiki-cli.md) | Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`. |
+| [AgentWiki.Core](modules/agentwiki-core.md) | Project module defined by `src/AgentWiki.Core/AgentWiki.Core.csproj`. |
+| [AgentWiki.Cli.Tests](modules/agentwiki-cli-tests.md) | Project module defined by `tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj`. |
+
+### Cross-cutting
+
+| Topic | Summary |
+|-------|---------|
+| [Configuration](cross-cutting/configuration.md) | Configuration files and project settings discovered in the inventory. |
+| [Logging and Telemetry](cross-cutting/logging-and-telemetry.md) | Logging/telemetry-related files and conventions inferred from inventory. No strongly matching files… |
+| [Error Handling](cross-cutting/error-handling.md) | Error-handling patterns inferred from naming and result types in the inventory. |
+| [Testing](cross-cutting/testing.md) | Test projects and files discovered during analysis. |
 
 ## Quick facts
 
 - **Repository:** `agent-wiki`
-- **Generated at (UTC):** 2026-07-09T21:19:15.5184220+00:00
-- **Mode:** full generate
-- **Architecture source:** offline inventory heuristics
-- **Discovery method:** `Git`
-- **Files (after ignores):** 59
-- **Selected for analysis:** 59
-- **Approx. lines:** 5,874
-- **Languages:** C#, Markdown, JSON
-- **Correlation ID:** `389eeb1d78674650b47628f023c9e25f`
+- **Generated at (UTC):** 2026-07-09T21:25:35.9131160+00:00
+- **Files (after ignores):** 74
+- **Selected for analysis:** 74
+- **Approx. lines:** 7,742
+- **Modules documented:** 3
+- **Architecture source:** offline
+- **Correlation ID:** `4b8f03fdb1b140cbbe0fdc7a001f93ea`
 
 ## How to use this wiki
 
-1. Start with [architecture.md](architecture.md).
-2. Use [key-components.md](key-components.md) / [inventory.md](inventory.md) for real paths.
-3. Verify AI-generated guidance against source before large changes.
+1. Read [architecture.md](architecture.md) first.
+2. Drill into relevant [modules](modules/) and [cross-cutting](cross-cutting/) pages.
+3. Use [inventory.md](inventory.md) for concrete paths.
+4. Verify AI-generated guidance against source before large changes.
