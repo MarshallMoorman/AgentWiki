@@ -18,6 +18,7 @@ _None listed._
 
 - IAgentBootstrapper
 - IArchitectureGenerator
+- IChangeDetector
 - IConfigLoader
 - IInitService
 - ILlmCompletionService
@@ -30,7 +31,6 @@ _None listed._
 - FileCategorizer
 - GitIgnoreMatcher
 - RepoSummaryBuilder
-- AgentWikiConstants
 
 ## How to extend
 
@@ -47,6 +47,7 @@ _None listed._
 
 - `src/AgentWiki.Core/Abstractions/IAgentBootstrapper.cs`
 - `src/AgentWiki.Core/Abstractions/IArchitectureGenerator.cs`
+- `src/AgentWiki.Core/Abstractions/IChangeDetector.cs`
 - `src/AgentWiki.Core/Abstractions/IConfigLoader.cs`
 - `src/AgentWiki.Core/Abstractions/IInitService.cs`
 - `src/AgentWiki.Core/Abstractions/ILlmCompletionService.cs`
@@ -68,8 +69,7 @@ _None listed._
 - `src/AgentWiki.Core/Models/AgentWikiConfig.cs`
 - `src/AgentWiki.Core/Models/ArchitectureDocument.cs`
 - `src/AgentWiki.Core/Models/GenerationResult.cs`
-- `src/AgentWiki.Core/Models/RepoAnalysisResult.cs`
-- `src/AgentWiki.Core/Models/RepoFile.cs`
+- `src/AgentWiki.Core/Models/LastRunState.cs`
 
 ## Navigation
 

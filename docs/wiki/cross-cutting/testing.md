@@ -20,7 +20,9 @@ Test projects and files discovered during analysis.
 - `tests/AgentWiki.Cli.Tests/Services/AgentBootstrapperTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/ArchitectureGeneratorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/ConfigLoaderTests.cs`
+- `tests/AgentWiki.Cli.Tests/Services/GitChangeDetectorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/InitServiceTests.cs`
+- `tests/AgentWiki.Cli.Tests/Services/LastRunStoreTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/PlaceholderWikiGeneratorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/PromptManagerTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/RepoAnalyzerTests.cs`

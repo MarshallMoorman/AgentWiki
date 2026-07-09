@@ -33,9 +33,9 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - AgentBootstrapper
 - ArchitectureGenerator
 - ConfigLoader
+- GitChangeDetector
+- GitProcess
 - InitService
-- MarkdownOutputWriter
-- PlaceholderWikiGenerator
 
 ## How to extend
 
@@ -68,13 +68,13 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - `src/AgentWiki.Cli/Services/AgentBootstrapper.cs`
 - `src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`
 - `src/AgentWiki.Cli/Services/ConfigLoader.cs`
+- `src/AgentWiki.Cli/Services/GitChangeDetector.cs`
+- `src/AgentWiki.Cli/Services/GitProcess.cs`
 - `src/AgentWiki.Cli/Services/InitService.cs`
+- `src/AgentWiki.Cli/Services/LastRunStore.cs`
 - `src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`
 - `src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs`
 - `src/AgentWiki.Cli/Services/PromptManager.cs`
-- `src/AgentWiki.Cli/Services/RepoAnalyzer.cs`
-- `src/AgentWiki.Cli/Services/SemanticKernelLlmCompletionService.cs`
-- `src/AgentWiki.Cli/Services/SemanticWikiGenerator.cs`
 
 ## Navigation
 

@@ -33,13 +33,13 @@
 ## Quick facts
 
 - **Repository:** `agent-wiki`
-- **Generated at (UTC):** 2026-07-09T21:25:35.9131160+00:00
-- **Files (after ignores):** 74
-- **Selected for analysis:** 74
-- **Approx. lines:** 7,742
+- **Generated at (UTC):** 2026-07-09T21:30:19.7648120+00:00
+- **Files (after ignores):** 81
+- **Selected for analysis:** 81
+- **Approx. lines:** 8,943
 - **Modules documented:** 3
 - **Architecture source:** offline
-- **Correlation ID:** `4b8f03fdb1b140cbbe0fdc7a001f93ea`
+- **Correlation ID:** `4d172c33cdb0477ab957b10ca40d2d64`
 
 ## How to use this wiki
 

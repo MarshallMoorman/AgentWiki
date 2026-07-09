@@ -23,6 +23,12 @@ public sealed class WikiGenerationRequest
     /// <summary>When true, only regenerate sections impacted by recent changes.</summary>
     public bool Incremental { get; init; }
 
+    /// <summary>Optional precomputed change detection (set by the generator in update mode).</summary>
+    public ChangeDetectionResult? ChangeDetection { get; init; }
+
+    /// <summary>Optional selective regeneration scope.</summary>
+    public IncrementalScope? Scope { get; init; }
+
     /// <summary>Optional model override from the CLI.</summary>
     public string? ModelOverride { get; init; }
 

@@ -14,11 +14,11 @@
 - **AgentBootstrapper.cs** (`src/AgentWiki.Cli/Services/AgentBootstrapper.cs`): Source file (C#)
 - **ArchitectureGenerator.cs** (`src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`): Source file (C#)
 - **ConfigLoader.cs** (`src/AgentWiki.Cli/Services/ConfigLoader.cs`): Source file (C#)
+- **GitChangeDetector.cs** (`src/AgentWiki.Cli/Services/GitChangeDetector.cs`): Source file (C#)
+- **GitProcess.cs** (`src/AgentWiki.Cli/Services/GitProcess.cs`): Source file (C#)
 - **InitService.cs** (`src/AgentWiki.Cli/Services/InitService.cs`): Source file (C#)
+- **LastRunStore.cs** (`src/AgentWiki.Cli/Services/LastRunStore.cs`): Source file (C#)
 - **MarkdownOutputWriter.cs** (`src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`): Source file (C#)
-- **PlaceholderWikiGenerator.cs** (`src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs`): Source file (C#)
-- **PromptManager.cs** (`src/AgentWiki.Cli/Services/PromptManager.cs`): Source file (C#)
-- **RepoAnalyzer.cs** (`src/AgentWiki.Cli/Services/RepoAnalyzer.cs`): Source file (C#)
 
 ## Modules
 
@@ -30,7 +30,7 @@
 
 | Language | Files |
 |----------|------:|
-| C# | 57 |
+| C# | 64 |
 | Markdown | 3 |
 | JSON | 1 |
 

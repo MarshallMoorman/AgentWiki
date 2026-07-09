@@ -41,7 +41,8 @@ public sealed class WikiGenerationOrchestratorTests
                 Config = new AgentWikiConfig(),
                 RepoPath = analysis.RepoPath,
                 OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
-            });
+            },
+            scope: IncrementalScope.Full());
 
         bundle.Modules.Count.ShouldBeGreaterThan(0);
         bundle.CrossCutting.Count.ShouldBeGreaterThan(0);

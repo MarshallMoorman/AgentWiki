@@ -7,31 +7,31 @@
 Path: /Users/mmoorman/dev/ea/agent-wiki
 
 ## Inventory summary
-- Total files (after ignores): 74
-- Selected for analysis: 74
-- Total size: 271.9 KB
-- Approximate lines (text files): 7,742
+- Total files (after ignores): 81
+- Selected for analysis: 81
+- Total size: 315.0 KB
+- Approximate lines (text files): 8,943
 
 ## Files by category
-- SourceCode: 45
+- SourceCode: 50
 - Documentation: 9
 - Configuration: 7
-- Tests: 13
+- Tests: 15
 - Diagrams: 0
 - Other: 0
 
 ## Detected languages
-- C#: 57 file(s)
+- C#: 64 file(s)
 - Markdown: 3 file(s)
 - JSON: 1 file(s)
 
 ## Top folders
-- `src/` — 54 files (205.4 KB)
-- `tests/` — 13 files (41.3 KB)
+- `src/` — 59 files (241.0 KB)
+- `tests/` — 15 files (48.8 KB)
 - `(root)/` — 7 files (25.2 KB)
 
 ## Top extensions
-- .cs: 57
+- .cs: 64
 - .txt: 6
 - .md: 3
 - .csproj: 3
@@ -52,12 +52,12 @@ Path: /Users/mmoorman/dev/ea/agent-wiki
 - `src/AgentWiki.Cli/AgentWiki.Cli.csproj` [Configuration, ~49 lines]
 - `src/AgentWiki.Cli/appsettings.json` [Configuration, ~30 lines]
 - `src/AgentWiki.Cli/Commands/CommandSettingsBase.cs` [SourceCode, ~52 lines]
-- `src/AgentWiki.Cli/Commands/GenerateCommand.cs` [SourceCode, ~138 lines]
+- `src/AgentWiki.Cli/Commands/GenerateCommand.cs` [SourceCode, ~164 lines]
 - `src/AgentWiki.Cli/Commands/InitCommand.cs` [SourceCode, ~61 lines]
 - `src/AgentWiki.Cli/Commands/StatusCommand.cs` [SourceCode, ~201 lines]
-- `src/AgentWiki.Cli/Commands/UpdateCommand.cs` [SourceCode, ~61 lines]
+- `src/AgentWiki.Cli/Commands/UpdateCommand.cs` [SourceCode, ~59 lines]
 - `src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs` [SourceCode, ~44 lines]
-- `src/AgentWiki.Cli/Program.cs` [SourceCode, ~95 lines]
+- `src/AgentWiki.Cli/Program.cs` [SourceCode, ~98 lines]
 - `src/AgentWiki.Cli/Prompts/ArchitectureOverviewPrompt.txt` [Documentation, ~30 lines]
 - `src/AgentWiki.Cli/Prompts/CrossCuttingPrompt.txt` [Documentation, ~21 lines]
 - `src/AgentWiki.Cli/Prompts/CrossLinkValidationPrompt.txt` [Documentation, ~17 lines]
@@ -67,29 +67,33 @@ Path: /Users/mmoorman/dev/ea/agent-wiki
 - `src/AgentWiki.Cli/Services/AgentBootstrapper.cs` [SourceCode, ~150 lines]
 - `src/AgentWiki.Cli/Services/ArchitectureGenerator.cs` [SourceCode, ~151 lines]
 - `src/AgentWiki.Cli/Services/ConfigLoader.cs` [SourceCode, ~201 lines]
+- `src/AgentWiki.Cli/Services/GitChangeDetector.cs` [SourceCode, ~438 lines]
+- `src/AgentWiki.Cli/Services/GitProcess.cs` [SourceCode, ~73 lines]
 - `src/AgentWiki.Cli/Services/InitService.cs` [SourceCode, ~216 lines]
+- `src/AgentWiki.Cli/Services/LastRunStore.cs` [SourceCode, ~59 lines]
 - `src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs` [SourceCode, ~72 lines]
 - `src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs` [SourceCode, ~380 lines]
 - `src/AgentWiki.Cli/Services/PromptManager.cs` [SourceCode, ~104 lines]
 - `src/AgentWiki.Cli/Services/RepoAnalyzer.cs` [SourceCode, ~410 lines]
 - `src/AgentWiki.Cli/Services/SemanticKernelLlmCompletionService.cs` [SourceCode, ~221 lines]
-- `src/AgentWiki.Cli/Services/SemanticWikiGenerator.cs` [SourceCode, ~173 lines]
-- `src/AgentWiki.Cli/Services/WikiGenerationOrchestrator.cs` [SourceCode, ~715 lines]
+- `src/AgentWiki.Cli/Services/SemanticWikiGenerator.cs` [SourceCode, ~339 lines]
+- `src/AgentWiki.Cli/Services/WikiGenerationOrchestrator.cs` [SourceCode, ~770 lines]
 - `src/AgentWiki.Core/Abstractions/IAgentBootstrapper.cs` [SourceCode, ~42 lines]
 - `src/AgentWiki.Core/Abstractions/IArchitectureGenerator.cs` [SourceCode, ~19 lines]
+- `src/AgentWiki.Core/Abstractions/IChangeDetector.cs` [SourceCode, ~29 lines]
 - `src/AgentWiki.Core/Abstractions/IConfigLoader.cs` [SourceCode, ~32 lines]
 - `src/AgentWiki.Core/Abstractions/IInitService.cs` [SourceCode, ~34 lines]
 - `src/AgentWiki.Core/Abstractions/ILlmCompletionService.cs` [SourceCode, ~34 lines]
 - `src/AgentWiki.Core/Abstractions/IOutputWriter.cs` [SourceCode, ~19 lines]
 - `src/AgentWiki.Core/Abstractions/IPromptManager.cs` [SourceCode, ~18 lines]
 - `src/AgentWiki.Core/Abstractions/IRepoAnalyzer.cs` [SourceCode, ~17 lines]
-- `src/AgentWiki.Core/Abstractions/IWikiGenerationOrchestrator.cs` [SourceCode, ~17 lines]
+- `src/AgentWiki.Core/Abstractions/IWikiGenerationOrchestrator.cs` [SourceCode, ~20 lines]
 - `src/AgentWiki.Core/Abstractions/IWikiGenerator.cs` [SourceCode, ~17 lines]
 - `src/AgentWiki.Core/AgentWiki.Core.csproj` [Configuration, ~10 lines]
 - `src/AgentWiki.Core/Analysis/FileCategorizer.cs` [SourceCode, ~184 lines]
 - `src/AgentWiki.Core/Analysis/GitIgnoreMatcher.cs` [SourceCode, ~299 lines]
 - `src/AgentWiki.Core/Analysis/RepoSummaryBuilder.cs` [SourceCode, ~95 lines]
-- `src/AgentWiki.Core/Constants/AgentWikiConstants.cs` [SourceCode, ~28 lines]
+- `src/AgentWiki.Core/Constants/AgentWikiConstants.cs` [SourceCode, ~29 lines]
 - `src/AgentWiki.Core/Generation/ArchitectureMarkdownRenderer.cs` [SourceCode, ~149 lines]
 - `src/AgentWiki.Core/Generation/ModuleMarkdownRenderer.cs` [SourceCode, ~200 lines]
 - `src/AgentWiki.Core/Generation/OfflineArchitectureGenerator.cs` [SourceCode, ~140 lines]
@@ -97,11 +101,12 @@ Path: /Users/mmoorman/dev/ea/agent-wiki
 - `src/AgentWiki.Core/Generation/TokenUsageMath.cs` [SourceCode, ~27 lines]
 - `src/AgentWiki.Core/Models/AgentWikiConfig.cs` [SourceCode, ~78 lines]
 - `src/AgentWiki.Core/Models/ArchitectureDocument.cs` [SourceCode, ~82 lines]
-- `src/AgentWiki.Core/Models/GenerationResult.cs` [SourceCode, ~70 lines]
+- `src/AgentWiki.Core/Models/GenerationResult.cs` [SourceCode, ~75 lines]
+- `src/AgentWiki.Core/Models/LastRunState.cs` [SourceCode, ~89 lines]
 - `src/AgentWiki.Core/Models/RepoAnalysisResult.cs` [SourceCode, ~43 lines]
 - `src/AgentWiki.Core/Models/RepoFile.cs` [SourceCode, ~35 lines]
 - `src/AgentWiki.Core/Models/WikiBundle.cs` [SourceCode, ~130 lines]
-- `src/AgentWiki.Core/Models/WikiGenerationRequest.cs` [SourceCode, ~34 lines]
+- `src/AgentWiki.Core/Models/WikiGenerationRequest.cs` [SourceCode, ~40 lines]
 - `src/AgentWiki.Core/Models/WikiSection.cs` [SourceCode, ~11 lines]
 - `tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj` [Tests, ~37 lines]
 - `tests/AgentWiki.Cli.Tests/Analysis/FileCategorizerTests.cs` [Tests, ~42 lines]
@@ -110,10 +115,12 @@ Path: /Users/mmoorman/dev/ea/agent-wiki
 - `tests/AgentWiki.Cli.Tests/Services/AgentBootstrapperTests.cs` [Tests, ~148 lines]
 - `tests/AgentWiki.Cli.Tests/Services/ArchitectureGeneratorTests.cs` [Tests, ~192 lines]
 - `tests/AgentWiki.Cli.Tests/Services/ConfigLoaderTests.cs` [Tests, ~106 lines]
+- `tests/AgentWiki.Cli.Tests/Services/GitChangeDetectorTests.cs` [Tests, ~100 lines]
 - `tests/AgentWiki.Cli.Tests/Services/InitServiceTests.cs` [Tests, ~86 lines]
+- `tests/AgentWiki.Cli.Tests/Services/LastRunStoreTests.cs` [Tests, ~81 lines]
 - `tests/AgentWiki.Cli.Tests/Services/PlaceholderWikiGeneratorTests.cs` [Tests, ~68 lines]
 - `tests/AgentWiki.Cli.Tests/Services/PromptManagerTests.cs` [Tests, ~36 lines]
 - `tests/AgentWiki.Cli.Tests/Services/RepoAnalyzerTests.cs` [Tests, ~122 lines]
-- `tests/AgentWiki.Cli.Tests/Services/SemanticWikiGeneratorTests.cs` [Tests, ~97 lines]
-- `tests/AgentWiki.Cli.Tests/Services/WikiGenerationOrchestratorTests.cs` [Tests, ~158 lines]
+- `tests/AgentWiki.Cli.Tests/Services/SemanticWikiGeneratorTests.cs` [Tests, ~165 lines]
+- … and 1 more selected file(s)
 ```

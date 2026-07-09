@@ -20,6 +20,9 @@ public sealed class GenerationResult
     /// <summary>Optional repository analysis snapshot used for this run.</summary>
     public RepoAnalysisResult? Analysis { get; init; }
 
+    /// <summary>Optional change-detection snapshot (incremental update mode).</summary>
+    public ChangeDetectionResult? ChangeDetection { get; init; }
+
     /// <summary>Approximate input tokens consumed (0 until SK integration).</summary>
     public int InputTokens { get; init; }
 
@@ -44,7 +47,8 @@ public sealed class GenerationResult
         IReadOnlyList<string>? warnings = null,
         RepoAnalysisResult? analysis = null,
         int inputTokens = 0,
-        int outputTokens = 0) =>
+        int outputTokens = 0,
+        ChangeDetectionResult? changeDetection = null) =>
         new()
         {
             Success = true,
@@ -55,7 +59,8 @@ public sealed class GenerationResult
             Warnings = warnings ?? [],
             Analysis = analysis,
             InputTokens = inputTokens,
-            OutputTokens = outputTokens
+            OutputTokens = outputTokens,
+            ChangeDetection = changeDetection
         };
 
     /// <summary>Creates a failed result.</summary>

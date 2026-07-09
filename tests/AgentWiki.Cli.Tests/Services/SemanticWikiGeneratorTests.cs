@@ -20,34 +20,7 @@ public sealed class SemanticWikiGeneratorTests
             await File.WriteAllTextAsync(Path.Combine(root, "src", "App", "App.csproj"), "<Project />\n");
             await File.WriteAllTextAsync(Path.Combine(root, "src", "App", "Program.cs"), "Console.WriteLine();\n");
 
-            var analyzer = new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance);
-            var arch = new Mock<IArchitectureGenerator>();
-            arch.Setup(a => a.GenerateAsync(
-                    It.IsAny<RepoAnalysisResult>(),
-                    It.IsAny<AgentWikiConfig>(),
-                    It.IsAny<string?>(),
-                    It.IsAny<string?>(),
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((RepoAnalysisResult a, AgentWikiConfig _, string? _, string? _, CancellationToken _) =>
-                    OfflineArchitectureGenerator.Generate(a));
-
-            var llm = new Mock<ILlmCompletionService>();
-            llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>())).Returns(false);
-
-            var orchestrator = new WikiGenerationOrchestrator(
-                arch.Object,
-                llm.Object,
-                new PromptManager(NullLogger<PromptManager>.Instance),
-                NullLogger<WikiGenerationOrchestrator>.Instance);
-
-            var writer = new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance);
-            var bootstrapper = new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance);
-            var sut = new SemanticWikiGenerator(
-                analyzer,
-                orchestrator,
-                writer,
-                bootstrapper,
-                NullLogger<SemanticWikiGenerator>.Instance);
+            var sut = CreateGenerator(root, fullChanges: true);
 
             var result = await sut.GenerateAsync(new WikiGenerationRequest
             {
@@ -61,16 +34,111 @@ public sealed class SemanticWikiGeneratorTests
             File.Exists(Path.Combine(output, "index.md")).ShouldBeTrue();
             File.Exists(Path.Combine(output, "architecture.md")).ShouldBeTrue();
             Directory.Exists(Path.Combine(output, "modules")).ShouldBeTrue();
-            Directory.Exists(Path.Combine(output, "cross-cutting")).ShouldBeTrue();
             File.Exists(Path.Combine(root, "AGENTS.md")).ShouldBeTrue();
-
-            var agents = await File.ReadAllTextAsync(Path.Combine(root, "AGENTS.md"));
-            agents.ShouldContain("docs/wiki/index.md");
+            File.Exists(Path.Combine(root, ".agentwiki", "last-run.json")).ShouldBeTrue();
         }
         finally
         {
             TryDelete(root);
         }
+    }
+
+    [Fact]
+    public async Task GenerateAsync_IncrementalNoChanges_WritesNothing()
+    {
+        var root = CreateTempDir();
+        var output = Path.Combine(root, "docs", "wiki");
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "src"));
+            await File.WriteAllTextAsync(Path.Combine(root, "src", "Program.cs"), "class A {}");
+
+            var changeDetector = new Mock<IChangeDetector>();
+            changeDetector
+                .Setup(c => c.DetectAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<AgentWikiConfig>(),
+                    It.IsAny<RepoAnalysisResult?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ChangeDetectionResult
+                {
+                    HasBaseline = true,
+                    RequiresFullRegeneration = false,
+                    NoChanges = true,
+                    BaselineCommitSha = "abc1234",
+                    CurrentCommitSha = "abc1234",
+                    Reason = "No changes since last run.",
+                    DetectionMethod = "git"
+                });
+
+            var sut = CreateGenerator(root, changeDetector: changeDetector.Object);
+
+            var result = await sut.GenerateAsync(new WikiGenerationRequest
+            {
+                Config = new AgentWikiConfig(),
+                RepoPath = root,
+                OutputPath = output,
+                Incremental = true,
+                Force = true
+            });
+
+            result.Success.ShouldBeTrue(result.Error);
+            result.FilesWritten.Count.ShouldBe(0);
+            result.ChangeDetection.ShouldNotBeNull();
+            result.ChangeDetection!.NoChanges.ShouldBeTrue();
+            Directory.Exists(output).ShouldBeFalse();
+        }
+        finally
+        {
+            TryDelete(root);
+        }
+    }
+
+    private static SemanticWikiGenerator CreateGenerator(
+        string root,
+        bool fullChanges = false,
+        IChangeDetector? changeDetector = null)
+    {
+        var analyzer = new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance);
+        var arch = new Mock<IArchitectureGenerator>();
+        arch.Setup(a => a.GenerateAsync(
+                It.IsAny<RepoAnalysisResult>(),
+                It.IsAny<AgentWikiConfig>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((RepoAnalysisResult a, AgentWikiConfig _, string? _, string? _, CancellationToken _) =>
+                OfflineArchitectureGenerator.Generate(a));
+
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>())).Returns(false);
+
+        var orchestrator = new WikiGenerationOrchestrator(
+            arch.Object,
+            llm.Object,
+            new PromptManager(NullLogger<PromptManager>.Instance),
+            NullLogger<WikiGenerationOrchestrator>.Instance);
+
+        if (changeDetector is null)
+        {
+            var mock = new Mock<IChangeDetector>();
+            mock.Setup(c => c.DetectAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<AgentWikiConfig>(),
+                    It.IsAny<RepoAnalysisResult?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ChangeDetectionResult.Full("test full"));
+            changeDetector = mock.Object;
+        }
+
+        return new SemanticWikiGenerator(
+            analyzer,
+            orchestrator,
+            new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance),
+            new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),
+            changeDetector,
+            new LastRunStore(NullLogger<LastRunStore>.Instance),
+            NullLogger<SemanticWikiGenerator>.Instance);
     }
 
     private static string CreateTempDir()

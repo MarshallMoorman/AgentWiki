@@ -45,9 +45,10 @@ try
             .WithExample("generate", "--model", "gpt-4o", "--dry-run");
 
         config.AddCommand<UpdateCommand>("update")
-            .WithDescription("Incrementally update the wiki based on recent changes (Phase 5: git-aware)")
+            .WithDescription("Incrementally update the wiki from git changes since last run")
             .WithExample("update")
-            .WithExample("update", "--repo-path", ".", "--output", "docs/wiki");
+            .WithExample("update", "--repo-path", ".", "--output", "docs/wiki")
+            .WithExample("update", "--dry-run");
 
         config.AddCommand<StatusCommand>("status")
             .WithDescription("Show current configuration and wiki status")
@@ -85,6 +86,8 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<IArchitectureGenerator, ArchitectureGenerator>();
     services.AddSingleton<IWikiGenerationOrchestrator, WikiGenerationOrchestrator>();
     services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
+    services.AddSingleton<ILastRunStore, LastRunStore>();
+    services.AddSingleton<IChangeDetector, GitChangeDetector>();
     services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
     // Spectre resolves command types from the container.

@@ -30,47 +30,76 @@ public sealed class WikiGenerationOrchestrator(
     public async Task<WikiBundle> GenerateAsync(
         RepoAnalysisResult analysis,
         WikiGenerationRequest request,
+        IncrementalScope? scope = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(analysis);
         ArgumentNullException.ThrowIfNull(request);
 
+        scope ??= request.Scope ?? IncrementalScope.Full();
         var steps = new List<string>();
         var warnings = new List<string>(analysis.Warnings);
         var usages = new List<TokenUsage?>();
         var anyOffline = false;
 
         logger.LogInformation(
-            "Orchestrator starting for {Repo} (correlationId={CorrelationId})",
+            "Orchestrator starting for {Repo} (correlationId={CorrelationId}, full={Full})",
             analysis.RepoName,
-            request.CorrelationId);
+            request.CorrelationId,
+            scope.IsFull);
 
-        // Step 1: Architecture
-        var architecture = await architectureGenerator
-            .GenerateAsync(
-                analysis,
-                request.Config,
-                request.ModelOverride,
-                request.ProviderOverride,
-                cancellationToken)
-            .ConfigureAwait(false);
-        steps.Add("architecture");
+        // Step 1: Architecture (selective LLM)
+        ArchitectureDocument architecture;
+        if (scope.IsFull || scope.Architecture)
+        {
+            architecture = await architectureGenerator
+                .GenerateAsync(
+                    analysis,
+                    request.Config,
+                    request.ModelOverride,
+                    request.ProviderOverride,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            steps.Add("architecture");
+        }
+        else
+        {
+            architecture = OfflineArchitectureGenerator.Generate(analysis);
+            steps.Add("architecture:skipped-llm");
+            warnings.Add("Architecture left on offline snapshot (not in incremental change scope).");
+        }
+
         usages.Add(architecture.TokenUsage);
         anyOffline |= architecture.UsedOfflineFallback;
 
-        // Step 2: Module plan
-        var modulePlan = await PlanModulesAsync(analysis, request, cancellationToken).ConfigureAwait(false);
+        // Step 2: Module plan (always — needed for navigation coherence)
+        var modulePlan = await PlanModulesAsync(analysis, request, scope, cancellationToken).ConfigureAwait(false);
         steps.Add("module-plan");
         usages.Add(modulePlan.TokenUsage);
         anyOffline |= modulePlan.UsedOfflineFallback;
 
-        // Step 3: Module details
+        // Step 3: Module details (selective LLM)
         var modules = new List<ModuleDocument>();
         foreach (var descriptor in modulePlan.Modules.Take(MaxModulesForLlm))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var module = await GenerateModuleAsync(descriptor, analysis, request, cancellationToken)
-                .ConfigureAwait(false);
+            var regenerate =
+                scope.IsFull
+                || scope.AllModules
+                || scope.ModuleIds.Contains(descriptor.Id);
+
+            ModuleDocument module;
+            if (regenerate)
+            {
+                module = await GenerateModuleAsync(descriptor, analysis, request, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                module = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis);
+                module.Gotchas.Insert(0, "Module not in incremental change scope; refreshed from inventory only.");
+            }
+
             modules.Add(module);
             usages.Add(module.TokenUsage);
             anyOffline |= module.UsedOfflineFallback;
@@ -78,8 +107,8 @@ public sealed class WikiGenerationOrchestrator(
 
         steps.Add($"modules:{modules.Count}");
 
-        // Step 4: Cross-cutting concerns
-        var crossCutting = await GenerateCrossCuttingAsync(analysis, request, cancellationToken)
+        // Step 4: Cross-cutting concerns (selective LLM enrichment)
+        var crossCutting = await GenerateCrossCuttingAsync(analysis, request, scope, cancellationToken)
             .ConfigureAwait(false);
         steps.Add($"cross-cutting:{crossCutting.Count}");
         foreach (var item in crossCutting)
@@ -134,9 +163,11 @@ public sealed class WikiGenerationOrchestrator(
     private async Task<ModulePlan> PlanModulesAsync(
         RepoAnalysisResult analysis,
         WikiGenerationRequest request,
+        IncrementalScope scope,
         CancellationToken cancellationToken)
     {
-        if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+        // Module inventory structure is cheap offline; only spend LLM tokens on full runs.
+        if (!scope.IsFull || !llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
         {
             return OfflineModulePlanner.Plan(analysis);
         }
@@ -231,12 +262,15 @@ public sealed class WikiGenerationOrchestrator(
     private async Task<IReadOnlyList<CrossCuttingDocument>> GenerateCrossCuttingAsync(
         RepoAnalysisResult analysis,
         WikiGenerationRequest request,
+        IncrementalScope scope,
         CancellationToken cancellationToken)
     {
-        // Offline heuristics are solid; use LLM only to enrich when available.
+        // Offline heuristics are solid; use LLM only to enrich when available and in scope.
         var offline = OfflineModulePlanner.BuildCrossCutting(analysis).ToList();
+        var allowLlm = (scope.IsFull || scope.AllCrossCutting || scope.CrossCuttingIds.Count > 0)
+                       && llm.CanUseLiveLlm(request.Config, request.ProviderOverride);
 
-        if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+        if (!allowLlm)
         {
             return offline;
         }
@@ -263,6 +297,27 @@ public sealed class WikiGenerationOrchestrator(
             var parsed = ParseCrossCuttingList(completion.Content);
             if (parsed.Count == 0)
             {
+                return offline;
+            }
+
+            // On selective runs, keep LLM pages only for affected ids; others stay offline.
+            if (!scope.IsFull && !scope.AllCrossCutting)
+            {
+                var byId = parsed.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
+                foreach (var item in offline)
+                {
+                    if (scope.CrossCuttingIds.Contains(item.Id) && byId.TryGetValue(item.Id, out var live))
+                    {
+                        live.UsedOfflineFallback = false;
+                        live.TokenUsage = completion.TokenUsage;
+                        var index = offline.FindIndex(x => x.Id.Equals(item.Id, StringComparison.OrdinalIgnoreCase));
+                        if (index >= 0)
+                        {
+                            offline[index] = live;
+                        }
+                    }
+                }
+
                 return offline;
             }
 

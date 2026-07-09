@@ -100,7 +100,30 @@ public sealed class GenerateCommand(
                     : Markup.Escape(string.Join(", ", analysis.Stats.DetectedLanguages.Take(8))));
         }
 
+        if (result.ChangeDetection is { } changes)
+        {
+            table.AddRow("Change detection", Markup.Escape(changes.DetectionMethod));
+            table.AddRow("Baseline SHA", Markup.Escape(ShortSha(changes.BaselineCommitSha)));
+            table.AddRow("Current SHA", Markup.Escape(ShortSha(changes.CurrentCommitSha)));
+            table.AddRow("Changed files", changes.ChangedFiles.Count.ToString());
+            table.AddRow("No changes", changes.NoChanges ? "yes" : "no");
+            table.AddRow("Full regen", changes.RequiresFullRegeneration ? "yes" : "no");
+        }
+
         AnsiConsole.Write(table);
+
+        if (result.ChangeDetection is { ChangedFiles: { Count: > 0 } files })
+        {
+            var display = files.Count <= 20 ? files : files.Take(20).ToList();
+            AnsiConsole.MarkupLine(
+                files.Count <= 20
+                    ? "[bold]Changed files:[/]"
+                    : $"[bold]Changed files:[/] {files.Count} (showing first 20)");
+            foreach (var file in display)
+            {
+                AnsiConsole.MarkupLine($"  • {Markup.Escape(file)}");
+            }
+        }
 
         if (result.Analysis is { Stats.FilesByCategory: var byCategory })
         {
@@ -135,4 +158,7 @@ public sealed class GenerateCommand(
 
         return 0;
     }
+
+    private static string ShortSha(string? sha) =>
+        string.IsNullOrWhiteSpace(sha) ? "—" : sha.Length <= 7 ? sha : sha[..7];
 }

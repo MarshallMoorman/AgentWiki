@@ -6,8 +6,7 @@ using Spectre.Console.Cli;
 namespace AgentWiki.Cli.Commands;
 
 /// <summary>
-/// Incremental wiki update (Phase 1: same as generate with incremental flag set).
-/// Full git-based change detection arrives in Phase 5.
+/// Incremental wiki update using git change detection and selective regeneration.
 /// </summary>
 public sealed class UpdateCommand(
     IConfigLoader configLoader,
@@ -17,7 +16,6 @@ public sealed class UpdateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, GenerationSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — incremental update");
-        AnsiConsole.MarkupLine("[grey]Phase 1 note: update currently rewrites the placeholder wiki. Git change detection is Phase 5.[/]");
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
@@ -40,7 +38,7 @@ public sealed class UpdateCommand(
             Config = config,
             RepoPath = repoPath,
             OutputPath = outputPath,
-            Force = true, // update is non-interactive by default (CI-friendly)
+            Force = true, // CI-friendly; non-interactive
             DryRun = settings.DryRun,
             Incremental = true,
             ModelOverride = settings.Model,
@@ -50,7 +48,7 @@ public sealed class UpdateCommand(
         GenerationResult result = default!;
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Dots)
-            .StartAsync("Updating wiki (Phase 1 placeholder)…", async _ =>
+            .StartAsync("Detecting changes and updating wiki…", async _ =>
             {
                 result = await wikiGenerator.GenerateAsync(request).ConfigureAwait(false);
             })
