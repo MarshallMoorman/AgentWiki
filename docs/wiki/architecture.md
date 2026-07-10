@@ -1,14 +1,14 @@
 # agent-wiki Architecture Overview
 
-> **Offline / inventory-derived architecture** (no LLM credentials configured). Review before relying on it.
+> Architecture derived from the current repository inventory (no live LLM for this page).
 
 ## Summary
 
-agent-wiki is a C#, Markdown, JSON, YAML codebase with 89 tracked files (~9,728 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
+agent-wiki is a C#, Markdown, Shell, JSON, YAML codebase with 102 tracked files (~11,506 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
 
 ## System context
 
-Primary languages: C#, Markdown, JSON, YAML. Category mix — Source: 52, Tests: 17, Config: 9, Docs: 11.
+Primary languages: C#, Markdown, Shell, JSON, YAML. Category mix — Source: 59, Tests: 21, Config: 9, Docs: 13.
 
 ## Diagram
 
@@ -17,8 +17,10 @@ flowchart TB
     Root[agent-wiki]
     Root --> N0[src]
     Root --> N1[tests]
-    Root --> N2[.github]
-    Root --> N3[examples]
+    Root --> N2[.grok]
+    Root --> N3[.github]
+    Root --> N4[docs]
+    Root --> N5[examples]
 ```
 
 ## Layers
@@ -27,26 +29,29 @@ flowchart TB
 |-------|----------------|-----------|
 | src | Primary application and library source | `src/` |
 | tests | Automated tests | `tests/` |
+| .grok | Project area `.grok` | `.grok/` |
 | .github | GitHub workflows and community files | `.github/` |
+| docs | Human/agent documentation | `docs/` |
 | examples | Sample code | `examples/` |
+| scripts | Automation and tooling scripts | `scripts/` |
 
 ## Key components
 
+- **bump-version.sh** (`.grok/skills/bump-version/scripts/bump-version.sh`): Source file (Shell)
+- **pack-and-install-tool.sh** (`scripts/pack-and-install-tool.sh`): Source file (Shell)
 - **CommandSettingsBase.cs** (`src/AgentWiki.Cli/Commands/CommandSettingsBase.cs`): Source file (C#)
 - **GenerateCommand.cs** (`src/AgentWiki.Cli/Commands/GenerateCommand.cs`): Source file (C#)
 - **InitCommand.cs** (`src/AgentWiki.Cli/Commands/InitCommand.cs`): Source file (C#)
 - **StatusCommand.cs** (`src/AgentWiki.Cli/Commands/StatusCommand.cs`): Source file (C#)
+- **TestProviderCommand.cs** (`src/AgentWiki.Cli/Commands/TestProviderCommand.cs`): Source file (C#)
 - **UpdateCommand.cs** (`src/AgentWiki.Cli/Commands/UpdateCommand.cs`): Source file (C#)
+- **AgentWikiLogging.cs** (`src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`): Source file (C#)
 - **TypeRegistrar.cs** (`src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs`): Source file (C#)
 - **Program.cs** (`src/AgentWiki.Cli/Program.cs`): Source file (C#)
 - **AgentBootstrapper.cs** (`src/AgentWiki.Cli/Services/AgentBootstrapper.cs`): Source file (C#)
 - **ArchitectureGenerator.cs** (`src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`): Source file (C#)
 - **ConfigLoader.cs** (`src/AgentWiki.Cli/Services/ConfigLoader.cs`): Source file (C#)
-- **GitChangeDetector.cs** (`src/AgentWiki.Cli/Services/GitChangeDetector.cs`): Source file (C#)
-- **GitProcess.cs** (`src/AgentWiki.Cli/Services/GitProcess.cs`): Source file (C#)
-- **InitService.cs** (`src/AgentWiki.Cli/Services/InitService.cs`): Source file (C#)
-- **LastRunStore.cs** (`src/AgentWiki.Cli/Services/LastRunStore.cs`): Source file (C#)
-- **LlmResilience.cs** (`src/AgentWiki.Cli/Services/LlmResilience.cs`): Source file (C#)
+- **DotEnvLoader.cs** (`src/AgentWiki.Cli/Services/DotEnvLoader.cs`): Source file (C#)
 
 ## Important flows
 

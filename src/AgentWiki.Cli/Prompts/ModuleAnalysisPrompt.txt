@@ -20,3 +20,5 @@ Respond with a single JSON object only (no markdown fences):
 }
 
 Focus on what an agent needs to change this module safely. Reference real paths only.
+Describe current behavior only. Do not call code deprecated/obsolete/legacy unless the source inventory shows explicit deprecation markers.
+Keep `purpose` as a plain string. Keep `dependencies`, `entryPoints`, `keyTypes`, `howToExtend`, `gotchas`, and `relatedFiles` as arrays of strings (not nested objects).

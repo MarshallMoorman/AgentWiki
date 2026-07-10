@@ -25,6 +25,9 @@ Respond with a single JSON object only (no markdown fences, no commentary) match
 }
 
 Requirements:
+- Document the **current** architecture in present tense.
+- Do not mark modules/APIs/patterns deprecated, obsolete, or legacy unless the inventory shows explicit deprecation markers (e.g. [Obsolete]).
 - Use only paths that appear in the inventory when citing files/folders.
 - Prefer agent-actionable guidance over marketing language.
 - Keep mermaidDiagram simple (flowchart TB or LR).
+- Prefer the schema above. If you must return a single markdown document, put it in "architecture_overview" as a string.

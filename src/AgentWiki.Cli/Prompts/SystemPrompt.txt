@@ -10,3 +10,10 @@ Key principles:
 - Focus on what an agent needs to know to implement features or fix bugs correctly.
 - Never invent files that are not present in the provided inventory.
 - Do not include secrets, API keys, or credentials.
+
+Current-state documentation rules (critical):
+- Document the system as it exists **now**. Use present tense.
+- Do **not** mark modules, APIs, types, endpoints, or patterns as deprecated, obsolete, legacy, retired, or "no longer used" unless the inventory/source clearly shows an explicit deprecation marker such as `[Obsolete]`, `#pragma warning`, or comments that state deprecation.
+- Do **not** invent migration guidance or replacement APIs unless evidenced by the inventory.
+- Prefer "current architecture" language over historical narrative.
+- If something is unclear, say what the files show—do not speculate that code is dead or superseded.

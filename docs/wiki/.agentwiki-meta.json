@@ -1,10 +1,10 @@
 {
   "tool": "agent-wiki",
-  "version": "1.0.0",
+  "version": "1.0.7",
   "phase": 6,
   "mode": "generate",
-  "generatedAtUtc": "2026-07-09T21:34:09.738571+00:00",
-  "correlationId": "c8bab3f5fb2948208042affb16485772",
+  "generatedAtUtc": "2026-07-10T13:48:28.720065+00:00",
+  "correlationId": "6276aeee38b04d57a6fcde36a83b68e0",
   "repoPath": "/Users/mmoorman/dev/ea/agent-wiki",
   "model": "gpt-4o",
   "provider": "azure-openai",
@@ -29,15 +29,16 @@
     "error-handling",
     "testing"
   ],
-  "totalFiles": 89,
-  "selectedFiles": 89,
-  "totalLines": 9728,
+  "totalFiles": 102,
+  "selectedFiles": 102,
+  "totalLines": 11506,
   "inputTokens": 0,
   "outputTokens": 0,
   "usedOfflineFallback": true,
   "languages": [
     "C#",
     "Markdown",
+    "Shell",
     "JSON",
     "YAML"
   ],

@@ -23,6 +23,7 @@
 - `src/AgentWiki.Cli/Commands/GenerateCommand.cs`
 - `src/AgentWiki.Cli/Commands/InitCommand.cs`
 - `src/AgentWiki.Cli/Commands/StatusCommand.cs`
+- `src/AgentWiki.Cli/Commands/TestProviderCommand.cs`
 - `src/AgentWiki.Cli/Commands/UpdateCommand.cs`
 - `src/AgentWiki.Cli/Program.cs`
 

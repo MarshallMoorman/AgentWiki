@@ -1,10 +1,10 @@
 # Logging and Telemetry
 
-> Offline / inventory-derived cross-cutting notes. Verify against source.
+> Cross-cutting notes derived from the current file inventory.
 
 ## Summary
 
-Logging/telemetry-related files and conventions inferred from inventory. No strongly matching files were found; treat this as baseline guidance.
+Logging/telemetry-related files and conventions inferred from inventory.
 
 ## Patterns
 
@@ -13,7 +13,7 @@ Logging/telemetry-related files and conventions inferred from inventory. No stro
 
 ## Key files
 
-_None listed._
+- `src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`
 
 ## Guidance for agents
 

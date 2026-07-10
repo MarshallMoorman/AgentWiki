@@ -1,6 +1,6 @@
 # AgentWiki.Cli.Tests
 
-> Offline / inventory-derived module page. Verify against source.
+> Module map derived from the current file inventory.
 
 ## Purpose
 
@@ -34,18 +34,22 @@ _None listed._
 - `tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj`
 - `tests/AgentWiki.Cli.Tests/Analysis/FileCategorizerTests.cs`
 - `tests/AgentWiki.Cli.Tests/Analysis/GitIgnoreMatcherTests.cs`
+- `tests/AgentWiki.Cli.Tests/Analysis/PromptTextTests.cs`
 - `tests/AgentWiki.Cli.Tests/Generation/ArchitectureMarkdownRendererTests.cs`
 - `tests/AgentWiki.Cli.Tests/Generation/CostEstimatorTests.cs`
+- `tests/AgentWiki.Cli.Tests/Generation/LlmJsonTests.cs`
 - `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/AgentBootstrapperTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/ArchitectureGeneratorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/ConfigLoaderTests.cs`
+- `tests/AgentWiki.Cli.Tests/Services/DotEnvLoaderTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/GitChangeDetectorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/InitServiceTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/LastRunStoreTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/PlaceholderWikiGeneratorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/PromptManagerTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/RepoAnalyzerTests.cs`
+- `tests/AgentWiki.Cli.Tests/Services/SemanticKernelSettingsTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/SemanticWikiGeneratorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/WikiGenerationOrchestratorTests.cs`
 

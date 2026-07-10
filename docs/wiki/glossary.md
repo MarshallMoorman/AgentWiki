@@ -12,6 +12,7 @@
 | AgentWiki.Cli.Tests | Module documented at `modules/agentwiki-cli-tests.md` |
 | C# | Detected language in repository inventory |
 | Markdown | Detected language in repository inventory |
+| Shell | Detected language in repository inventory |
 | JSON | Detected language in repository inventory |
 | YAML | Detected language in repository inventory |
 

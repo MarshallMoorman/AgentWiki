@@ -1,6 +1,6 @@
 # Configuration
 
-> Offline / inventory-derived cross-cutting notes. Verify against source.
+> Cross-cutting notes derived from the current file inventory.
 
 ## Summary
 

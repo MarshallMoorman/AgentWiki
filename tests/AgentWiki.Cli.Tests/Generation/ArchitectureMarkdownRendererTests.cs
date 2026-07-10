@@ -40,6 +40,6 @@ public sealed class ArchitectureMarkdownRendererTests
         md.ShouldContain("Short summary.");
         md.ShouldContain("`src/Cli/`");
         md.ShouldContain("```mermaid");
-        md.ShouldContain("Offline");
+        md.ShouldContain("inventory");
     }
 }

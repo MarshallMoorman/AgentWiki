@@ -1,6 +1,6 @@
 # agent-wiki — AgentWiki
 
-> **Agent-optimized documentation** (offline multi-step generation). Review before relying on it.
+> Agent-optimized documentation generated from the current repository inventory (no live LLM for this run).
 
 ## Navigation
 
@@ -26,24 +26,24 @@
 | Topic | Summary |
 |-------|---------|
 | [Configuration](cross-cutting/configuration.md) | Configuration files and project settings discovered in the inventory. |
-| [Logging and Telemetry](cross-cutting/logging-and-telemetry.md) | Logging/telemetry-related files and conventions inferred from inventory. No strongly matching files… |
+| [Logging and Telemetry](cross-cutting/logging-and-telemetry.md) | Logging/telemetry-related files and conventions inferred from inventory. |
 | [Error Handling](cross-cutting/error-handling.md) | Error-handling patterns inferred from naming and result types in the inventory. |
 | [Testing](cross-cutting/testing.md) | Test projects and files discovered during analysis. |
 
 ## Quick facts
 
 - **Repository:** `agent-wiki`
-- **Generated at (UTC):** 2026-07-09T21:34:09.7245460+00:00
-- **Files (after ignores):** 89
-- **Selected for analysis:** 89
-- **Approx. lines:** 9,728
+- **Generated at (UTC):** 2026-07-10T13:48:28.6747920+00:00
+- **Files (after ignores):** 102
+- **Selected for analysis:** 102
+- **Approx. lines:** 11,506
 - **Modules documented:** 3
-- **Architecture source:** offline
-- **Correlation ID:** `c8bab3f5fb2948208042affb16485772`
+- **Generation mode:** inventory-based
+- **Correlation ID:** `6276aeee38b04d57a6fcde36a83b68e0`
 
 ## How to use this wiki
 
-1. Read [architecture.md](architecture.md) first.
-2. Drill into relevant [modules](modules/) and [cross-cutting](cross-cutting/) pages.
-3. Use [inventory.md](inventory.md) for concrete paths.
-4. Verify AI-generated guidance against source before large changes.
+1. Read [architecture.md](architecture.md) for the current system shape.
+2. Open the relevant page under [modules/](modules/) or [cross-cutting/](cross-cutting/).
+3. Use [inventory.md](inventory.md) when you need exact paths.
+4. Treat this as a map of the live tree; confirm critical details in source when implementing.

@@ -1,6 +1,6 @@
 # AgentWiki.Cli
 
-> Offline / inventory-derived module page. Verify against source.
+> Module map derived from the current file inventory.
 
 ## Purpose
 
@@ -12,6 +12,7 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - `src/AgentWiki.Cli/Commands/GenerateCommand.cs`
 - `src/AgentWiki.Cli/Commands/InitCommand.cs`
 - `src/AgentWiki.Cli/Commands/StatusCommand.cs`
+- `src/AgentWiki.Cli/Commands/TestProviderCommand.cs`
 - `src/AgentWiki.Cli/Commands/UpdateCommand.cs`
 - `src/AgentWiki.Cli/Program.cs`
 
@@ -27,15 +28,15 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - GenerateCommand
 - InitCommand
 - StatusCommand
+- TestProviderCommand
 - UpdateCommand
+- AgentWikiLogging
 - TypeRegistrar
 - Program
 - AgentBootstrapper
 - ArchitectureGenerator
 - ConfigLoader
-- GitChangeDetector
-- GitProcess
-- InitService
+- DotEnvLoader
 
 ## How to extend
 
@@ -56,7 +57,9 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - `src/AgentWiki.Cli/Commands/GenerateCommand.cs`
 - `src/AgentWiki.Cli/Commands/InitCommand.cs`
 - `src/AgentWiki.Cli/Commands/StatusCommand.cs`
+- `src/AgentWiki.Cli/Commands/TestProviderCommand.cs`
 - `src/AgentWiki.Cli/Commands/UpdateCommand.cs`
+- `src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`
 - `src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs`
 - `src/AgentWiki.Cli/Program.cs`
 - `src/AgentWiki.Cli/Prompts/ArchitectureOverviewPrompt.txt`
@@ -68,13 +71,11 @@ Project module defined by `src/AgentWiki.Cli/AgentWiki.Cli.csproj`.
 - `src/AgentWiki.Cli/Services/AgentBootstrapper.cs`
 - `src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`
 - `src/AgentWiki.Cli/Services/ConfigLoader.cs`
+- `src/AgentWiki.Cli/Services/DotEnvLoader.cs`
 - `src/AgentWiki.Cli/Services/GitChangeDetector.cs`
 - `src/AgentWiki.Cli/Services/GitProcess.cs`
 - `src/AgentWiki.Cli/Services/InitService.cs`
 - `src/AgentWiki.Cli/Services/LastRunStore.cs`
-- `src/AgentWiki.Cli/Services/LlmResilience.cs`
-- `src/AgentWiki.Cli/Services/MarkdownOutputWriter.cs`
-- `src/AgentWiki.Cli/Services/PlaceholderWikiGenerator.cs`
 
 ## Navigation
 

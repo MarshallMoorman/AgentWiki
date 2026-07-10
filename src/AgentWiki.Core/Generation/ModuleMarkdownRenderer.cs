@@ -15,12 +15,12 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
         if (doc.UsedOfflineFallback)
         {
-            sb.AppendLine("> Offline / inventory-derived module page. Verify against source.");
+            sb.AppendLine("> Module map derived from the current file inventory.");
             sb.AppendLine();
         }
         else
         {
-            sb.AppendLine("> AI-generated module documentation optimized for coding agents.");
+            sb.AppendLine("> Current module documentation for coding agents (AI-assisted).");
             sb.AppendLine();
         }
 
@@ -52,7 +52,12 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
         if (doc.UsedOfflineFallback)
         {
-            sb.AppendLine("> Offline / inventory-derived cross-cutting notes. Verify against source.");
+            sb.AppendLine("> Cross-cutting notes derived from the current file inventory.");
+            sb.AppendLine();
+        }
+        else
+        {
+            sb.AppendLine("> Current cross-cutting documentation (AI-assisted).");
             sb.AppendLine();
         }
 
@@ -88,8 +93,8 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine($"# {repoName} — AgentWiki");
         sb.AppendLine();
         sb.AppendLine(offline
-            ? "> **Agent-optimized documentation** (offline multi-step generation). Review before relying on it."
-            : "> **Agent-optimized documentation** generated via multi-step Semantic Kernel pipeline.");
+            ? "> Agent-optimized documentation generated from the current repository inventory (no live LLM for this run)."
+            : "> Agent-optimized documentation for the **current** codebase.");
         sb.AppendLine();
 
         sb.AppendLine("## Navigation");
@@ -112,7 +117,7 @@ public static class ModuleMarkdownRenderer
             sb.AppendLine("|--------|---------|");
             foreach (var module in modules)
             {
-                var purpose = Truncate(module.Purpose, 100);
+                var purpose = TruncateAtWord(module.Purpose, 120);
                 sb.AppendLine($"| [{Escape(module.Title)}]({module.RelativePath}) | {Escape(purpose)} |");
             }
 
@@ -127,7 +132,7 @@ public static class ModuleMarkdownRenderer
             sb.AppendLine("|-------|---------|");
             foreach (var item in crossCutting)
             {
-                sb.AppendLine($"| [{Escape(item.Title)}]({item.RelativePath}) | {Escape(Truncate(item.Summary, 100))} |");
+                sb.AppendLine($"| [{Escape(item.Title)}]({item.RelativePath}) | {Escape(TruncateAtWord(item.Summary, 120))} |");
             }
 
             sb.AppendLine();
@@ -141,16 +146,16 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine($"- **Selected for analysis:** {stats.SelectedFiles}");
         sb.AppendLine($"- **Approx. lines:** {stats.TotalLines:N0}");
         sb.AppendLine($"- **Modules documented:** {modules.Count}");
-        sb.AppendLine($"- **Architecture source:** {(architecture.UsedOfflineFallback ? "offline" : "LLM")}");
+        sb.AppendLine($"- **Generation mode:** {(architecture.UsedOfflineFallback ? "inventory-based" : "LLM-assisted")}");
         sb.AppendLine($"- **Correlation ID:** `{correlationId}`");
         sb.AppendLine();
 
         sb.AppendLine("## How to use this wiki");
         sb.AppendLine();
-        sb.AppendLine("1. Read [architecture.md](architecture.md) first.");
-        sb.AppendLine("2. Drill into relevant [modules](modules/) and [cross-cutting](cross-cutting/) pages.");
-        sb.AppendLine("3. Use [inventory.md](inventory.md) for concrete paths.");
-        sb.AppendLine("4. Verify AI-generated guidance against source before large changes.");
+        sb.AppendLine("1. Read [architecture.md](architecture.md) for the current system shape.");
+        sb.AppendLine("2. Open the relevant page under [modules/](modules/) or [cross-cutting/](cross-cutting/).");
+        sb.AppendLine("3. Use [inventory.md](inventory.md) when you need exact paths.");
+        sb.AppendLine("4. Treat this as a map of the live tree; confirm critical details in source when implementing.");
         sb.AppendLine();
 
         return sb.ToString().TrimEnd() + "\n";
@@ -193,6 +198,30 @@ public static class ModuleMarkdownRenderer
     {
         var trimmed = value.Replace('\n', ' ').Trim();
         return trimmed.Length <= max ? trimmed : trimmed[..(max - 1)] + "…";
+    }
+
+    /// <summary>Truncates on a word boundary so index tables do not look mid-sentence broken.</summary>
+    private static string TruncateAtWord(string value, int max)
+    {
+        var trimmed = value.Replace('\n', ' ').Replace('\r', ' ').Trim();
+        while (trimmed.Contains("  ", StringComparison.Ordinal))
+        {
+            trimmed = trimmed.Replace("  ", " ", StringComparison.Ordinal);
+        }
+
+        if (trimmed.Length <= max)
+        {
+            return trimmed;
+        }
+
+        var slice = trimmed[..max];
+        var lastSpace = slice.LastIndexOf(' ');
+        if (lastSpace >= max / 2)
+        {
+            slice = slice[..lastSpace];
+        }
+
+        return slice.TrimEnd(',', ';', ':') + "…";
     }
 
     private static string Escape(string value) =>

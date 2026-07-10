@@ -1,6 +1,6 @@
 # AgentWiki.Core
 
-> Offline / inventory-derived module page. Verify against source.
+> Module map derived from the current file inventory.
 
 ## Purpose
 
@@ -30,7 +30,7 @@ _None listed._
 - AgentWiki.Core
 - FileCategorizer
 - GitIgnoreMatcher
-- RepoSummaryBuilder
+- PromptText
 
 ## How to extend
 
@@ -59,17 +59,17 @@ _None listed._
 - `src/AgentWiki.Core/AgentWiki.Core.csproj`
 - `src/AgentWiki.Core/Analysis/FileCategorizer.cs`
 - `src/AgentWiki.Core/Analysis/GitIgnoreMatcher.cs`
+- `src/AgentWiki.Core/Analysis/PromptText.cs`
 - `src/AgentWiki.Core/Analysis/RepoSummaryBuilder.cs`
 - `src/AgentWiki.Core/Constants/AgentWikiConstants.cs`
 - `src/AgentWiki.Core/Generation/ArchitectureMarkdownRenderer.cs`
 - `src/AgentWiki.Core/Generation/CostEstimator.cs`
+- `src/AgentWiki.Core/Generation/LlmJson.cs`
 - `src/AgentWiki.Core/Generation/ModuleMarkdownRenderer.cs`
 - `src/AgentWiki.Core/Generation/OfflineArchitectureGenerator.cs`
 - `src/AgentWiki.Core/Generation/OfflineModulePlanner.cs`
 - `src/AgentWiki.Core/Generation/TokenUsageMath.cs`
 - `src/AgentWiki.Core/Models/AgentWikiConfig.cs`
-- `src/AgentWiki.Core/Models/ArchitectureDocument.cs`
-- `src/AgentWiki.Core/Models/GenerationResult.cs`
 
 ## Navigation
 

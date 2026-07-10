@@ -178,6 +178,7 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             - Highlight important patterns, conventions, and "gotchas".
             - Make cross-references explicit (use relative Markdown links).
             - Focus on what an agent needs to know to implement features or fix bugs correctly.
+            - Document the current system in present tense. Do not mark APIs or modules deprecated/obsolete/legacy unless the source explicitly does.
             """);
 
         yield return ("ArchitectureOverviewPrompt.txt",

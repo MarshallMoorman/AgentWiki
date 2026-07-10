@@ -20,8 +20,8 @@ public static class ArchitectureMarkdownRenderer
             if (includeDisclaimer)
             {
                 sb.AppendLine(doc.UsedOfflineFallback
-                    ? "> **Offline / inventory-derived architecture** (no LLM credentials configured). Review before relying on it."
-                    : "> **AI-generated architecture** optimized for coding agents. Verify against source of truth.");
+                    ? "> Architecture derived from the current repository inventory (no live LLM for this page)."
+                    : "> Architecture documentation for the **current** codebase (AI-assisted).");
                 sb.AppendLine();
             }
 
@@ -42,11 +42,11 @@ public static class ArchitectureMarkdownRenderer
         {
             if (doc.UsedOfflineFallback)
             {
-                sb.AppendLine("> **Offline / inventory-derived architecture** (no LLM credentials configured). Review before relying on it.");
+                sb.AppendLine("> Architecture derived from the current repository inventory (no live LLM for this page).");
             }
             else
             {
-                sb.AppendLine("> **AI-generated architecture** optimized for coding agents. Verify against source of truth.");
+                sb.AppendLine("> Architecture documentation for the **current** codebase (AI-assisted).");
             }
 
             sb.AppendLine();

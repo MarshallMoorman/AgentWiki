@@ -81,7 +81,7 @@ public sealed class LlmJsonTests
 
         var md = ArchitectureMarkdownRenderer.Render(doc, "Elevate-LMS-LoanView");
         md.ShouldContain("ASP.NET Core");
-        md.ShouldContain("AI-generated architecture");
+        md.ShouldContain("current");
     }
 
     [Fact]
