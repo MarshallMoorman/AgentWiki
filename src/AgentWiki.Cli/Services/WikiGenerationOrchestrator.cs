@@ -20,12 +20,7 @@ public sealed class WikiGenerationOrchestrator(
 {
     private const int MaxModulesForLlm = 8;
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = LlmJson.CreateOptions();
 
     /// <inheritdoc />
     public async Task<WikiBundle> GenerateAsync(
@@ -697,57 +692,62 @@ public sealed class WikiGenerationOrchestrator(
     /// <summary>
     /// Extracts a JSON object or array payload from model output (with optional fences).
     /// </summary>
-    public static string ExtractJsonPayload(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            throw new InvalidOperationException("LLM returned empty content.");
-        }
-
-        var text = raw.Trim();
-        if (text.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstNewline = text.IndexOf('\n');
-            if (firstNewline > 0)
-            {
-                text = text[(firstNewline + 1)..];
-            }
-
-            var fence = text.LastIndexOf("```", StringComparison.Ordinal);
-            if (fence >= 0)
-            {
-                text = text[..fence];
-            }
-
-            text = text.Trim();
-        }
-
-        var objStart = text.IndexOf('{');
-        var arrStart = text.IndexOf('[');
-        if (objStart < 0 && arrStart < 0)
-        {
-            throw new InvalidOperationException("LLM response did not contain JSON.");
-        }
-
-        if (arrStart >= 0 && (objStart < 0 || arrStart < objStart))
-        {
-            var end = text.LastIndexOf(']');
-            if (end <= arrStart)
-            {
-                throw new InvalidOperationException("LLM response contained an incomplete JSON array.");
-            }
-
-            return text[arrStart..(end + 1)];
-        }
-
-        return ArchitectureGenerator.ExtractJsonObject(text);
-    }
+    public static string ExtractJsonPayload(string raw) => LlmJson.ExtractPayload(raw);
 
     public static ModuleDocument ParseModuleDocument(string raw, ModuleDescriptor descriptor)
     {
         var json = ArchitectureGenerator.ExtractJsonObject(raw);
-        var document = JsonSerializer.Deserialize<ModuleDocument>(json, JsonOptions)
+        ModuleDocument document;
+        try
+        {
+            document = JsonSerializer.Deserialize<ModuleDocument>(json, JsonOptions)
                        ?? new ModuleDocument();
+        }
+        catch (JsonException)
+        {
+            // Manual salvage when the model returns free-form objects for string fields.
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            document = new ModuleDocument
+            {
+                Id = LlmJson.ReadStringish(root, "id", "moduleId") ?? descriptor.Id,
+                Title = LlmJson.ReadStringish(root, "title", "name") ?? descriptor.Name,
+                Purpose = LlmJson.ReadStringish(root, "purpose", "summary", "description") ?? descriptor.Summary,
+                EntryPoints = LlmJson.ReadStringList(root, "entryPoints", "entry_points", "entries"),
+                Dependencies = LlmJson.ReadStringList(root, "dependencies", "dependsOn", "deps"),
+                KeyTypes = LlmJson.ReadStringList(root, "keyTypes", "types", "keyClasses"),
+                HowToExtend = LlmJson.ReadStringList(root, "howToExtend", "extension", "guidance"),
+                Gotchas = LlmJson.ReadStringList(root, "gotchas", "warnings", "risks"),
+                RelatedFiles = LlmJson.ReadStringList(root, "relatedFiles", "files")
+            };
+        }
+
+        // Normalize free-form fields when deserialization partially succeeded.
+        using (var doc = JsonDocument.Parse(json))
+        {
+            var root = doc.RootElement;
+            if (string.IsNullOrWhiteSpace(document.Purpose))
+            {
+                document.Purpose = LlmJson.ReadStringish(root, "purpose", "summary", "description")
+                                   ?? descriptor.Summary;
+            }
+
+            if (document.Dependencies.Count == 0)
+            {
+                document.Dependencies = LlmJson.ReadStringList(root, "dependencies", "dependsOn", "deps");
+            }
+
+            if (document.EntryPoints.Count == 0)
+            {
+                document.EntryPoints = LlmJson.ReadStringList(root, "entryPoints", "entry_points");
+            }
+
+            if (document.RelatedFiles.Count == 0)
+            {
+                document.RelatedFiles = LlmJson.ReadStringList(root, "relatedFiles", "files");
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(document.Id))
         {
             document.Id = descriptor.Id;
@@ -756,6 +756,11 @@ public sealed class WikiGenerationOrchestrator(
         if (string.IsNullOrWhiteSpace(document.Title))
         {
             document.Title = descriptor.Name;
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Purpose))
+        {
+            document.Purpose = descriptor.Summary;
         }
 
         return document;

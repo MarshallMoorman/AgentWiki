@@ -40,8 +40,14 @@ dotnet run --project src/AgentWiki.Cli -- status --repo-path /path/to/repo --ana
 ### Install as a local `dotnet tool`
 
 ```bash
+# One-shot pack + global install/update (recommended)
+./scripts/pack-and-install-tool.sh
+
+# Or manually:
 dotnet pack src/AgentWiki.Cli -c Release -o ./artifacts
 dotnet tool install --global --add-source ./artifacts AgentWiki.Cli
+# subsequent updates:
+# dotnet tool update --global --add-source ./artifacts AgentWiki.Cli
 agent-wiki --version
 agent-wiki --help
 ```

@@ -15,12 +15,7 @@ public sealed class ArchitectureGenerator(
     IPromptManager promptManager,
     ILogger<ArchitectureGenerator> logger) : IArchitectureGenerator
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = LlmJson.CreateOptions();
 
     /// <inheritdoc />
     public async Task<ArchitectureDocument> GenerateAsync(
@@ -93,7 +88,7 @@ public sealed class ArchitectureGenerator(
                 logger.LogError(
                     parseEx,
                     "Failed to parse architecture JSON. Raw content (truncated): {Content}",
-                    TruncateForLog(completion.Content, 800));
+                    LlmJson.Preview(completion.Content, 800));
                 throw;
             }
         }
@@ -104,17 +99,6 @@ public sealed class ArchitectureGenerator(
             offline.Gotchas.Insert(0, $"LLM generation failed and offline fallback was used: {ex.Message}");
             return offline;
         }
-    }
-
-    private static string TruncateForLog(string? text, int max)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return "(empty)";
-        }
-
-        var flat = text.Replace('\r', ' ').Replace('\n', ' ');
-        return flat.Length <= max ? flat : flat[..max] + "…";
     }
 
     /// <summary>
@@ -141,53 +125,87 @@ public sealed class ArchitectureGenerator(
     public static ArchitectureDocument ParseArchitectureJson(string raw)
     {
         var json = ExtractJsonObject(raw);
-        var document = JsonSerializer.Deserialize<ArchitectureDocument>(json, JsonOptions)
-                       ?? throw new InvalidOperationException("Architecture JSON deserialized to null.");
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
 
+        ArchitectureDocument document;
+        try
+        {
+            document = JsonSerializer.Deserialize<ArchitectureDocument>(json, JsonOptions)
+                       ?? new ArchitectureDocument();
+        }
+        catch (JsonException)
+        {
+            // Fully manual fallback when shapes are too free-form.
+            document = new ArchitectureDocument();
+        }
+
+        // Accept common alternate field names from chatty models.
+        document.Title = FirstNonEmpty(document.Title, LlmJson.ReadStringish(root, "title", "name", "heading"))
+                         ?? "Architecture Overview";
+        document.Summary = FirstNonEmpty(
+                               document.Summary,
+                               LlmJson.ReadStringish(root, "summary", "overview", "description", "executiveSummary", "abstract"))
+                           ?? "";
+        document.SystemContext = FirstNonEmpty(
+                                     document.SystemContext,
+                                     LlmJson.ReadStringish(root, "systemContext", "system_context", "context", "background"))
+                                 ?? "";
+        document.MermaidDiagram ??= LlmJson.ReadStringish(root, "mermaidDiagram", "mermaid", "diagram");
+
+        if (document.DataFlows.Count == 0)
+        {
+            document.DataFlows = LlmJson.ReadStringList(root, "dataFlows", "flows", "importantFlows");
+        }
+
+        if (document.Decisions.Count == 0)
+        {
+            document.Decisions = LlmJson.ReadStringList(root, "decisions", "keyDecisions", "architectureDecisions");
+        }
+
+        if (document.Gotchas.Count == 0)
+        {
+            document.Gotchas = LlmJson.ReadStringList(root, "gotchas", "warnings", "risks");
+        }
+
+        if (document.HowToExtend.Count == 0)
+        {
+            document.HowToExtend = LlmJson.ReadStringList(root, "howToExtend", "extensionPoints", "guidance");
+        }
+
+        // If still empty, salvage any long string fields as summary.
         if (string.IsNullOrWhiteSpace(document.Summary) && string.IsNullOrWhiteSpace(document.SystemContext))
         {
-            throw new InvalidOperationException("Architecture JSON missing required summary/systemContext content.");
+            var salvage = LlmJson.ReadStringish(root, "content", "body", "architecture", "details");
+            if (!string.IsNullOrWhiteSpace(salvage))
+            {
+                document.Summary = salvage;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Summary)
+            && string.IsNullOrWhiteSpace(document.SystemContext)
+            && document.Layers.Count == 0
+            && document.KeyComponents.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Architecture JSON missing usable content. Preview: " + LlmJson.Preview(raw, 300));
+        }
+
+        // Ensure we have at least a summary line so markdown renders.
+        if (string.IsNullOrWhiteSpace(document.Summary))
+        {
+            document.Summary = document.SystemContext;
         }
 
         return document;
     }
 
+    private static string? FirstNonEmpty(params string?[] values) =>
+        values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
     /// <summary>
     /// Extracts a JSON object from a model response that may include markdown fences or prose.
     /// </summary>
-    public static string ExtractJsonObject(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            throw new InvalidOperationException("LLM returned empty content.");
-        }
-
-        var text = raw.Trim();
-
-        if (text.StartsWith("```", StringComparison.Ordinal))
-        {
-            var firstNewline = text.IndexOf('\n');
-            if (firstNewline > 0)
-            {
-                text = text[(firstNewline + 1)..];
-            }
-
-            var fence = text.LastIndexOf("```", StringComparison.Ordinal);
-            if (fence >= 0)
-            {
-                text = text[..fence];
-            }
-
-            text = text.Trim();
-        }
-
-        var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start)
-        {
-            throw new InvalidOperationException("LLM response did not contain a JSON object.");
-        }
-
-        return text[start..(end + 1)];
-    }
+    public static string ExtractJsonObject(string raw) => LlmJson.ExtractPayload(raw);
 }
