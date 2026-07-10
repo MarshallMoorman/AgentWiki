@@ -25,6 +25,12 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
+    private static readonly JsonDocumentOptions DocumentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true
+    };
+
     /// <inheritdoc />
     public async Task<AgentWikiConfig> LoadAsync(
         string repoPath,
@@ -51,10 +57,18 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         EnvConfigApplier.Apply(config, processEnv);
         if (processEnv.Count > 0)
         {
-            logger.LogDebug("Applied {Count} AGENTWIKI_* process environment variable(s)", processEnv.Count);
+            logger.LogInformation(
+                "Applied {Count} AGENTWIKI_* process environment variable(s) (timeout now {Timeout}s)",
+                processEnv.Count,
+                config.LlmTimeoutSeconds);
+            logger.LogDebug(
+                "Process AGENTWIKI_* keys: {Keys}",
+                string.Join(", ", processEnv.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase)));
         }
 
-        // 3) .agentwiki/config.json (or explicit --config path). Overwrites process env.
+        // 3) .agentwiki/config.json (or explicit --config path).
+        //    Only properties *present* in the JSON overwrite lower layers
+        //    (missing/commented keys must not reset env vars to class defaults).
         var candidatePaths = new List<string>();
         if (!string.IsNullOrWhiteSpace(configFilePath))
         {
@@ -74,7 +88,7 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
 
             logger.LogInformation("Loading config from {Path}", path);
             await MergeJsonFileAsync(config, path, cancellationToken).ConfigureAwait(false);
-            break; // First existing explicit/repo config wins for file layer.
+            break;
         }
 
         // 4) Repo-root .env — highest non-CLI layer (overwrites config.json and process env).
@@ -83,8 +97,6 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         if (dotenv.Count > 0)
         {
             EnvConfigApplier.Apply(config, dotenv);
-            // Also export into process env so nested tools / future reads see them.
-            // Override=true so .env wins over pre-existing process values for these keys.
             var exported = DotEnvLoader.ApplyToProcessEnvironment(dotenv, overrideExisting: true);
             logger.LogInformation(
                 "Loaded {Count} setting(s) from {Path} ({Exported} applied to process environment)",
@@ -112,7 +124,6 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         string? model = null,
         string? provider = null)
     {
-        // Clone so callers can reuse the original instance safely.
         var json = JsonSerializer.Serialize(config, JsonOptions);
         var clone = JsonSerializer.Deserialize<AgentWikiConfig>(json, JsonOptions)
                     ?? new AgentWikiConfig();
@@ -140,105 +151,206 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         return clone;
     }
 
+    /// <summary>
+    /// Merges only properties that appear in the JSON file. Deserializing into
+    /// <see cref="AgentWikiConfig"/> would fill missing ints with class defaults (e.g. 300)
+    /// and incorrectly overwrite process-env values.
+    /// </summary>
     private static async Task MergeJsonFileAsync(
         AgentWikiConfig target,
         string path,
         CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(path);
-        var fileConfig = await JsonSerializer
-            .DeserializeAsync<AgentWikiConfig>(stream, JsonOptions, cancellationToken)
+        using var doc = await JsonDocument
+            .ParseAsync(stream, DocumentOptions, cancellationToken)
             .ConfigureAwait(false);
 
-        if (fileConfig is null)
+        if (doc.RootElement.ValueKind != JsonValueKind.Object)
         {
             return;
         }
 
-        // Explicit file values overwrite appsettings/env defaults (non-null / non-default-ish).
-        if (!string.IsNullOrWhiteSpace(fileConfig.OutputPath))
+        var root = doc.RootElement;
+
+        if (TryGetString(root, "outputPath", out var outputPath))
         {
-            target.OutputPath = fileConfig.OutputPath;
+            target.OutputPath = outputPath;
         }
 
-        if (!string.IsNullOrWhiteSpace(fileConfig.DefaultModel))
+        if (TryGetString(root, "defaultModel", out var defaultModel))
         {
-            target.DefaultModel = fileConfig.DefaultModel;
+            target.DefaultModel = defaultModel;
         }
 
-        if (!string.IsNullOrWhiteSpace(fileConfig.Provider))
+        if (TryGetString(root, "provider", out var provider))
         {
-            target.Provider = fileConfig.Provider;
+            target.Provider = provider;
         }
 
-        if (!string.IsNullOrWhiteSpace(fileConfig.AgentMdPath))
+        if (TryGetString(root, "agentMdPath", out var agentMdPath))
         {
-            target.AgentMdPath = fileConfig.AgentMdPath;
+            target.AgentMdPath = agentMdPath;
         }
 
-        if (fileConfig.MaxFilesToAnalyze > 0)
+        if (TryGetInt(root, "maxFilesToAnalyze", out var maxFiles) && maxFiles > 0)
         {
-            target.MaxFilesToAnalyze = fileConfig.MaxFilesToAnalyze;
+            target.MaxFilesToAnalyze = maxFiles;
         }
 
-        // Always take file value for bool (JSON presence is intentional).
-        target.EnableIncrementalUpdates = fileConfig.EnableIncrementalUpdates;
-
-        // Previously missing — config.json LlmTimeoutSeconds / MaxLlmSummaryChars were ignored.
-        if (fileConfig.LlmTimeoutSeconds > 0)
+        if (TryGetBool(root, "enableIncrementalUpdates", out var incremental))
         {
-            target.LlmTimeoutSeconds = fileConfig.LlmTimeoutSeconds;
+            target.EnableIncrementalUpdates = incremental;
         }
 
-        if (fileConfig.MaxLlmSummaryChars > 0)
+        if (TryGetInt(root, "llmTimeoutSeconds", out var timeout) && timeout > 0)
         {
-            target.MaxLlmSummaryChars = fileConfig.MaxLlmSummaryChars;
+            target.LlmTimeoutSeconds = timeout;
         }
 
-        if (fileConfig.IgnorePatterns is { Count: > 0 })
+        if (TryGetInt(root, "maxLlmSummaryChars", out var maxChars) && maxChars > 0)
         {
-            target.IgnorePatterns = fileConfig.IgnorePatterns;
+            target.MaxLlmSummaryChars = maxChars;
         }
 
-        MergeAzure(target.AzureOpenAI, fileConfig.AzureOpenAI);
-        MergeOpenAi(target.OpenAI, fileConfig.OpenAI);
+        if (TryGetProperty(root, "ignorePatterns", out var ignorePatterns)
+            && ignorePatterns.ValueKind == JsonValueKind.Array)
+        {
+            var list = new List<string>();
+            foreach (var item in ignorePatterns.EnumerateArray())
+            {
+                if (item.ValueKind == JsonValueKind.String
+                    && item.GetString() is { Length: > 0 } pattern)
+                {
+                    list.Add(pattern);
+                }
+            }
+
+            if (list.Count > 0)
+            {
+                target.IgnorePatterns = list;
+            }
+        }
+
+        if (TryGetProperty(root, "azureOpenAI", out var azure)
+            && azure.ValueKind == JsonValueKind.Object)
+        {
+            MergeAzureFromJson(target.AzureOpenAI, azure);
+        }
+
+        if (TryGetProperty(root, "openAI", out var openAi)
+            && openAi.ValueKind == JsonValueKind.Object)
+        {
+            MergeOpenAiFromJson(target.OpenAI, openAi);
+        }
     }
 
-    private static void MergeAzure(AzureOpenAiOptions target, AzureOpenAiOptions source)
+    private static void MergeAzureFromJson(AzureOpenAiOptions target, JsonElement source)
     {
-        if (!string.IsNullOrWhiteSpace(source.Endpoint))
+        if (TryGetString(source, "endpoint", out var endpoint))
         {
-            target.Endpoint = source.Endpoint;
+            target.Endpoint = endpoint;
         }
 
-        if (!string.IsNullOrWhiteSpace(source.DeploymentName))
+        if (TryGetString(source, "deploymentName", out var deployment))
         {
-            target.DeploymentName = source.DeploymentName;
+            target.DeploymentName = deployment;
         }
 
-        if (!string.IsNullOrWhiteSpace(source.ApiKey))
+        if (TryGetString(source, "apiKey", out var apiKey))
         {
-            target.ApiKey = source.ApiKey;
+            target.ApiKey = apiKey;
         }
 
-        target.UseManagedIdentity = source.UseManagedIdentity;
+        if (TryGetBool(source, "useManagedIdentity", out var managed))
+        {
+            target.UseManagedIdentity = managed;
+        }
     }
 
-    private static void MergeOpenAi(OpenAiOptions target, OpenAiOptions source)
+    private static void MergeOpenAiFromJson(OpenAiOptions target, JsonElement source)
     {
-        if (!string.IsNullOrWhiteSpace(source.Endpoint))
+        if (TryGetString(source, "endpoint", out var endpoint))
         {
-            target.Endpoint = source.Endpoint;
+            target.Endpoint = endpoint;
         }
 
-        if (!string.IsNullOrWhiteSpace(source.ApiKey))
+        if (TryGetString(source, "apiKey", out var apiKey))
         {
-            target.ApiKey = source.ApiKey;
+            target.ApiKey = apiKey;
         }
 
-        if (!string.IsNullOrWhiteSpace(source.Model))
+        if (TryGetString(source, "model", out var model))
         {
-            target.Model = source.Model;
+            target.Model = model;
         }
+    }
+
+    private static bool TryGetProperty(JsonElement obj, string name, out JsonElement value)
+    {
+        foreach (var prop in obj.EnumerateObject())
+        {
+            if (prop.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = prop.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static bool TryGetString(JsonElement obj, string name, out string value)
+    {
+        if (TryGetProperty(obj, name, out var el) && el.ValueKind == JsonValueKind.String)
+        {
+            value = el.GetString() ?? "";
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        value = "";
+        return false;
+    }
+
+    private static bool TryGetInt(JsonElement obj, string name, out int value)
+    {
+        if (TryGetProperty(obj, name, out var el))
+        {
+            if (el.ValueKind == JsonValueKind.Number && el.TryGetInt32(out value))
+            {
+                return true;
+            }
+
+            if (el.ValueKind == JsonValueKind.String
+                && int.TryParse(el.GetString(), out value))
+            {
+                return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryGetBool(JsonElement obj, string name, out bool value)
+    {
+        if (TryGetProperty(obj, name, out var el))
+        {
+            if (el.ValueKind is JsonValueKind.True or JsonValueKind.False)
+            {
+                value = el.GetBoolean();
+                return true;
+            }
+
+            if (el.ValueKind == JsonValueKind.String
+                && bool.TryParse(el.GetString(), out value))
+            {
+                return true;
+            }
+        }
+
+        value = false;
+        return false;
     }
 }

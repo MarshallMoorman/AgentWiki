@@ -140,6 +140,46 @@ public sealed class ConfigLoaderTests
     }
 
     [Fact]
+    public async Task LoadAsync_CommentedTimeoutDoesNotOverwriteProcessEnv()
+    {
+        // Regression: deserializing AgentWikiConfig filled LlmTimeoutSeconds=300 (class default)
+        // when the property was absent/commented, then merge stomped process env (e.g. .zshrc).
+        var root = CreateTempDir();
+        var timeoutKey = "AGENTWIKI_LlmTimeoutSeconds";
+        var previous = Environment.GetEnvironmentVariable(timeoutKey);
+        try
+        {
+            Environment.SetEnvironmentVariable(timeoutKey, "600");
+
+            var agentWiki = Path.Combine(root, ".agentwiki");
+            Directory.CreateDirectory(agentWiki);
+            await File.WriteAllTextAsync(
+                Path.Combine(agentWiki, "config.json"),
+                """
+                {
+                  "provider": "openai",
+                  "defaultModel": "gpt-chat-latest",
+                  // "llmTimeoutSeconds": 300,
+                  "maxFilesToAnalyze": 500
+                }
+                """);
+
+            var sut = new ConfigLoader(NullLogger<ConfigLoader>.Instance);
+            var config = await sut.LoadAsync(root);
+
+            config.Provider.ShouldBe("openai");
+            config.DefaultModel.ShouldBe("gpt-chat-latest");
+            config.MaxFilesToAnalyze.ShouldBe(500);
+            config.LlmTimeoutSeconds.ShouldBe(600);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(timeoutKey, previous);
+            TryDelete(root);
+        }
+    }
+
+    [Fact]
     public void ApplyCliOverrides_WinsOverLoadedConfig()
     {
         var sut = new ConfigLoader(NullLogger<ConfigLoader>.Instance);
