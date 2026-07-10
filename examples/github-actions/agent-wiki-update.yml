@@ -1,0 +1,101 @@
+# Example workflow for *consumer* repositories that use the AgentWiki global tool.
+#
+# Copy this file to:  .github/workflows/agent-wiki-update.yml
+# Then configure secrets/vars as needed (optional — works offline without LLM keys).
+#
+# Installs AgentWiki.Cli from NuGet.org. Until the package is published publicly,
+# either publish a release to NuGet or replace the install step with a local pack source.
+#
+# See README.md → CI / consumer workflows.
+
+name: AgentWiki Update
+
+on:
+  schedule:
+    # Daily at 02:00 UTC
+    - cron: "0 2 * * *"
+  push:
+    branches: [main, master]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "**/*.cs"
+      - "**/*.csproj"
+      - "**/*.sln"
+      - "**/*.slnx"
+      - ".agentwiki/config.json"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-wiki:
+    name: Update agent wiki
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install agent-wiki tool
+        run: |
+          # Pin a version in production, e.g. AgentWiki.Cli --version 1.0.10
+          dotnet tool install --global AgentWiki.Cli
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          agent-wiki --version
+
+      - name: Run agent-wiki update
+        env:
+          AGENTWIKI_Provider: ${{ vars.AGENTWIKI_PROVIDER || 'openai' }}
+          AGENTWIKI_DefaultModel: ${{ vars.AGENTWIKI_DEFAULT_MODEL || 'gpt-4o' }}
+          AGENTWIKI_LlmTimeoutSeconds: ${{ vars.AGENTWIKI_LLM_TIMEOUT_SECONDS || '600' }}
+          AGENTWIKI_AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AGENTWIKI_AzureOpenAI__DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
+          AGENTWIKI_AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AGENTWIKI_OpenAI__ApiKey: ${{ secrets.OPENAI_API_KEY }}
+          AGENTWIKI_OpenAI__Endpoint: ${{ secrets.OPENAI_ENDPOINT }}
+          AGENTWIKI_OpenAI__Model: ${{ vars.AGENTWIKI_OPENAI_MODEL }}
+        run: |
+          # Incremental when last-run exists; works offline if no LLM credentials.
+          agent-wiki update --repo-path . --output docs/wiki
+
+      - name: Detect wiki changes
+        id: changes
+        run: |
+          if git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No wiki changes."
+          fi
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs(wiki): refresh agent-optimized wiki"
+          title: "docs(wiki): refresh AgentWiki documentation"
+          body: |
+            ## AgentWiki automatic update
+
+            Regenerated `docs/wiki/` (and possibly `AGENTS.md`) via `agent-wiki update`.
+
+            Review AI-assisted content before merge.
+          branch: agent-wiki/update
+          delete-branch: true
+          add-paths: |
+            docs/wiki/**
+            AGENTS.md
+            CLAUDE.md

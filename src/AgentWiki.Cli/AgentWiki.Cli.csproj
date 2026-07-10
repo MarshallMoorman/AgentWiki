@@ -8,9 +8,18 @@
     <PackageId>AgentWiki.Cli</PackageId>
     <Description>AgentWiki — generate and maintain agent-optimized documentation wikis for codebases.</Description>
     <PackageTags>agent;wiki;documentation;cli;semantic-kernel;dotnet-tool</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/MarshallMoorman/AgentWiki</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MarshallMoorman/AgentWiki</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RootNamespace>AgentWiki.Cli</RootNamespace>
     <AssemblyName>agent-wiki</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\AgentWiki.Core\AgentWiki.Core.csproj" />

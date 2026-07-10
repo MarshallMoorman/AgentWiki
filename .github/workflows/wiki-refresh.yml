@@ -1,27 +1,24 @@
-name: AgentWiki Update
+# Dogfood AgentWiki on this repository (offline-capable).
+# Consumer repos should copy examples/github-actions/agent-wiki-update.yml instead.
+name: Wiki refresh
 
 on:
   schedule:
-    # Daily at 02:00 UTC
-    - cron: "0 2 * * *"
-  push:
-    branches: [main, master]
-    paths:
-      - "src/**"
-      - "tests/**"
-      - "*.sln"
-      - "*.slnx"
-      - "Directory.Build.props"
-      - ".agentwiki/config.json"
+    # Weekly Monday 03:00 UTC (avoids PR noise from generated timestamps on every push)
+    - cron: "0 3 * * 1"
   workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: wiki-refresh
+  cancel-in-progress: true
+
 jobs:
-  update-wiki:
-    name: Update agent wiki
+  refresh:
+    name: Offline wiki generate + PR
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -36,33 +33,32 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Restore & build AgentWiki
+      - name: Build CLI
         run: |
           dotnet restore AgentWiki.slnx
-          dotnet build AgentWiki.slnx -c Release --no-restore
+          dotnet build src/AgentWiki.Cli -c Release --no-restore
 
-      - name: Run agent-wiki update
+      - name: Generate wiki (offline-friendly)
         env:
-          # Prefer Azure OpenAI via secrets; tool falls back to offline generation if unset.
-          AGENTWIKI_Provider: ${{ vars.AGENTWIKI_PROVIDER || 'azure-openai' }}
+          # Optional: set repo secrets/vars for live LLM; otherwise offline inventory wiki.
+          AGENTWIKI_Provider: ${{ vars.AGENTWIKI_PROVIDER || 'offline' }}
           AGENTWIKI_DefaultModel: ${{ vars.AGENTWIKI_DEFAULT_MODEL || 'gpt-4o' }}
           AGENTWIKI_AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          AGENTWIKI_AzureOpenAI__DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o' }}
+          AGENTWIKI_AzureOpenAI__DeploymentName: ${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
           AGENTWIKI_AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_API_KEY }}
-          # Optional OpenAI-compatible / GitHub Models
           AGENTWIKI_OpenAI__ApiKey: ${{ secrets.OPENAI_API_KEY }}
           AGENTWIKI_OpenAI__Endpoint: ${{ secrets.OPENAI_ENDPOINT }}
           AGENTWIKI_OpenAI__Model: ${{ vars.AGENTWIKI_OPENAI_MODEL }}
         run: |
+          # Full generate keeps docs/wiki aligned with the product tree without requiring last-run baseline.
           dotnet run --project src/AgentWiki.Cli -c Release --no-build -- \
-            update --repo-path . --output docs/wiki --force
+            generate --repo-path . --output docs/wiki --force --provider offline
 
       - name: Detect wiki changes
         id: changes
         run: |
           if git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md | grep -q .; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "Wiki output changed."
             git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -77,24 +73,15 @@ jobs:
           commit-message: "docs(wiki): refresh agent-optimized wiki"
           title: "docs(wiki): refresh AgentWiki documentation"
           body: |
-            ## AgentWiki automatic update
+            ## AgentWiki dogfood refresh
 
-            This PR was opened by the **AgentWiki Update** workflow after detecting documentation changes.
+            Offline (or optionally LLM-assisted) regeneration of `docs/wiki/` for this repository.
 
-            ### What changed
-            - Regenerated content under `docs/wiki/`
-            - Possibly updated `AGENTS.md` bootstrap instructions
-
-            ### Notes
-            - Content may be AI-generated and should be reviewed before merge.
-            - Incremental updates use git history since `.agentwiki/last-run.json` (local artifact; not always committed).
-
-            ### Workflow
-            - Trigger: schedule / push (code paths) / manual
-            - Command: `agent-wiki update --repo-path . --output docs/wiki`
-          branch: agent-wiki/update
+            Review before merge. For **consumer** repos, copy
+            [`examples/github-actions/agent-wiki-update.yml`](../blob/main/examples/github-actions/agent-wiki-update.yml)
+            rather than this workflow.
+          branch: agent-wiki/wiki-refresh
           delete-branch: true
-          labels: documentation, automated
           add-paths: |
             docs/wiki/**
             AGENTS.md

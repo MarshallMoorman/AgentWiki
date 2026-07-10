@@ -72,9 +72,17 @@ Supported placeholders depend on the prompt (e.g. `{{RepoName}}`, `{{RepoSummary
 - Update README when user-facing behavior changes.
 - Do not commit secrets, `.env`, or API keys.
 
+## CI
+
+- **PR / push:** `.github/workflows/ci.yml` builds, tests, packs, and uploads the nupkg artifact.
+- **Tags `v*`:** same workflow optionally pushes to NuGet.org when `NUGET_API_KEY` is configured.
+- **This repo wiki:** `.github/workflows/wiki-refresh.yml` regenerates `docs/wiki/` offline and opens a PR.
+- **Consumer template:** `examples/github-actions/agent-wiki-update.yml` (copy into other repos).
+
 ## Release checklist (maintainers)
 
-1. Bump version in `Directory.Build.props` and `AgentWikiConstants.Version`.
-2. `dotnet pack src/AgentWiki.Cli -c Release`
-3. Smoke-test `agent-wiki init/generate/update/status`.
-4. Tag release and publish tool package if applicable.
+1. Bump version: `./.grok/skills/bump-version/scripts/bump-version.sh patch` (or minor/major).
+2. Ensure CI is green on `main`.
+3. Smoke-test: `./scripts/pack-and-install-tool.sh && agent-wiki --version`.
+4. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` (triggers NuGet publish if secret is set).
+5. Confirm the GitHub Actions artifact / NuGet package.

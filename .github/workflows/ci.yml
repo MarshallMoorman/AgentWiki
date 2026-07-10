@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-pack:
+    name: Build, test, pack
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore AgentWiki.slnx
+
+      - name: Build
+        run: dotnet build AgentWiki.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test AgentWiki.slnx -c Release --no-build --verbosity normal
+
+      - name: Pack global tool
+        run: |
+          mkdir -p artifacts
+          dotnet pack src/AgentWiki.Cli -c Release --no-build -o artifacts
+          ls -la artifacts
+
+      - name: Upload nupkg artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentwiki-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Smoke-test packed tool
+        run: |
+          set -euo pipefail
+          nupkg=$(ls artifacts/AgentWiki.Cli.*.nupkg | head -1)
+          echo "Installing from $nupkg"
+          # Isolated tools dir so we do not touch the runner global tools permanently
+          export DOTNET_ROOT="${DOTNET_ROOT:-}"
+          TOOLS_DIR="$RUNNER_TEMP/agentwiki-tools"
+          mkdir -p "$TOOLS_DIR"
+          dotnet tool install AgentWiki.Cli --tool-path "$TOOLS_DIR" --add-source artifacts
+          "$TOOLS_DIR/agent-wiki" --version
+          "$TOOLS_DIR/agent-wiki" --help | head -20
+
+  # Optional NuGet.org publish when a v* tag is pushed and NUGET_API_KEY is configured.
+  publish-nuget:
+    name: Publish to NuGet.org
+    needs: build-test-pack
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Download nupkg
+        uses: actions/download-artifact@v4
+        with:
+          name: agentwiki-nupkg
+          path: artifacts
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Push package
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NUGET_API_KEY:-}" ]; then
+            echo "NUGET_API_KEY secret is not set — skipping NuGet.org publish."
+            echo "Add repository secret NUGET_API_KEY to enable release publishing."
+            exit 0
+          fi
+          for pkg in artifacts/*.nupkg; do
+            echo "Pushing $pkg"
+            dotnet nuget push "$pkg" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done

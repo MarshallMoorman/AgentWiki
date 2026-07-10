@@ -194,10 +194,35 @@ Also available as project skill: `/bump-version`.
 | [`AgentWiki-Project-Specification.md`](AgentWiki-Project-Specification.md) | Original product spec |
 | [`docs/wiki/`](docs/wiki/) | Sample/self wiki (may lag; regenerate after large changes) |
 
-## CI
+## CI / GitHub Actions
 
-GitHub Actions: [`.github/workflows/agent-wiki-update.yml`](.github/workflows/agent-wiki-update.yml)  
-Runs `update`, opens a PR when wiki files change. Works offline if LLM secrets are unset.
+| Workflow | Path | Purpose |
+|----------|------|---------|
+| **CI** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | On push/PR: restore → build → test → pack `AgentWiki.Cli` nupkg → upload artifacts. On `v*` tags: optional NuGet.org publish (`NUGET_API_KEY` secret). |
+| **Wiki refresh** | [`.github/workflows/wiki-refresh.yml`](.github/workflows/wiki-refresh.yml) | Dogfoods AgentWiki on *this* repo (offline generate + PR). Weekly schedule + manual dispatch. |
+| **Consumer example** | [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) | **Copy into your app repos** to run `agent-wiki update` and open a docs PR. |
+
+### Consumer repos (use AgentWiki in your pipeline)
+
+1. Copy [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) to `.github/workflows/agent-wiki-update.yml`.
+2. Run `agent-wiki init` once in the repo (commit `.agentwiki/config.json`, not secrets).
+3. Optionally set secrets (`OPENAI_API_KEY`, `AZURE_OPENAI_*`, etc.) and vars (`AGENTWIKI_PROVIDER`, …). Without secrets, update still works **offline**.
+
+```bash
+# local install of the tool (after a release is on NuGet.org)
+dotnet tool install -g AgentWiki.Cli
+# or from a local pack:
+# ./scripts/pack-and-install-tool.sh
+```
+
+### Publishing this tool
+
+```bash
+# CI uploads artifacts on every main build.
+# To publish to NuGet.org: create a git tag and ensure NUGET_API_KEY is set.
+git tag v1.0.10
+git push origin v1.0.10
+```
 
 ## License
 
