@@ -208,6 +208,7 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 5. `AgentWiki-Project-Specification.md` — original product spec  
 6. `src/AgentWiki.Cli/Program.cs` + `Services/WikiGenerationOrchestrator.cs` — control flow  
 7. Latest log: `~/.agentwiki/logs/` if debugging a run  
+8. **UI companion plan (not started):** `docs/plans/ui-companion-avalonia.md`
 
 ---
 
