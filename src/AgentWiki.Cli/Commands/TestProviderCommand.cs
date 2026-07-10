@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -29,6 +30,7 @@ public sealed class TestProviderCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — test LLM provider");
+        AgentWikiLogging.WriteLogHint();
 
         // Ensure .env is loaded for this repo path before reading config.
         var config = await configLoader
@@ -121,13 +123,9 @@ public sealed class TestProviderCommand(
 
         if (error is not null)
         {
-            AnsiConsole.MarkupLine($"[red]✗[/] Provider call failed after {sw.Elapsed.TotalSeconds:F2}s");
-            AnsiConsole.MarkupLine($"[red]{Markup.Escape(error.Message)}[/]");
-            if (error.InnerException is not null)
-            {
-                AnsiConsole.MarkupLine($"[grey]{Markup.Escape(error.InnerException.Message)}[/]");
-            }
-
+            AgentWikiLogging.WriteError(
+                $"Provider call failed after {sw.Elapsed.TotalSeconds:F2}s: {error.Message}",
+                error);
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("Common fixes:");
             AnsiConsole.MarkupLine("  • Wrong API key or expired key");

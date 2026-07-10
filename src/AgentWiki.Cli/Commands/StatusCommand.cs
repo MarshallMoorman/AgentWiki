@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Constants;
 using AgentWiki.Core.Models;
@@ -67,6 +68,8 @@ public sealed class StatusCommand(
         table.AddRow("Azure API key", string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
         table.AddRow("Managed identity", config.AzureOpenAI.UseManagedIdentity ? "yes" : "no");
         table.AddRow("LLM ready", HasLlmReady(config) ? "[green]yes[/]" : "[yellow]no (offline fallback)[/]");
+        table.AddRow("Log directory", Markup.Escape(AgentWikiLogging.LogDirectory));
+        table.AddRow("Today's log", Markup.Escape(AgentWikiLogging.TodayLogFilePath));
 
         AnsiConsole.Write(table);
 

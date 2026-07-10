@@ -6,7 +6,6 @@ using AgentWiki.Core.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using Serilog.Events;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -15,35 +14,7 @@ var verbose = args.Any(a =>
     string.Equals(a, "--verbose", StringComparison.OrdinalIgnoreCase)
     || string.Equals(a, "/verbose", StringComparison.OrdinalIgnoreCase));
 
-var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AgentWiki", "logs");
-Directory.CreateDirectory(logDir);
-var logFile = Path.Combine(logDir, "agent-wiki-.log");
-
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Is(verbose ? LogEventLevel.Debug : LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    .MinimumLevel.Override("System", LogEventLevel.Warning)
-    .Enrich.FromLogContext()
-    .Enrich.WithProperty("Application", AgentWikiConstants.ProductName)
-    .Enrich.WithProperty("Version", AgentWikiConstants.Version)
-    .Enrich.WithMachineName()
-    .Enrich.WithThreadId()
-    .WriteTo.Console(
-        outputTemplate: verbose
-            ? "[{Timestamp:HH:mm:ss} {Level:u3}] ({SourceContext}) {Message:lj}{NewLine}{Exception}"
-            : "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File(
-        logFile,
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
-        shared: true,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] ({SourceContext}) {Message:lj}{NewLine}{Exception}")
-    .CreateLogger();
-
-if (verbose)
-{
-    Log.Debug("Verbose logging enabled. File log: {LogFile}", logFile);
-}
+AgentWikiLogging.Configure(verbose);
 
 try
 {
@@ -60,15 +31,11 @@ try
         config.ValidateExamples();
         config.SetExceptionHandler((ex, _) =>
         {
-            Log.Error(ex, "Command failed");
+            // Full exception always goes to the log file; console stays readable.
+            AgentWikiLogging.WriteError(ex.Message, ex);
             if (verbose)
             {
                 AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
-            }
-            else
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
-                AnsiConsole.MarkupLine("[grey]Re-run with --verbose for full details.[/]");
             }
 
             return -1;
@@ -109,8 +76,12 @@ try
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Unhandled exception");
-    AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+    AgentWikiLogging.WriteError(ex.Message, ex);
+    if (verbose)
+    {
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
+    }
+
     return 1;
 }
 finally

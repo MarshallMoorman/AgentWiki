@@ -280,9 +280,13 @@ steps:
 ## Reliability & ops
 
 - **Structured outputs:** LLM responses parsed as JSON with fence stripping  
-- **Polly retries:** exponential backoff on transient HTTP/LLM failures  
-- **Offline fallback:** pipeline continues without credentials  
-- **Serilog:** console + rolling file under `%LocalAppData%/AgentWiki/logs`  
+- **Polly retries:** exponential backoff on transient HTTP/LLM failures (not timeouts)  
+- **Offline fallback:** pipeline continues without credentials / on LLM failure  
+- **Logging:** detailed Serilog diagnostics go to a **file**; the terminal stays clean for Spectre UI  
+  - Log directory: `~/.agentwiki/logs/`  
+  - Today’s file: `~/.agentwiki/logs/agent-wiki-YYYYMMDD.log`  
+  - Shown by `status`, at the start of `generate`/`update`, and on errors  
+  - `--verbose` also streams diagnostics to the console (can still interfere with spinners)  
 - **Cost estimate:** rough USD from token counts (display only)  
 - **Security:** API keys redacted in `status`; do not log full prompts/responses by default  
 

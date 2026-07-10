@@ -1,3 +1,4 @@
+using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Models;
 using Spectre.Console;
@@ -16,6 +17,7 @@ public sealed class GenerateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, GenerationSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — full generation");
+        AgentWikiLogging.WriteLogHint();
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
@@ -70,7 +72,7 @@ public sealed class GenerateCommand(
     {
         if (!result.Success)
         {
-            AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(result.Error ?? result.Message)}");
+            AgentWikiLogging.WriteError(result.Error ?? result.Message);
             return 1;
         }
 
@@ -160,6 +162,7 @@ public sealed class GenerateCommand(
             AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
         }
 
+        AgentWikiLogging.WriteLogHint();
         return 0;
     }
 

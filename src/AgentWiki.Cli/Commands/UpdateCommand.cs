@@ -1,3 +1,4 @@
+using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Models;
 using Spectre.Console;
@@ -16,6 +17,7 @@ public sealed class UpdateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, GenerationSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — incremental update");
+        AgentWikiLogging.WriteLogHint();
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
