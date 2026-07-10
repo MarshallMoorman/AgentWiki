@@ -38,6 +38,13 @@ public sealed class ArchitectureDocument
     [JsonPropertyName("mermaidDiagram")]
     public string? MermaidDiagram { get; set; }
 
+    /// <summary>
+    /// When the model returns a free-form markdown document (e.g. under
+    /// <c>architecture_overview</c>), store it here and render as the page body.
+    /// </summary>
+    [JsonIgnore]
+    public string? FullMarkdown { get; set; }
+
     /// <summary>True when content was produced without calling an LLM.</summary>
     [JsonIgnore]
     public bool UsedOfflineFallback { get; set; }

@@ -141,7 +141,7 @@ public sealed class ArchitectureGenerator(
         }
 
         // Accept common alternate field names from chatty models.
-        document.Title = FirstNonEmpty(document.Title, LlmJson.ReadStringish(root, "title", "name", "heading"))
+        document.Title = FirstNonEmpty(document.Title, LlmJson.ReadStringish(root, "title", "name", "heading", "repository"))
                          ?? "Architecture Overview";
         document.Summary = FirstNonEmpty(
                                document.Summary,
@@ -173,18 +173,57 @@ public sealed class ArchitectureGenerator(
             document.HowToExtend = LlmJson.ReadStringList(root, "howToExtend", "extensionPoints", "guidance");
         }
 
+        // Many models ignore our schema and return a single markdown document field, e.g.:
+        // { "repository": "...", "architecture_overview": "# Title\n\n## System Context\n..." }
+        var markdownBody = FirstNonEmpty(
+            document.FullMarkdown,
+            LlmJson.ReadStringish(
+                root,
+                "architecture_overview",
+                "architectureOverview",
+                "architectureMarkdown",
+                "markdown",
+                "document",
+                "content",
+                "body",
+                "architecture",
+                "details",
+                "wiki"));
+
+        if (!string.IsNullOrWhiteSpace(markdownBody) && LooksLikeMarkdownDocument(markdownBody))
+        {
+            document.FullMarkdown = markdownBody.Trim();
+            // Keep short fields populated for index/meta when possible.
+            if (string.IsNullOrWhiteSpace(document.Summary))
+            {
+                document.Summary = ExtractLeadParagraph(markdownBody);
+            }
+
+            if (string.Equals(document.Title, "Architecture Overview", StringComparison.Ordinal)
+                && markdownBody.TrimStart().StartsWith('#'))
+            {
+                var firstLine = markdownBody.TrimStart().Split('\n', 2)[0].Trim().TrimStart('#').Trim();
+                if (!string.IsNullOrWhiteSpace(firstLine))
+                {
+                    document.Title = firstLine;
+                }
+            }
+
+            return document;
+        }
+
         // If still empty, salvage any long string fields as summary.
         if (string.IsNullOrWhiteSpace(document.Summary) && string.IsNullOrWhiteSpace(document.SystemContext))
         {
-            var salvage = LlmJson.ReadStringish(root, "content", "body", "architecture", "details");
-            if (!string.IsNullOrWhiteSpace(salvage))
+            if (!string.IsNullOrWhiteSpace(markdownBody))
             {
-                document.Summary = salvage;
+                document.Summary = markdownBody;
             }
         }
 
         if (string.IsNullOrWhiteSpace(document.Summary)
             && string.IsNullOrWhiteSpace(document.SystemContext)
+            && string.IsNullOrWhiteSpace(document.FullMarkdown)
             && document.Layers.Count == 0
             && document.KeyComponents.Count == 0)
         {
@@ -199,6 +238,52 @@ public sealed class ArchitectureGenerator(
         }
 
         return document;
+    }
+
+    private static bool LooksLikeMarkdownDocument(string text)
+    {
+        var t = text.TrimStart();
+        // Full architecture write-ups almost always include headings and are not a short phrase.
+        return t.Length >= 200
+               && (t.Contains('#') || t.Contains("## ") || t.Contains("\n- ") || t.Contains("\n* "));
+    }
+
+    private static string ExtractLeadParagraph(string markdown)
+    {
+        var lines = markdown.Replace("\r\n", "\n").Split('\n');
+        var buf = new System.Text.StringBuilder();
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith('#'))
+            {
+                continue;
+            }
+
+            if (trimmed.Length == 0)
+            {
+                if (buf.Length > 0)
+                {
+                    break;
+                }
+
+                continue;
+            }
+
+            if (buf.Length > 0)
+            {
+                buf.Append(' ');
+            }
+
+            buf.Append(trimmed);
+            if (buf.Length > 280)
+            {
+                break;
+            }
+        }
+
+        var lead = buf.ToString();
+        return lead.Length <= 320 ? lead : lead[..317] + "…";
     }
 
     private static string? FirstNonEmpty(params string?[] values) =>

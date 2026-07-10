@@ -13,6 +13,28 @@ public static class ArchitectureMarkdownRenderer
         ArgumentNullException.ThrowIfNull(doc);
         var sb = new StringBuilder();
 
+        // Prefer free-form markdown documents returned by models that ignore our schema
+        // (e.g. { "architecture_overview": "# Title\n..." }).
+        if (!string.IsNullOrWhiteSpace(doc.FullMarkdown))
+        {
+            if (includeDisclaimer)
+            {
+                sb.AppendLine(doc.UsedOfflineFallback
+                    ? "> **Offline / inventory-derived architecture** (no LLM credentials configured). Review before relying on it."
+                    : "> **AI-generated architecture** optimized for coding agents. Verify against source of truth.");
+                sb.AppendLine();
+            }
+
+            var body = doc.FullMarkdown.Trim();
+            // Avoid duplicating a top-level H1 if the model already included one.
+            sb.AppendLine(body);
+            sb.AppendLine();
+            sb.AppendLine("---");
+            sb.AppendLine();
+            sb.AppendLine($"_Repository: `{repoName}`_");
+            return sb.ToString().TrimEnd() + "\n";
+        }
+
         sb.AppendLine($"# {NullIfEmpty(doc.Title) ?? "Architecture Overview"}");
         sb.AppendLine();
 

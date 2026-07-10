@@ -2,6 +2,7 @@ using System.Text.Json;
 using AgentWiki.Cli.Services;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
+// ArchitectureMarkdownRenderer
 
 namespace AgentWiki.Cli.Tests.Generation;
 
@@ -58,6 +59,29 @@ public sealed class LlmJsonTests
         doc.SystemContext.ShouldContain("APIs", Case.Insensitive);
         doc.DataFlows.Count.ShouldBe(1);
         doc.Layers.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void ParseArchitectureJson_AcceptsArchitectureOverviewMarkdownBlob()
+    {
+        // Real-world gpt-chat-latest shape from Elevate-LMS-LoanView run.
+        var raw = """
+            {
+              "repository": "Elevate-LMS-LoanView",
+              "architecture_overview": "# Elevate-LMS-LoanView Architecture Overview\n\n## System Context\n\nElevate-LMS-LoanView is an ASP.NET Core Web API that exposes loan servicing and customer-facing loan data from the Elevate Loan Management System (LMS). The API acts primarily as an orchestration and translation layer between HTTP clients and downstream LMS/domain services.\n\nPrimary API domains visible from the repository:\n- Loans\n- Customers\n- Rewards\n"
+            }
+            """;
+
+        var doc = ArchitectureGenerator.ParseArchitectureJson(raw);
+
+        doc.FullMarkdown.ShouldNotBeNullOrWhiteSpace();
+        doc.FullMarkdown!.ShouldContain("ASP.NET Core");
+        doc.Title.ShouldContain("Elevate-LMS-LoanView");
+        doc.Summary.ShouldNotBeNullOrWhiteSpace();
+
+        var md = ArchitectureMarkdownRenderer.Render(doc, "Elevate-LMS-LoanView");
+        md.ShouldContain("ASP.NET Core");
+        md.ShouldContain("AI-generated architecture");
     }
 
     [Fact]
