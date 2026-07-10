@@ -74,17 +74,28 @@ public sealed class ArchitectureGenerator(
                     cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
-            var document = ParseArchitectureJson(completion.Content);
-            document.UsedOfflineFallback = false;
-            document.TokenUsage = completion.TokenUsage;
+            try
+            {
+                var document = ParseArchitectureJson(completion.Content);
+                document.UsedOfflineFallback = false;
+                document.TokenUsage = completion.TokenUsage;
 
-            logger.LogInformation(
-                "Architecture generated via LLM for {Repo} (tokens in/out: {In}/{Out})",
-                analysis.RepoName,
-                completion.TokenUsage?.InputTokens ?? 0,
-                completion.TokenUsage?.OutputTokens ?? 0);
+                logger.LogInformation(
+                    "Architecture generated via LLM for {Repo} (tokens in/out: {In}/{Out})",
+                    analysis.RepoName,
+                    completion.TokenUsage?.InputTokens ?? 0,
+                    completion.TokenUsage?.OutputTokens ?? 0);
 
-            return document;
+                return document;
+            }
+            catch (Exception parseEx) when (parseEx is not OperationCanceledException)
+            {
+                logger.LogError(
+                    parseEx,
+                    "Failed to parse architecture JSON. Raw content (truncated): {Content}",
+                    TruncateForLog(completion.Content, 800));
+                throw;
+            }
         }
         catch (Exception ex) when (ShouldFallbackToOffline(ex, cancellationToken))
         {
@@ -93,6 +104,17 @@ public sealed class ArchitectureGenerator(
             offline.Gotchas.Insert(0, $"LLM generation failed and offline fallback was used: {ex.Message}");
             return offline;
         }
+    }
+
+    private static string TruncateForLog(string? text, int max)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return "(empty)";
+        }
+
+        var flat = text.Replace('\r', ' ').Replace('\n', ' ');
+        return flat.Length <= max ? flat : flat[..max] + "…";
     }
 
     /// <summary>

@@ -183,13 +183,14 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         yield return ("ArchitectureOverviewPrompt.txt",
             """
             Analyze the repository summary and file inventory below.
-            Produce a high-level architecture overview in Markdown for coding agents.
+            Produce a structured architecture overview as JSON for coding agents.
 
             Repository: {{RepoName}}
             Summary:
             {{RepoSummary}}
 
-            Include: system context, major layers, key dependencies, and how to navigate the code.
+            Respond with a single JSON object only (no markdown fences) including:
+            title, summary, systemContext, layers, keyComponents, dataFlows, decisions, gotchas, howToExtend, mermaidDiagram.
             """);
 
         yield return ("ModulePlanPrompt.txt",
@@ -200,17 +201,20 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             Summary:
             {{RepoSummary}}
 
-            Return JSON with a modules array (id, name, summary, rootPaths, relatedFiles). Max 8 modules.
+            Respond with a single JSON object only: { "modules": [ { "id", "name", "summary", "rootPaths", "relatedFiles" } ] }.
+            Max 8 modules. Use only paths present in the inventory.
             """);
 
         yield return ("ModuleAnalysisPrompt.txt",
             """
-            Document the module "{{ModuleName}}" for AI coding agents.
+            Document the module "{{ModuleName}}" (id: {{ModuleId}}) for AI coding agents as JSON.
 
+            Module summary: {{ModuleSummary}}
             Related files:
             {{RelatedFiles}}
 
-            Cover: purpose, public entry points, dependencies, extension points, and gotchas.
+            Respond with a single JSON object only including:
+            id, title, purpose, entryPoints, dependencies, keyTypes, howToExtend, gotchas, relatedFiles.
             """);
 
         yield return ("CrossCuttingPrompt.txt",
@@ -220,7 +224,7 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             Summary:
             {{RepoSummary}}
 
-            Return JSON items with id, title, summary, patterns, keyFiles, guidance.
+            Respond with a single JSON object only: { "items": [ { "id", "title", "summary", "patterns", "keyFiles", "guidance" } ] }.
             """);
 
         yield return ("CrossLinkValidationPrompt.txt",

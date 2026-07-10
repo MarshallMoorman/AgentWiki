@@ -38,4 +38,27 @@ public sealed class SemanticKernelSettingsTests
         settings.ResponseFormat.ShouldBeNull();
         settings.Temperature.ShouldBeNull();
     }
+
+    [Fact]
+    public void EnsureJsonMentionInMessages_AppendsWhenMissing()
+    {
+        var (system, user) = SemanticKernelLlmCompletionService.EnsureJsonMentionInMessages(
+            "You are a helper.",
+            "Describe the module.");
+
+        (system + user).ShouldContain("json", Case.Insensitive);
+        user.ShouldContain("JSON");
+    }
+
+    [Fact]
+    public void EnsureJsonMentionInMessages_LeavesExistingJsonAlone()
+    {
+        var originalUser = "Return a JSON object with fields.";
+        var (system, user) = SemanticKernelLlmCompletionService.EnsureJsonMentionInMessages(
+            "System",
+            originalUser);
+
+        user.ShouldBe(originalUser);
+        system.ShouldBe("System");
+    }
 }

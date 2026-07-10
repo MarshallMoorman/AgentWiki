@@ -61,13 +61,20 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 ? config.OpenAI.Model ?? config.DefaultModel
                 : config.AzureOpenAI.DeploymentName ?? config.DefaultModel);
 
+        // OpenAI rejects response_format=json_object unless some message contains the word "json".
+        if (options.RequireJsonObject)
+        {
+            (systemPrompt, userPrompt) = EnsureJsonMentionInMessages(systemPrompt, userPrompt);
+        }
+
         var timeoutSeconds = NormalizeTimeoutSeconds(config.LlmTimeoutSeconds);
         _logger.LogInformation(
-            "Invoking LLM provider={Provider} model={Model} timeout={Timeout}s promptChars={Chars}",
+            "Invoking LLM provider={Provider} model={Model} timeout={Timeout}s promptChars={Chars} requireJson={RequireJson}",
             provider,
             model,
             timeoutSeconds,
-            systemPrompt.Length + userPrompt.Length);
+            systemPrompt.Length + userPrompt.Length,
+            options.RequireJsonObject);
 
         try
         {
@@ -90,11 +97,20 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 var usage = TryReadUsage(message);
 
                 _logger.LogInformation(
-                    "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output}",
+                    "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output} contentChars={Chars}",
                     provider,
                     model,
                     usage?.InputTokens ?? 0,
-                    usage?.OutputTokens ?? 0);
+                    usage?.OutputTokens ?? 0,
+                    content.Length);
+
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    _logger.LogWarning(
+                        "LLM returned empty content (provider={Provider} model={Model}). Check model compatibility and prompt.",
+                        provider,
+                        model);
+                }
 
                 return new LlmCompletionResult
                 {
@@ -136,6 +152,28 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         }
 
         return settings;
+    }
+
+    /// <summary>
+    /// OpenAI API rule: when using response_format=json_object, at least one message
+    /// must contain the substring "json" (case-insensitive).
+    /// </summary>
+    public static (string System, string User) EnsureJsonMentionInMessages(string systemPrompt, string userPrompt)
+    {
+        const string marker =
+            "\n\nRespond with a single valid JSON object only (no markdown fences, no commentary).";
+
+        var hasJson =
+            systemPrompt.Contains("json", StringComparison.OrdinalIgnoreCase)
+            || userPrompt.Contains("json", StringComparison.OrdinalIgnoreCase);
+
+        if (hasJson)
+        {
+            return (systemPrompt, userPrompt);
+        }
+
+        // Prefer appending to the user message so task prompts stay primary.
+        return (systemPrompt, userPrompt.TrimEnd() + marker);
     }
 
     /// <summary>
