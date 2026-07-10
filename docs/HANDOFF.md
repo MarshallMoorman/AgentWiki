@@ -1,7 +1,7 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-10  
-**Current version:** 1.0.8  
+**Current version:** 1.0.9  
 **Repo:** this repository root (CLI command: `agent-wiki`)
 
 This document is the single best place for a new coding agent or human to continue work without re-deriving session history.
@@ -122,6 +122,7 @@ Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeo
 | 1.0.6 | Accept `{ "architecture_overview": "# markdown..." }` as full architecture page |
 | 1.0.7 | Handoff docs; anti-deprecation prompt rules; cleaner index/disclaimer language |
 | 1.0.8 | Fix config.json `llmTimeoutSeconds` merge; `.env` > config > process env priority; full LLM env vars; `~` path expansion; portable wiki paths; no index truncation; step progress console UX; Policies/pipeline analysis boost |
+| 1.0.9 | Effective model uses `defaultModel` when nested model empty; status shows sources/timeout default tip; empty nested models in appsettings |
 
 ### Known remaining polish (as of 1.0.8)
 
@@ -203,4 +204,4 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10 CLI, v1.0.8): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki (.NET 10 CLI, v1.0.9): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.

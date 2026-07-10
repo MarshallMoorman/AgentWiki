@@ -1,4 +1,5 @@
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
@@ -30,7 +31,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
     /// <inheritdoc />
     public bool CanUseLiveLlm(AgentWikiConfig config, string? providerOverride = null)
     {
-        var provider = NormalizeProvider(providerOverride ?? config.Provider);
+        var provider = LlmSettings.NormalizeProvider(providerOverride ?? config.Provider);
         return provider switch
         {
             "azure-openai" => HasAzureCredentials(config),
@@ -55,11 +56,8 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         ArgumentException.ThrowIfNullOrWhiteSpace(userPrompt);
 
         options ??= LlmRequestOptions.WikiGeneration;
-        var provider = NormalizeProvider(providerOverride ?? config.Provider);
-        var model = modelOverride
-            ?? (provider is "openai" or "github-models"
-                ? config.OpenAI.Model ?? config.DefaultModel
-                : config.AzureOpenAI.DeploymentName ?? config.DefaultModel);
+        var provider = LlmSettings.NormalizeProvider(providerOverride ?? config.Provider);
+        var model = LlmSettings.ResolveModel(config, modelOverride, providerOverride);
 
         // OpenAI rejects response_format=json_object unless some message contains the word "json".
         if (options.RequireJsonObject)
@@ -218,7 +216,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                     ?? throw new InvalidOperationException(
                         "OpenAI ApiKey is not configured. Set openAI.apiKey in .agentwiki/config.json " +
                         "or AGENTWIKI_OpenAI__ApiKey / .env.");
-                var modelId = model ?? config.OpenAI.Model ?? config.DefaultModel;
+                var modelId = model ?? LlmSettings.ResolveModel(config);
                 if (!string.IsNullOrWhiteSpace(config.OpenAI.Endpoint))
                 {
                     builder.AddOpenAIChatCompletion(
@@ -243,7 +241,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                     ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
                     ?? throw new InvalidOperationException(
                         "GitHub Models requires OpenAI:ApiKey, AGENTWIKI_OpenAI__ApiKey, or GITHUB_TOKEN.");
-                var modelId = model ?? config.OpenAI.Model ?? config.DefaultModel;
+                var modelId = model ?? LlmSettings.ResolveModel(config);
                 var endpoint = string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
                     ? new Uri("https://models.inference.ai.azure.com")
                     : new Uri(config.OpenAI.Endpoint);
@@ -315,22 +313,12 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
 
     private static bool HasAzureCredentials(AgentWikiConfig config) =>
         !string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
-        && !string.IsNullOrWhiteSpace(config.AzureOpenAI.DeploymentName ?? config.DefaultModel)
+        && !string.IsNullOrWhiteSpace(LlmSettings.ResolveModel(config, providerOverride: "azure-openai"))
         && (!string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) || config.AzureOpenAI.UseManagedIdentity);
 
     private static bool HasOpenAiCredentials(AgentWikiConfig config) =>
         !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
         || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
-
-    private static string NormalizeProvider(string? provider) =>
-        (provider ?? "azure-openai").Trim().ToLowerInvariant() switch
-        {
-            "azure" or "aoai" or "azureopenai" or "azure-openai" => "azure-openai",
-            "openai" or "oai" => "openai",
-            "github" or "github-models" or "githubmodels" => "github-models",
-            "mock" or "none" or "offline" => "offline",
-            var p => p
-        };
 
     private static TokenUsage? TryReadUsage(ChatMessageContent message)
     {

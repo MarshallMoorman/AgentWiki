@@ -57,19 +57,33 @@ public sealed class StatusCommand(
         table.AddRow("Config file", File.Exists(configFile) ? $"[green]{Markup.Escape(configFile)}[/]" : "[yellow](not found — run init)[/]");
         table.AddRow("Output path", Markup.Escape(outputPath));
         table.AddRow("Output exists", Directory.Exists(outputPath) ? "[green]yes[/]" : "[yellow]no[/]");
+        var provider = LlmSettings.NormalizeProvider(config.Provider);
+        var effectiveModel = LlmSettings.ResolveModel(config);
+        var notReady = LlmSettings.DescribeNotReadyReason(config);
+        var envPath = Path.Combine(repoPath, ".env");
+        var hasDotEnv = File.Exists(envPath);
+
         table.AddRow("Provider", Markup.Escape(config.Provider));
-        table.AddRow("Model", Markup.Escape(config.DefaultModel));
-        table.AddRow("LLM timeout", $"{config.LlmTimeoutSeconds}s");
+        table.AddRow("defaultModel", Markup.Escape(config.DefaultModel));
+        table.AddRow(
+            "Effective model",
+            $"[cyan]{Markup.Escape(effectiveModel)}[/] [grey](what generate will call)[/]");
+        table.AddRow(
+            "LLM timeout",
+            config.LlmTimeoutSeconds == 300
+                ? "300s [grey](built-in default — set llmTimeoutSeconds or AGENTWIKI_LlmTimeoutSeconds to change)[/]"
+                : $"{config.LlmTimeoutSeconds}s");
         table.AddRow("Max summary chars", config.MaxLlmSummaryChars.ToString("N0"));
         table.AddRow("Agent MD", File.Exists(agentMd) ? $"[green]{Markup.Escape(agentMd)}[/]" : Markup.Escape(agentMd) + " [grey](missing)[/]");
         table.AddRow("Incremental", config.EnableIncrementalUpdates ? "enabled" : "disabled");
         table.AddRow("Max files", config.MaxFilesToAnalyze.ToString());
         table.AddRow("Ignore patterns", config.IgnorePatterns.Count.ToString());
+        table.AddRow("Repo .env", hasDotEnv ? $"[green]{Markup.Escape(envPath)}[/]" : "[grey](not present)[/]");
         table.AddRow("Azure endpoint", string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
             ? "[grey](not set)[/]"
             : Markup.Escape(RedactEndpoint(config.AzureOpenAI.Endpoint)));
         table.AddRow("Azure deployment", string.IsNullOrWhiteSpace(config.AzureOpenAI.DeploymentName)
-            ? "[grey](not set)[/]"
+            ? "[grey](not set — uses defaultModel)[/]"
             : Markup.Escape(config.AzureOpenAI.DeploymentName));
         table.AddRow("Azure API key", string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
         table.AddRow("Managed identity", config.AzureOpenAI.UseManagedIdentity ? "yes" : "no");
@@ -77,14 +91,31 @@ public sealed class StatusCommand(
             ? "[grey](default/public)[/]"
             : Markup.Escape(RedactEndpoint(config.OpenAI.Endpoint)));
         table.AddRow("OpenAI model", string.IsNullOrWhiteSpace(config.OpenAI.Model)
-            ? "[grey](not set)[/]"
+            ? "[grey](not set — uses defaultModel)[/]"
             : Markup.Escape(config.OpenAI.Model));
         table.AddRow("OpenAI API key", string.IsNullOrWhiteSpace(config.OpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
-        table.AddRow("LLM ready", HasLlmReady(config) ? "[green]yes[/]" : "[yellow]no (offline fallback)[/]");
+        table.AddRow(
+            "LLM ready",
+            notReady is null
+                ? "[green]yes[/]"
+                : $"[yellow]no — {Markup.Escape(notReady)}[/]");
         table.AddRow("Log directory", Markup.Escape(AgentWikiLogging.LogDirectory));
         table.AddRow("Today's log", Markup.Escape(AgentWikiLogging.TodayLogFilePath));
 
         AnsiConsole.Write(table);
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(
+            "[grey]Config priority (highest wins):[/] CLI → repo [cyan].env[/] → [cyan].agentwiki/config.json[/] → process [cyan]AGENTWIKI_*[/] → tool defaults.");
+        AnsiConsole.MarkupLine(
+            "[grey]Commented-out keys in config.json are ignored (JSONC). Built-in timeout default is 300s.[/]");
+        if (provider is "openai" or "github-models"
+            && string.IsNullOrWhiteSpace(config.OpenAI.ApiKey))
+        {
+            AnsiConsole.MarkupLine(
+                "[yellow]Tip:[/] set [cyan]openAI.apiKey[/] / [cyan]openAI.endpoint[/] in config, or "
+                + "[cyan]AGENTWIKI_OpenAI__ApiKey[/] in [cyan].env[/] / shell (your openAI block is currently unset).");
+        }
 
         if (lastRun is not null)
         {
@@ -176,22 +207,6 @@ public sealed class StatusCommand(
         }
 
         return 0;
-    }
-
-    private static bool HasLlmReady(AgentWikiConfig config)
-    {
-        var provider = config.Provider?.Trim().ToLowerInvariant() ?? "azure-openai";
-        return provider switch
-        {
-            "azure-openai" or "azure" =>
-                !string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
-                && (!string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) || config.AzureOpenAI.UseManagedIdentity),
-            "openai" => !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey),
-            "github-models" or "github" =>
-                !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
-                || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_TOKEN")),
-            _ => false
-        };
     }
 
     private static void RenderAnalysis(RepoAnalysisResult analysis)
