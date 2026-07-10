@@ -1,8 +1,9 @@
 # Plan: AgentWiki UI Companion (Avalonia 12)
 
-**Status:** Proposed (not implemented)  
+**Status:** Implemented (v1 parity)  
 **Date:** 2026-07-10  
 **Product version at plan time:** 1.0.10  
+**Implemented:** `AgentWiki.App` extraction + Avalonia 12.1 Desktop (CommunityToolkit.Mvvm); CLI remains primary for CI.  
 **Goal:** Ship a cross-platform desktop companion that supports **full CLI feature parity**, while keeping `agent-wiki` as a first-class product.
 
 Use this document to start a **new implementation conversation**. Do not re-scaffold the CLI; extend the existing solution.

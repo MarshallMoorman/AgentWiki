@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.SetupView"
+             x:DataType="vm:SetupViewModel">
+  <ScrollViewer Classes="page-scroll">
+    <StackPanel Spacing="16">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Setup" Classes="page-title" />
+        <TextBlock Text="Scaffold .agentwiki/config.json, sample prompts, and .env.example — same as agent-wiki init."
+                   Classes="page-subtitle" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,*">
+        <Border Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="12">
+            <TextBlock Text="REPOSITORY" Classes="section-title" />
+            <TextBox Text="{Binding RepoPath}" Classes="aw-input" PlaceholderText="Repository root" />
+            <CheckBox Content="Force overwrite existing scaffold files" IsChecked="{Binding Force}" />
+            <Button Content="Run init"
+                    Classes="primary"
+                    Command="{Binding RunInitCommand}"
+                    IsEnabled="{Binding !IsRunning}"
+                    HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes="muted" />
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card-accent" Margin="8,0,0,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="POST-INIT CHECKLIST" Classes="section-title" />
+            <StackPanel Spacing="8">
+              <TextBlock Text="1. Review .agentwiki/config.json in Settings" />
+              <TextBlock Text="2. Copy .env.example → .env and set API keys" />
+              <TextBlock Text="3. Test provider connection" />
+              <TextBlock Text="4. Run Generate (works offline without credentials)" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Text="PREVIEW" Classes="section-title" />
+          <ListBox ItemsSource="{Binding PreviewItems}" Classes="aw-list" MaxHeight="240" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card" IsVisible="{Binding CreatedFiles.Count}">
+        <StackPanel Spacing="10">
+          <TextBlock Text="CREATED / UPDATED" Classes="section-title" />
+          <ListBox ItemsSource="{Binding CreatedFiles}" Classes="aw-list" MaxHeight="160" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

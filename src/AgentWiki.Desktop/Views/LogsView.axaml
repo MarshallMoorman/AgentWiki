@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.LogsView"
+             x:DataType="vm:LogsViewModel">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12" Padding="16">
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Logs" Classes="page-title" />
+            <TextBlock Text="{Binding Status}" Classes="page-subtitle" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Content="Refresh" Classes="secondary" Command="{Binding RefreshTailCommand}" />
+            <Button Content="Open folder" Classes="secondary" Command="{Binding OpenFolderCommand}" />
+            <Button Content="Open file" Classes="primary" Command="{Binding OpenSelectedCommand}" />
+          </StackPanel>
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <ComboBox ItemsSource="{Binding LogFiles}"
+                    SelectedItem="{Binding SelectedFile}"
+                    Classes="aw-input"
+                    MinWidth="360"
+                    HorizontalAlignment="Left" />
+          <CheckBox Content="Auto-refresh (2s)"
+                    IsChecked="{Binding AutoRefresh}"
+                    VerticalAlignment="Center" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <Border Classes="card" Padding="0">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <TextBox Text="{Binding TailText}"
+                 Classes="aw-code"
+                 IsReadOnly="True"
+                 AcceptsReturn="True"
+                 TextWrapping="NoWrap"
+                 BorderThickness="0"
+                 Background="{DynamicResource AwBrush.CodeBg}"
+                 CornerRadius="0"
+                 FontSize="12" />
+      </ScrollViewer>
+    </Border>
+  </DockPanel>
+</UserControl>

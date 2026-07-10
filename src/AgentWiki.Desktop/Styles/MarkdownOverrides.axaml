@@ -1,0 +1,32 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+        xmlns:cta="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia">
+  <!--
+    Markdown.Avalonia / ColorTextBlock pick monospaced system fonts via a list that
+    includes Consolas. On macOS Consolas is often absent (or present but unloadable),
+    and Avalonia throws InvalidOperationException while measuring glyph runs.
+
+    Force a portable mono stack for every code path the renderer uses.
+  -->
+
+  <!-- Inline code spans (CCode binds FontFamily to MonospaceFontFamily) -->
+  <Style Selector="cta|CCode">
+    <Setter Property="MonospaceFontFamily" Value="{DynamicResource AwFont.Mono}" />
+    <Setter Property="FontFamily" Value="{DynamicResource AwFont.Mono}" />
+  </Style>
+
+  <!-- Fenced / indented code blocks (TextBlock.CodeBlock from Markdown FluentTheme) -->
+  <Style Selector="TextBlock.CodeBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource AwFont.Mono}" />
+  </Style>
+
+  <Style Selector="Border.CodeBlock TextBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource AwFont.Mono}" />
+  </Style>
+
+  <!-- Any CTextBlock that might inherit a bad mono family -->
+  <Style Selector="cta|CTextBlock.CodeBlock">
+    <Setter Property="FontFamily" Value="{DynamicResource AwFont.Mono}" />
+  </Style>
+</Styles>

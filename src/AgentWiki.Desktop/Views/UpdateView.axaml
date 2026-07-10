@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.UpdateView"
+             x:DataType="vm:UpdateViewModel">
+  <ScrollViewer Classes="page-scroll">
+    <StackPanel Spacing="16">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Update" Classes="page-title" />
+        <TextBlock Text="Incremental update from git changes since last run — same as agent-wiki update. Force is always on for CI-friendly runs."
+                   Classes="page-subtitle" />
+      </StackPanel>
+
+      <Grid ColumnDefinitions="*,*">
+        <Border Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="12">
+            <TextBlock Text="RUN OPTIONS" Classes="section-title" />
+            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Text="Output" Classes="field-label" />
+              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding OutputPath}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="1" Text="Provider" Classes="field-label" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Provider}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="2" Text="Model" Classes="field-label" />
+              <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Model}" Classes="aw-input" Margin="0,0,0,8" />
+              <CheckBox Grid.Row="3" Grid.Column="1" Content="Dry-run only" IsChecked="{Binding DryRun}" Margin="0,4,0,0" />
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+              <Button Content="Run update" Classes="primary" Command="{Binding RunCommand}" />
+              <Button Content="Cancel" Classes="danger-ghost" Command="{Binding CancelCommand}" />
+              <TextBlock Text="{Binding StatusText}" Classes="muted" VerticalAlignment="Center" />
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card" Margin="8,0,0,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="PROGRESS" Classes="section-title" />
+            <ListBox ItemsSource="{Binding ProgressLines}" Classes="aw-list" MaxHeight="220" MinHeight="120" />
+            <TextBlock Text="{Binding ResultMessage}" FontWeight="SemiBold" TextWrapping="Wrap"
+                       Foreground="{DynamicResource AwBrush.Teal}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Text="RESULTS" Classes="section-title" />
+          <DataGrid ItemsSource="{Binding ResultRows}" Classes="aw-grid" AutoGenerateColumns="False" MaxHeight="220">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Property" Binding="{Binding Key}" Width="2*" />
+              <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <Grid ColumnDefinitions="*,*" >
+            <StackPanel Margin="0,0,8,0" Spacing="8" IsVisible="{Binding ChangedFiles.Count}">
+              <TextBlock Text="CHANGED FILES" Classes="section-title" />
+              <ListBox ItemsSource="{Binding ChangedFiles}" Classes="aw-list" MaxHeight="150" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="8" IsVisible="{Binding FilesWritten.Count}">
+              <TextBlock Text="FILES WRITTEN" Classes="section-title" />
+              <ListBox ItemsSource="{Binding FilesWritten}" Classes="aw-list" MaxHeight="150" />
+            </StackPanel>
+          </Grid>
+
+          <ItemsControl ItemsSource="{Binding Warnings}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border Classes="chip-warning" Margin="0,0,0,6" Padding="10,6">
+                  <TextBlock Text="{Binding}" Classes="warning-text" />
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

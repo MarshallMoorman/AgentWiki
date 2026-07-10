@@ -18,7 +18,7 @@ public sealed class UpdateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, GenerationSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — incremental update");
-        AgentWikiLogging.WriteLogHint();
+        CliConsole.WriteLogHint();
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)

@@ -51,30 +51,56 @@ From source without installing the tool:
 dotnet run --project src/AgentWiki.Cli -- generate --repo-path /path/to/repo --force
 ```
 
+### Desktop companion (optional)
+
+Same engine as the CLI, for interactive use (repo picker, progress UI, settings editor, wiki browser). **CLI remains primary for CI and automation.** Not published to NuGet.org.
+
+```bash
+./scripts/run-desktop.sh
+# or
+dotnet run --project src/AgentWiki.Desktop
+```
+
+| UI surface | CLI equivalent |
+|------------|----------------|
+| Dashboard | `status` (+ analyze) |
+| Generate / Update | `generate` / `update` |
+| Setup | `init` |
+| Settings | config.json + `.env` layers |
+| Provider | `test-provider` |
+| Wiki / Logs | browse `docs/wiki` and `~/.agentwiki/logs` |
+
+See [`docs/plans/ui-companion-avalonia.md`](docs/plans/ui-companion-avalonia.md).
+
 ## Architecture
 
 ```mermaid
 flowchart TB
-    CLI[agent-wiki CLI<br/>Spectre.Console] --> Config[ConfigLoader + .env]
-    CLI --> Analyzer[RepoAnalyzer]
-    CLI --> Changes[GitChangeDetector]
-    CLI --> Orch[WikiGenerationOrchestrator]
+    CLI[agent-wiki CLI<br/>Spectre.Console] --> App[AgentWiki.App services]
+    Desktop[AgentWiki Desktop<br/>Avalonia 12] --> App
+    App --> Config[ConfigLoader + .env]
+    App --> Analyzer[RepoAnalyzer]
+    App --> Changes[GitChangeDetector]
+    App --> Orch[WikiGenerationOrchestrator]
     Orch --> Arch[ArchitectureGenerator / SK]
     Orch --> Modules[Module pages]
     Orch --> Cross[Cross-cutting pages]
     Orch --> Index[index + support pages]
-    CLI --> Writer[MarkdownOutputWriter]
-    CLI --> Boot[AgentBootstrapper]
-    CLI --> LastRun[LastRunStore]
+    App --> Writer[MarkdownOutputWriter]
+    App --> Boot[AgentBootstrapper]
+    App --> LastRun[LastRunStore]
     Arch --> LLM[Azure OpenAI / OpenAI / GitHub Models]
-    CLI --> Logs["~/.agentwiki/logs"]
+    App --> Logs["~/.agentwiki/logs"]
 ```
 
 | Project | Role |
 |---------|------|
-| `src/AgentWiki.Cli` | CLI commands, Semantic Kernel, git, filesystem, DI |
 | `src/AgentWiki.Core` | Models, analysis, offline planners, flexible LLM JSON |
-| `tests/AgentWiki.Cli.Tests` | xUnit + Shouldly + Moq |
+| `src/AgentWiki.App` | Application services (SK LLM, git, orchestrator, config) shared by hosts |
+| `src/AgentWiki.Cli` | Thin Spectre.Console.Cli host + tool packaging |
+| `src/AgentWiki.Desktop` | Avalonia 12 desktop companion (MVVM) |
+| `tests/AgentWiki.Cli.Tests` | Service + offline E2E tests |
+| `tests/AgentWiki.Desktop.Tests` | ViewModel / config-editor unit tests |
 
 ## Commands
 

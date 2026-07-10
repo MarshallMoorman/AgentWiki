@@ -11,11 +11,13 @@ Instructions for coding agents working **on AgentWiki itself** (not on a target 
 
 ## Product snapshot
 
-- **CLI:** `agent-wiki` (Spectre.Console.Cli)
+- **CLI:** `agent-wiki` (Spectre.Console.Cli) — primary for CI/agents
+- **Desktop companion:** Avalonia 12 UI (`AgentWiki.Desktop`) — same engine, interactive use
 - **Runtime:** .NET 10 / C# latest
-- **Projects:** `AgentWiki.Cli` (app), `AgentWiki.Core` (models/helpers), `AgentWiki.Cli.Tests`
+- **Projects:** `AgentWiki.Core` (models/helpers), `AgentWiki.App` (services/SK/git), `AgentWiki.Cli` (thin Spectre host), `AgentWiki.Desktop` (Avalonia MVVM), tests
 - **AI:** Microsoft.SemanticKernel → OpenAI / Azure OpenAI / GitHub Models
 - **Version:** keep `Directory.Build.props` and `AgentWikiConstants.Version` in sync (`/bump-version` skill)
+- **Do not publish to NuGet.org** (local pack / Azure Artifacts later)
 
 ## Generated wiki for *this* repo
 
@@ -40,6 +42,9 @@ dotnet build AgentWiki.slnx
 dotnet test AgentWiki.slnx
 ./scripts/pack-and-install-tool.sh
 agent-wiki --version
+
+# Desktop companion (local interactive UI)
+./scripts/run-desktop.sh
 ```
 
 ## Logs while debugging CLI behavior
@@ -50,7 +55,8 @@ agent-wiki --version
 
 ## Coding conventions
 
-- Clean architecture: abstractions in Core, IO/SK/git in Cli.
+- Clean architecture: abstractions in Core; services in App; Cli/Desktop are thin hosts.
+- Register services via `AgentWiki.App.ServiceCollectionExtensions.AddAgentWikiServices()`.
 - Primary constructors, file-scoped namespaces, nullable enabled.
 - Never log API keys or full prompt/response bodies by default.
 - LLM parse paths must tolerate free-form JSON (see `LlmJson`, architecture_overview blobs).
@@ -68,8 +74,9 @@ agent-wiki --version
 
 | Ask | Where to work |
 |-----|----------------|
-| Bad wiki / LLM output | `Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson` |
-| CLI UX / logging | `Infrastructure/AgentWikiLogging.cs`, Commands |
+| Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson` |
+| CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
+| Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |
 | Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer` |
 | Incremental update | `GitChangeDetector`, `LastRunStore`, `SemanticWikiGenerator` |
 | Config / init | `ConfigLoader`, `InitService`, `DotEnvLoader` |

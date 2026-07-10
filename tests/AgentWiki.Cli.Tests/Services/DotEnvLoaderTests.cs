@@ -1,4 +1,4 @@
-using AgentWiki.Cli.Services;
+using AgentWiki.App.Services;
 
 namespace AgentWiki.Cli.Tests.Services;
 

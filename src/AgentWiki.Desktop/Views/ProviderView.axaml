@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.ProviderView"
+             x:DataType="vm:ProviderViewModel">
+  <ScrollViewer Classes="page-scroll">
+    <StackPanel Spacing="16">
+      <StackPanel Spacing="4">
+        <TextBlock Text="Provider" Classes="page-title" />
+        <TextBlock Text="Verify LLM credentials with a minimal chat completion. Secrets are never logged."
+                   Classes="page-subtitle" />
+      </StackPanel>
+
+      <Border Classes="hero">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto">
+              <TextBlock Grid.Row="0" Text="Provider" Classes="field-label" />
+              <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ProviderChoices}"
+                        SelectedItem="{Binding Provider}" Classes="aw-input" MaxWidth="280" HorizontalAlignment="Left" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="1" Text="Model" Classes="field-label" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Model}" Classes="aw-input" MaxWidth="280" HorizontalAlignment="Left" />
+            </Grid>
+            <TextBlock Text="{Binding Message}" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Content="Test connection"
+                    Classes="primary"
+                    Command="{Binding TestCommand}"
+                    IsEnabled="{Binding !IsTesting}" />
+            <Button Content="Open log" Classes="secondary" Command="{Binding OpenLogCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Classes="chip-warning" HorizontalAlignment="Left" IsVisible="{Binding IsTesting}" Padding="12,6">
+        <TextBlock Text="Sending probe…" />
+      </Border>
+
+      <Grid ColumnDefinitions="*,*">
+        <Border Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="RESOLVED CONNECTION" Classes="section-title" />
+            <DataGrid ItemsSource="{Binding ConnectionRows}" Classes="aw-grid" AutoGenerateColumns="False" MaxHeight="280">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card" Margin="8,0,0,0" IsVisible="{Binding ResultRows.Count}">
+          <StackPanel Spacing="10">
+            <TextBlock Text="RESULT" Classes="section-title" />
+            <DataGrid ItemsSource="{Binding ResultRows}" Classes="aw-grid" AutoGenerateColumns="False" MaxHeight="280">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

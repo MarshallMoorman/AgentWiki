@@ -18,7 +18,7 @@ public sealed class GenerateCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, GenerationSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — full generation");
-        AgentWikiLogging.WriteLogHint();
+        CliConsole.WriteLogHint();
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
@@ -85,7 +85,7 @@ public sealed class GenerateCommand(
     {
         if (!result.Success)
         {
-            AgentWikiLogging.WriteError(result.Error ?? result.Message);
+            CliConsole.WriteError(result.Error ?? result.Message);
             return 1;
         }
 
@@ -175,7 +175,7 @@ public sealed class GenerateCommand(
             AnsiConsole.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(warning)}");
         }
 
-        AgentWikiLogging.WriteLogHint();
+        CliConsole.WriteLogHint();
         return 0;
     }
 

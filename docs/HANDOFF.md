@@ -52,16 +52,22 @@ Shown on `status`, start of `generate`/`update`, and on errors. Console is Spect
 
 | Layer | Path | Role |
 |-------|------|------|
-| CLI entry | `src/AgentWiki.Cli/Program.cs` | Spectre.Console.Cli, DI, logging bootstrap |
-| Commands | `src/AgentWiki.Cli/Commands/` | `init`, `generate`, `update`, `status`, `test-provider` |
-| Services | `src/AgentWiki.Cli/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap |
-| Prompts | `src/AgentWiki.Cli/Prompts/` | Embedded defaults; repo can override via `.agentwiki/prompts/` |
 | Core models | `src/AgentWiki.Core/Models/` | Config, wiki docs, generation results |
 | Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, prompt truncation |
 | Core generation | `src/AgentWiki.Core/Generation/` | Markdown renderers, offline planners, flexible LLM JSON |
-| Tests | `tests/AgentWiki.Cli.Tests/` | xUnit + Shouldly + Moq (~70+ tests) |
+| **App services** | `src/AgentWiki.App/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap (shared) |
+| App DI | `src/AgentWiki.App/ServiceCollectionExtensions.cs` | `AddAgentWikiServices()` |
+| Prompts | `src/AgentWiki.App/Prompts/` | Embedded defaults; repo can override via `.agentwiki/prompts/` |
+| Logging | `src/AgentWiki.App/Infrastructure/AgentWikiLogging.cs` | File logs under `~/.agentwiki/logs` |
+| CLI entry | `src/AgentWiki.Cli/Program.cs` | Thin Spectre host → App DI |
+| Commands | `src/AgentWiki.Cli/Commands/` | `init`, `generate`, `update`, `status`, `test-provider` |
+| Desktop | `src/AgentWiki.Desktop/` | Avalonia 12 MVVM companion (full CLI parity) |
+| Tests | `tests/AgentWiki.Cli.Tests/`, `tests/AgentWiki.Desktop.Tests/` | xUnit + Shouldly + Moq |
 | Skills | `.grok/skills/bump-version/` | Version bump skill + script |
 | Pack script | `scripts/pack-and-install-tool.sh` | `dotnet pack` + global tool install/update |
+| Desktop run | `scripts/run-desktop.sh` | Local Avalonia companion |
+
+**Hosts:** CLI (CI/automation) and Desktop (interactive) both call **AgentWiki.App**. Do not put Spectre or Avalonia in App.
 
 ### Generation pipeline
 
@@ -182,18 +188,32 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 
 ## 9. Suggested next work (if continuing product)
 
-1. Optional structured-output schemas / stricter tool-calling if models support it  
-2. Richer cost/token usage when provider returns usage (already partially shown)  
-3. Azure DevOps pipeline sample parity with GitHub Actions  
-4. Post-process LLM output to strip accidental absolute paths  
-5. Optional “deployment” cross-cutting page dedicated to Policies/ + pipelines  
-6. When ready: push nupkg to Azure Artifacts (not NuGet.org) from CI  
+1. Desktop polish: richer Markdown render, multi-repo job queue, dry-run diff view  
+2. Optional structured-output schemas / stricter tool-calling if models support it  
+3. Richer cost/token usage when provider returns usage (already partially shown)  
+4. Azure DevOps pipeline sample parity with GitHub Actions  
+5. Post-process LLM output to strip accidental absolute paths  
+6. When ready: push nupkg to Azure Artifacts (not NuGet.org) from CI; desktop remains side-car publish  
+
+### Desktop companion (implemented 2026-07-10)
+
+Plan: `docs/plans/ui-companion-avalonia.md` (status: implemented for v1 parity).
+
+- `AgentWiki.App` extracted from Cli services; CLI thin host; tests green.
+- Avalonia **12.1** desktop: Dashboard, Generate, Update, Setup, Settings, Provider, Wiki, Logs.
+- Progress via `WikiGenerationRequest.Progress`; cancel via `CancellationToken`.
+- UI prefs: `~/.agentwiki/ui-settings.json` (recent repos, last path).
+- Secrets: Settings saves keys to `.env` only; non-secrets to `config.json`.
+
+```bash
+./scripts/run-desktop.sh
+```
 
 ### CI (this repo)
 
 | Workflow | Role |
 |----------|------|
-| `.github/workflows/ci.yml` | Build, test, pack nupkg as GitHub Actions artifact (no feed publish yet) |
+| `.github/workflows/ci.yml` | Build, test, compile Desktop, pack nupkg as GitHub Actions artifact (no feed publish yet) |
 | `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR (weekly / manual) |
 | `examples/github-actions/agent-wiki-update.yml` | **Consumer template** — copy into other repos |
 
@@ -206,12 +226,13 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 3. `AGENTS.md` — agent bootstrap for *this* repo  
 4. `CONTRIBUTING.md` — how to extend  
 5. `AgentWiki-Project-Specification.md` — original product spec  
-6. `src/AgentWiki.Cli/Program.cs` + `Services/WikiGenerationOrchestrator.cs` — control flow  
-7. Latest log: `~/.agentwiki/logs/` if debugging a run  
-8. **UI companion plan (not started):** `docs/plans/ui-companion-avalonia.md`
+6. `src/AgentWiki.App/ServiceCollectionExtensions.cs` + `WikiGenerationOrchestrator.cs` — shared control flow  
+7. `src/AgentWiki.Cli/Program.cs` / `src/AgentWiki.Desktop/` — hosts  
+8. Latest log: `~/.agentwiki/logs/` if debugging a run  
+9. **UI companion plan:** `docs/plans/ui-companion-avalonia.md` (v1 implemented)
 
 ---
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10 CLI, v1.0.10): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki (.NET 10, v1.0.10): Core + App services + thin Spectre CLI + Avalonia 12 Desktop companion; generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. CLI stays primary for CI. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.

@@ -31,7 +31,7 @@ public sealed class TestProviderCommand(
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — test LLM provider");
-        AgentWikiLogging.WriteLogHint();
+        CliConsole.WriteLogHint();
 
         // Ensure .env is loaded for this repo path before reading config (~ supported).
         var config = await configLoader
@@ -124,7 +124,7 @@ public sealed class TestProviderCommand(
 
         if (error is not null)
         {
-            AgentWikiLogging.WriteError(
+            CliConsole.WriteError(
                 $"Provider call failed after {sw.Elapsed.TotalSeconds:F2}s: {error.Message}",
                 error);
             AnsiConsole.WriteLine();

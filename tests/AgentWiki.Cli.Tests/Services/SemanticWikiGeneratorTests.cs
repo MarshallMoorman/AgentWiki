@@ -1,4 +1,4 @@
-using AgentWiki.Cli.Services;
+using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;

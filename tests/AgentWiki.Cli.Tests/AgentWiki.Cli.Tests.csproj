@@ -30,6 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\AgentWiki.App\AgentWiki.App.csproj" />
     <ProjectReference Include="..\..\src\AgentWiki.Cli\AgentWiki.Cli.csproj" />
     <ProjectReference Include="..\..\src\AgentWiki.Core\AgentWiki.Core.csproj" />
   </ItemGroup>

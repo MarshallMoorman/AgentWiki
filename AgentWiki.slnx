@@ -1,9 +1,12 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/AgentWiki.App/AgentWiki.App.csproj" />
     <Project Path="src/AgentWiki.Cli/AgentWiki.Cli.csproj" />
     <Project Path="src/AgentWiki.Core/AgentWiki.Core.csproj" />
+    <Project Path="src/AgentWiki.Desktop/AgentWiki.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj" />
+    <Project Path="tests/AgentWiki.Desktop.Tests/AgentWiki.Desktop.Tests.csproj" />
   </Folder>
 </Solution>

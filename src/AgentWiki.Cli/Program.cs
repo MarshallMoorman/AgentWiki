@@ -1,7 +1,7 @@
+using AgentWiki.App;
+using AgentWiki.App.Infrastructure;
 using AgentWiki.Cli.Commands;
 using AgentWiki.Cli.Infrastructure;
-using AgentWiki.Cli.Services;
-using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Constants;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,7 +14,8 @@ var verbose = args.Any(a =>
     string.Equals(a, "--verbose", StringComparison.OrdinalIgnoreCase)
     || string.Equals(a, "/verbose", StringComparison.OrdinalIgnoreCase));
 
-AgentWikiLogging.Configure(verbose);
+// File logging always; console sink only when verbose (Spectre owns the terminal otherwise).
+AgentWikiLogging.Configure(verbose, enableConsoleSink: true);
 
 try
 {
@@ -32,7 +33,7 @@ try
         config.SetExceptionHandler((ex, _) =>
         {
             // Full exception always goes to the log file; console stays readable.
-            AgentWikiLogging.WriteError(ex.Message, ex);
+            CliConsole.WriteError(ex.Message, ex);
             if (verbose)
             {
                 AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
@@ -76,7 +77,7 @@ try
 }
 catch (Exception ex)
 {
-    AgentWikiLogging.WriteError(ex.Message, ex);
+    CliConsole.WriteError(ex.Message, ex);
     if (verbose)
     {
         AnsiConsole.WriteException(ex, ExceptionFormats.ShortenEverything);
@@ -97,18 +98,7 @@ static void ConfigureServices(IServiceCollection services)
         builder.AddSerilog(dispose: true);
     });
 
-    services.AddSingleton<IConfigLoader, ConfigLoader>();
-    services.AddSingleton<IInitService, InitService>();
-    services.AddSingleton<IRepoAnalyzer, RepoAnalyzer>();
-    services.AddSingleton<IOutputWriter, MarkdownOutputWriter>();
-    services.AddSingleton<IPromptManager, PromptManager>();
-    services.AddSingleton<ILlmCompletionService, SemanticKernelLlmCompletionService>();
-    services.AddSingleton<IArchitectureGenerator, ArchitectureGenerator>();
-    services.AddSingleton<IWikiGenerationOrchestrator, WikiGenerationOrchestrator>();
-    services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
-    services.AddSingleton<ILastRunStore, LastRunStore>();
-    services.AddSingleton<IChangeDetector, GitChangeDetector>();
-    services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
+    services.AddAgentWikiServices();
 
     services.AddSingleton<InitCommand>();
     services.AddSingleton<GenerateCommand>();

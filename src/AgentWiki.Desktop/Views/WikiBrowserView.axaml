@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             xmlns:md="https://github.com/whistyun/Markdown.Avalonia"
+             x:Class="AgentWiki.Desktop.Views.WikiBrowserView"
+             x:DataType="vm:WikiBrowserViewModel">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Classes="card" Margin="0,0,0,12" Padding="16">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Wiki" Classes="page-title" />
+          <TextBlock Text="{Binding Status}" Classes="page-subtitle" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <ToggleButton Content="Raw"
+                        Classes="secondary"
+                        IsChecked="{Binding ShowRaw}"
+                        ToolTip.Tip="Toggle raw Markdown source" />
+          <Button Content="Refresh" Classes="secondary" Command="{Binding RefreshCommand}" />
+          <Button Content="Reveal in OS" Classes="secondary" Command="{Binding RevealInOsCommand}" />
+          <Button Content="Open external" Classes="primary" Command="{Binding OpenExternalCommand}" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid ColumnDefinitions="300,*">
+      <Border Classes="card" Margin="0,0,10,0" Padding="10">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="FILES" Classes="section-title" Margin="6,4,0,8" />
+          <TreeView x:Name="WikiTree"
+                    Classes="aw-tree"
+                    ItemsSource="{Binding Roots}"
+                    BorderThickness="0"
+                    Background="Transparent"
+                    SelectionChanged="OnTreeSelectionChanged">
+            <TreeView.ItemTemplate>
+              <TreeDataTemplate ItemsSource="{Binding Children}" DataType="vm:WikiTreeNode">
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <TextBlock Text="{Binding Name}"
+                             FontWeight="Medium"
+                             FontSize="12.5" />
+                </StackPanel>
+              </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+          </TreeView>
+        </DockPanel>
+      </Border>
+
+      <Border Grid.Column="1" Classes="card" Padding="0">
+        <DockPanel>
+          <Border DockPanel.Dock="Top"
+                  Background="{DynamicResource AwBrush.BgSubtle}"
+                  BorderBrush="{DynamicResource AwBrush.Border}"
+                  BorderThickness="0,0,0,1"
+                  Padding="14,10">
+            <TextBlock Text="{Binding SelectedPath}"
+                       Classes="dim"
+                       FontSize="11.5"
+                       FontFamily="{DynamicResource AwFont.Mono}"
+                       TextTrimming="CharacterEllipsis" />
+          </Border>
+
+          <!-- Preview area: rendered Markdown (default) or raw source toggle -->
+          <Panel>
+            <!-- Style is assigned in code (MarkdownFontFix) to strip Consolas from package themes. -->
+            <md:MarkdownScrollViewer x:Name="MarkdownPreview"
+                                    Markdown="{Binding MarkdownText}"
+                                    Margin="16,12"
+                                    IsVisible="{Binding !ShowRaw}" />
+            <ScrollViewer IsVisible="{Binding ShowRaw}">
+              <TextBox Text="{Binding MarkdownText}"
+                       Classes="aw-code"
+                       IsReadOnly="True"
+                       AcceptsReturn="True"
+                       TextWrapping="Wrap"
+                       BorderThickness="0"
+                       Background="Transparent"
+                       CornerRadius="0" />
+            </ScrollViewer>
+          </Panel>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</UserControl>

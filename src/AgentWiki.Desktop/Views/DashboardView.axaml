@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.DashboardView"
+             x:DataType="vm:DashboardViewModel">
+  <ScrollViewer Classes="page-scroll">
+    <StackPanel Spacing="16">
+      <!-- Hero -->
+      <Border Classes="hero">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="6">
+            <TextBlock Text="Dashboard" Classes="page-title" />
+            <TextBlock Text="{Binding Summary}" Classes="page-subtitle" MaxWidth="720" />
+            <TextBlock Text="Priority: CLI/UI → .env → config.json → AGENTWIKI_* → appsettings"
+                       Classes="dim"
+                       FontSize="11.5"
+                       Margin="0,8,0,0" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+            <Button Content="Analyze inventory"
+                    Classes="primary"
+                    Command="{Binding AnalyzeCommand}"
+                    IsEnabled="{Binding !IsAnalyzing}" />
+            <Button Content="Open AGENTS.md"
+                    Classes="secondary"
+                    Command="{Binding OpenAgentsMdCommand}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Border Classes="chip-warning" HorizontalAlignment="Left" IsVisible="{Binding IsAnalyzing}" Padding="12,6">
+        <TextBlock Text="Analyzing repository…" />
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" >
+        <!-- Config card -->
+        <Border Classes="card" Margin="0,0,8,12">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Width="8" Height="8" CornerRadius="4" Background="{DynamicResource AwBrush.Accent}" VerticalAlignment="Center" />
+              <TextBlock Text="CONFIGURATION" Classes="section-title" Margin="0" />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding ConfigRows}"
+                      Classes="aw-grid"
+                      AutoGenerateColumns="False"
+                      MaxHeight="360">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Border>
+
+        <!-- Last run card -->
+        <Border Grid.Column="1" Classes="card" Margin="8,0,0,12">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Width="8" Height="8" CornerRadius="4" Background="{DynamicResource AwBrush.Teal}" VerticalAlignment="Center" />
+              <TextBlock Text="LAST SUCCESSFUL RUN" Classes="section-title" Margin="0" />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding LastRunRows}"
+                      Classes="aw-grid"
+                      AutoGenerateColumns="False"
+                      MaxHeight="360">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Border>
+
+        <!-- Inventory full width -->
+        <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="card"
+                IsVisible="{Binding InventoryRows.Count}">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Border Width="8" Height="8" CornerRadius="4" Background="{DynamicResource AwBrush.Info}" VerticalAlignment="Center" />
+              <TextBlock Text="LIVE INVENTORY" Classes="section-title" Margin="0" />
+            </StackPanel>
+            <DataGrid ItemsSource="{Binding InventoryRows}"
+                      Classes="aw-grid"
+                      AutoGenerateColumns="False"
+                      MaxHeight="300">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Metric" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <ItemsControl ItemsSource="{Binding Warnings}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Classes="chip-warning" Margin="0,0,0,6" HorizontalAlignment="Stretch" Padding="12,8">
+              <TextBlock Text="{Binding}" Classes="warning-text" />
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

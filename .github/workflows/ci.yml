@@ -38,6 +38,12 @@ jobs:
       - name: Test
         run: dotnet test AgentWiki.slnx -c Release --no-build --verbosity normal
 
+      - name: Compile Desktop companion
+        run: |
+          # Avalonia UI compile smoke (no display required for build).
+          # Desktop is not published to NuGet.org; CLI tool remains the CI automation surface.
+          dotnet build src/AgentWiki.Desktop/AgentWiki.Desktop.csproj -c Release --no-restore
+
       - name: Pack global tool
         run: |
           mkdir -p artifacts

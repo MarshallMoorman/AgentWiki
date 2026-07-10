@@ -1,4 +1,4 @@
-using AgentWiki.Cli.Services;
+using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
 
 namespace AgentWiki.Cli.Tests.Services;

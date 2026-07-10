@@ -1,0 +1,29 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="AgentWiki.Desktop.App"
+             RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://AgentWiki.Desktop/Themes/AppTheme.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme DensityStyle="Compact">
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Dark"
+                               Accent="#FF8B7CFF"
+                               RegionColor="#FF10131A" />
+        <ColorPaletteResources x:Key="Light"
+                               Accent="#FF6C5CE7"
+                               RegionColor="#FFF5F7FC" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+    <StyleInclude Source="avares://AgentWiki.Desktop/Styles/AppStyles.axaml" />
+    <!-- After app styles so Markdown mono overrides win over package defaults -->
+    <StyleInclude Source="avares://AgentWiki.Desktop/Styles/MarkdownOverrides.axaml" />
+  </Application.Styles>
+</Application>

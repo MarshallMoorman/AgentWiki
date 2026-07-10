@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AgentWiki.Cli.Services;
+using AgentWiki.App.Services;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 // ArchitectureMarkdownRenderer

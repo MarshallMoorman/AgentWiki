@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AgentWiki.Cli.Infrastructure;
+using AgentWiki.App.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Constants;

@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:AgentWiki.Desktop.ViewModels"
+             x:Class="AgentWiki.Desktop.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <ScrollViewer Classes="page-scroll">
+    <StackPanel Spacing="16">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Settings" Classes="page-title" />
+          <TextBlock Text="Non-secrets save to .agentwiki/config.json. API keys go to .env only — never into the wiki or logs."
+                     Classes="page-subtitle" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+          <Button Content="Reload" Classes="secondary" Command="{Binding ReloadCommand}" />
+          <Button Content="Save" Classes="primary" Command="{Binding SaveCommand}" IsEnabled="{Binding !IsSaving}" />
+        </StackPanel>
+      </Grid>
+
+      <TextBlock Text="{Binding Message}" Classes="success-text" TextWrapping="Wrap" IsVisible="{Binding Message.Length}" />
+
+      <Grid ColumnDefinitions="*,*">
+        <!-- General -->
+        <Border Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="GENERAL" Classes="section-title" />
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Text="Provider" Classes="field-label" />
+              <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding ProviderChoices}"
+                        SelectedItem="{Binding Provider}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="1" Text="Default model" Classes="field-label" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding DefaultModel}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="2" Text="Output path" Classes="field-label" />
+              <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding OutputPath}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="3" Text="Agent MD path" Classes="field-label" />
+              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding AgentMdPath}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="4" Text="Max files" Classes="field-label" />
+              <NumericUpDown Grid.Row="4" Grid.Column="1" Value="{Binding MaxFilesToAnalyze}" Minimum="1" Maximum="100000" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="5" Text="LLM timeout (s)" Classes="field-label" />
+              <NumericUpDown Grid.Row="5" Grid.Column="1" Value="{Binding LlmTimeoutSeconds}" Minimum="30" Maximum="3600" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="6" Text="Max summary chars" Classes="field-label" />
+              <NumericUpDown Grid.Row="6" Grid.Column="1" Value="{Binding MaxLlmSummaryChars}" Minimum="1000" Maximum="200000" Classes="aw-input" Margin="0,0,0,8" />
+              <CheckBox Grid.Row="7" Grid.Column="1" Content="Enable incremental updates"
+                        IsChecked="{Binding EnableIncrementalUpdates}" Margin="0,4,0,0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Effective -->
+        <Border Grid.Column="1" Classes="card" Margin="8,0,0,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="EFFECTIVE VALUES" Classes="section-title" />
+            <DataGrid ItemsSource="{Binding EffectiveRows}" Classes="aw-grid" AutoGenerateColumns="False" MaxHeight="280">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Key" Binding="{Binding Key}" Width="2*" />
+                <DataGridTextColumn Header="Value" Binding="{Binding Value}" Width="5*" />
+              </DataGrid.Columns>
+            </DataGrid>
+            <TextBlock Text="Ignore patterns (one per line)" Classes="field-label" Margin="0,8,0,4" />
+            <TextBox Text="{Binding IgnorePatternsText}"
+                     Classes="aw-code"
+                     AcceptsReturn="True"
+                     Height="120"
+                     TextWrapping="NoWrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Grid ColumnDefinitions="*,*">
+        <Border Classes="card" Margin="0,0,8,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="AZURE OPENAI" Classes="section-title" />
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Text="Endpoint" Classes="field-label" />
+              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding AzureEndpoint}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="1" Text="Deployment" Classes="field-label" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding AzureDeployment}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="2" Text="API key" Classes="field-label" />
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
+                <TextBox Text="{Binding AzureApiKeyInput}" PasswordChar="•" Classes="aw-input"
+                         PlaceholderText="Leave blank to keep existing" />
+                <TextBlock Text="{Binding AzureKeyMask}" Classes="dim" FontSize="11.5" />
+              </StackPanel>
+              <CheckBox Grid.Row="3" Grid.Column="1" Content="Use managed identity"
+                        IsChecked="{Binding AzureUseManagedIdentity}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Grid.Column="1" Classes="card" Margin="8,0,0,0">
+          <StackPanel Spacing="10">
+            <TextBlock Text="OPENAI / GITHUB MODELS" Classes="section-title" />
+            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto">
+              <TextBlock Grid.Row="0" Text="Endpoint" Classes="field-label" />
+              <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding OpenAiEndpoint}" Classes="aw-input" Margin="0,0,0,8"
+                       PlaceholderText="(empty = public api.openai.com)" />
+              <TextBlock Grid.Row="1" Text="Model" Classes="field-label" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding OpenAiModel}" Classes="aw-input" Margin="0,0,0,8" />
+              <TextBlock Grid.Row="2" Text="API key" Classes="field-label" />
+              <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4">
+                <TextBox Text="{Binding OpenAiApiKeyInput}" PasswordChar="•" Classes="aw-input"
+                         PlaceholderText="Leave blank to keep existing" />
+                <TextBlock Text="{Binding OpenAiKeyMask}" Classes="dim" FontSize="11.5" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
