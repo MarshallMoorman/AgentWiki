@@ -27,6 +27,18 @@ public sealed class AgentWikiConfig
     /// <summary>Whether incremental (git-diff-based) updates are enabled.</summary>
     public bool EnableIncrementalUpdates { get; set; } = true;
 
+    /// <summary>
+    /// Per-request HTTP timeout for LLM calls (seconds). Default 300 (5 minutes).
+    /// Large repos can exceed the .NET HttpClient default of 100s.
+    /// </summary>
+    public int LlmTimeoutSeconds { get; set; } = 300;
+
+    /// <summary>
+    /// Max characters of repository summary included in LLM prompts (default 16_000).
+    /// Keeps prompts bounded so requests finish within the timeout.
+    /// </summary>
+    public int MaxLlmSummaryChars { get; set; } = 16_000;
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [

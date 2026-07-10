@@ -11,12 +11,15 @@ namespace AgentWiki.Cli.Services;
 
 /// <summary>
 /// Semantic Kernel-backed chat completion for Azure OpenAI and OpenAI-compatible endpoints,
-/// with Polly retries for transient failures.
+/// with Polly retries for transient failures and configurable HTTP timeouts.
 /// </summary>
-public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
+public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, IDisposable
 {
     private readonly ILogger<SemanticKernelLlmCompletionService> _logger;
     private readonly ResiliencePipeline _pipeline;
+    private readonly object _httpLock = new();
+    private HttpClient? _httpClient;
+    private int _httpTimeoutSeconds;
 
     public SemanticKernelLlmCompletionService(ILogger<SemanticKernelLlmCompletionService> logger)
     {
@@ -58,41 +61,57 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                 ? config.OpenAI.Model ?? config.DefaultModel
                 : config.AzureOpenAI.DeploymentName ?? config.DefaultModel);
 
-        _logger.LogInformation("Invoking LLM provider={Provider} model={Model}", provider, model);
+        var timeoutSeconds = NormalizeTimeoutSeconds(config.LlmTimeoutSeconds);
+        _logger.LogInformation(
+            "Invoking LLM provider={Provider} model={Model} timeout={Timeout}s promptChars={Chars}",
+            provider,
+            model,
+            timeoutSeconds,
+            systemPrompt.Length + userPrompt.Length);
 
-        return await _pipeline.ExecuteAsync(async ct =>
+        try
         {
-            var kernel = BuildKernel(config, provider, model);
-            var chat = kernel.GetRequiredService<IChatCompletionService>();
-
-            var history = new ChatHistory();
-            history.AddSystemMessage(systemPrompt);
-            history.AddUserMessage(userPrompt);
-
-            var settings = CreateExecutionSettings(model, options);
-
-            var message = await chat
-                .GetChatMessageContentAsync(history, settings, kernel, ct)
-                .ConfigureAwait(false);
-
-            var content = message.Content ?? string.Empty;
-            var usage = TryReadUsage(message);
-
-            _logger.LogInformation(
-                "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output}",
-                provider,
-                model,
-                usage?.InputTokens ?? 0,
-                usage?.OutputTokens ?? 0);
-
-            return new LlmCompletionResult
+            return await _pipeline.ExecuteAsync(async ct =>
             {
-                Content = content,
-                TokenUsage = usage,
-                Provider = provider,
-                Model = model ?? ""
-            };
-        }, cancellationToken).ConfigureAwait(false);
+                var kernel = BuildKernel(config, provider, model, timeoutSeconds);
+                var chat = kernel.GetRequiredService<IChatCompletionService>();
+
+                var history = new ChatHistory();
+                history.AddSystemMessage(systemPrompt);
+                history.AddUserMessage(userPrompt);
+
+                var settings = CreateExecutionSettings(model, options);
+
+                var message = await chat
+                    .GetChatMessageContentAsync(history, settings, kernel, ct)
+                    .ConfigureAwait(false);
+
+                var content = message.Content ?? string.Empty;
+                var usage = TryReadUsage(message);
+
+                _logger.LogInformation(
+                    "LLM completed provider={Provider} model={Model} inputTokens={Input} outputTokens={Output}",
+                    provider,
+                    model,
+                    usage?.InputTokens ?? 0,
+                    usage?.OutputTokens ?? 0);
+
+                return new LlmCompletionResult
+                {
+                    Content = content,
+                    TokenUsage = usage,
+                    Provider = provider,
+                    Model = model ?? ""
+                };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (LlmResilience.IsTimeoutFailure(ex, cancellationToken))
+        {
+            throw new TimeoutException(
+                $"LLM request timed out after {timeoutSeconds}s (provider={provider}, model={model}). " +
+                "Try a faster model, raise llmTimeoutSeconds in config, or reduce maxLlmSummaryChars / maxFilesToAnalyze.",
+                ex);
+        }
     }
 
     /// <summary>
@@ -131,7 +150,6 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
 
         var m = model.Trim().ToLowerInvariant();
 
-        // OpenAI reasoning / o-series
         if (m.StartsWith("o1", StringComparison.Ordinal)
             || m.StartsWith("o3", StringComparison.Ordinal)
             || m.StartsWith("o4", StringComparison.Ordinal)
@@ -140,7 +158,6 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
             return false;
         }
 
-        // Newer families that often reject sampling params
         if (m.StartsWith("gpt-5", StringComparison.Ordinal)
             || m.Contains("codex", StringComparison.Ordinal))
         {
@@ -150,9 +167,10 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
         return true;
     }
 
-    private static Kernel BuildKernel(AgentWikiConfig config, string provider, string? model)
+    private Kernel BuildKernel(AgentWikiConfig config, string provider, string? model, int timeoutSeconds)
     {
         var builder = Kernel.CreateBuilder();
+        var httpClient = GetOrCreateHttpClient(timeoutSeconds);
 
         switch (provider)
         {
@@ -168,11 +186,15 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                     builder.AddOpenAIChatCompletion(
                         modelId: modelId,
                         apiKey: apiKey,
-                        endpoint: new Uri(config.OpenAI.Endpoint));
+                        endpoint: new Uri(config.OpenAI.Endpoint),
+                        httpClient: httpClient);
                 }
                 else
                 {
-                    builder.AddOpenAIChatCompletion(modelId: modelId, apiKey: apiKey);
+                    builder.AddOpenAIChatCompletion(
+                        modelId: modelId,
+                        apiKey: apiKey,
+                        httpClient: httpClient);
                 }
 
                 break;
@@ -187,7 +209,11 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                 var endpoint = string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
                     ? new Uri("https://models.inference.ai.azure.com")
                     : new Uri(config.OpenAI.Endpoint);
-                builder.AddOpenAIChatCompletion(modelId: modelId, apiKey: apiKey, endpoint: endpoint);
+                builder.AddOpenAIChatCompletion(
+                    modelId: modelId,
+                    apiKey: apiKey,
+                    endpoint: endpoint,
+                    httpClient: httpClient);
                 break;
             }
             default:
@@ -204,7 +230,8 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                     builder.AddAzureOpenAIChatCompletion(
                         deploymentName: deployment,
                         endpoint: endpoint,
-                        credentials: new DefaultAzureCredential());
+                        credentials: new DefaultAzureCredential(),
+                        httpClient: httpClient);
                 }
                 else
                 {
@@ -214,7 +241,8 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                     builder.AddAzureOpenAIChatCompletion(
                         deploymentName: deployment,
                         endpoint: endpoint,
-                        apiKey: apiKey);
+                        apiKey: apiKey,
+                        httpClient: httpClient);
                 }
 
                 break;
@@ -223,6 +251,29 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
 
         return builder.Build();
     }
+
+    private HttpClient GetOrCreateHttpClient(int timeoutSeconds)
+    {
+        lock (_httpLock)
+        {
+            if (_httpClient is null || _httpTimeoutSeconds != timeoutSeconds)
+            {
+                _httpClient?.Dispose();
+                _httpClient = new HttpClient
+                {
+                    // Large multi-step wiki prompts need more than the 100s .NET default.
+                    Timeout = TimeSpan.FromSeconds(timeoutSeconds)
+                };
+                _httpTimeoutSeconds = timeoutSeconds;
+                _logger.LogDebug("Configured LLM HttpClient timeout={Timeout}s", timeoutSeconds);
+            }
+
+            return _httpClient;
+        }
+    }
+
+    private static int NormalizeTimeoutSeconds(int configured) =>
+        configured <= 0 ? 300 : Math.Clamp(configured, 30, 900);
 
     private static bool HasAzureCredentials(AgentWikiConfig config) =>
         !string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
@@ -285,5 +336,14 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
         }
 
         return null;
+    }
+
+    public void Dispose()
+    {
+        lock (_httpLock)
+        {
+            _httpClient?.Dispose();
+            _httpClient = null;
+        }
     }
 }

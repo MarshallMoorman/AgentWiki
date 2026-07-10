@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -44,13 +45,24 @@ public sealed class ArchitectureGenerator(
         {
             var activePrompts = ResolvePromptManager(analysis.RepoPath);
             var systemPrompt = activePrompts.GetPrompt("SystemPrompt");
+            var summary = RepoSummaryBuilder.BuildForLlm(
+                analysis.RepoName,
+                analysis.RepoPath,
+                analysis.Stats,
+                analysis.Files,
+                maxChars: config.MaxLlmSummaryChars > 0 ? config.MaxLlmSummaryChars : 16_000);
             var userPrompt = activePrompts.Render("ArchitectureOverviewPrompt", new Dictionary<string, string>
             {
                 ["RepoName"] = analysis.RepoName,
-                ["RepoSummary"] = analysis.Summary,
+                ["RepoSummary"] = summary,
                 ["Provider"] = providerOverride ?? config.Provider,
                 ["Model"] = modelOverride ?? config.DefaultModel
             });
+
+            logger.LogInformation(
+                "Architecture LLM prompt size: system={SystemChars} user={UserChars} chars",
+                systemPrompt.Length,
+                userPrompt.Length);
 
             var completion = await llm.CompleteAsync(
                     config,
@@ -74,7 +86,7 @@ public sealed class ArchitectureGenerator(
 
             return document;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogError(ex, "LLM architecture generation failed; falling back to offline generator");
             var offline = OfflineArchitectureGenerator.Generate(analysis);
@@ -82,6 +94,13 @@ public sealed class ArchitectureGenerator(
             return offline;
         }
     }
+
+    /// <summary>
+    /// Fall back for timeouts and provider errors; rethrow only true user cancellations.
+    /// </summary>
+    internal static bool ShouldFallbackToOffline(Exception ex, CancellationToken cancellationToken) =>
+        LlmResilience.IsTimeoutFailure(ex, cancellationToken)
+        || ex is not OperationCanceledException;
 
     private IPromptManager ResolvePromptManager(string repoPath)
     {

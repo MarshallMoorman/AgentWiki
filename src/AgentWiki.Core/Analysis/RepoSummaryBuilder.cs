@@ -8,7 +8,26 @@ namespace AgentWiki.Core.Analysis;
 /// </summary>
 public static class RepoSummaryBuilder
 {
-    public static string Build(string repoName, string repoPath, RepoStats stats, IReadOnlyList<RepoFile> files)
+    /// <summary>Full inventory summary for wiki inventory pages.</summary>
+    public static string Build(string repoName, string repoPath, RepoStats stats, IReadOnlyList<RepoFile> files) =>
+        Build(repoName, repoPath, stats, files, maxSelectedFiles: 80, maxChars: null);
+
+    /// <summary>Compact summary suitable for LLM prompts (bounded size).</summary>
+    public static string BuildForLlm(
+        string repoName,
+        string repoPath,
+        RepoStats stats,
+        IReadOnlyList<RepoFile> files,
+        int maxChars = 16_000) =>
+        Build(repoName, repoPath, stats, files, maxSelectedFiles: 40, maxChars: maxChars);
+
+    public static string Build(
+        string repoName,
+        string repoPath,
+        RepoStats stats,
+        IReadOnlyList<RepoFile> files,
+        int maxSelectedFiles,
+        int? maxChars)
     {
         var sb = new StringBuilder();
         sb.AppendLine($"# Repository: {repoName}");
@@ -51,7 +70,7 @@ public static class RepoSummaryBuilder
         }
         else
         {
-            foreach (var folder in stats.TopFolders.Take(15))
+            foreach (var folder in stats.TopFolders.Take(12))
             {
                 sb.AppendLine($"- `{folder.RelativePath}/` — {folder.FileCount} files ({FormatSize(folder.SizeBytes)})");
             }
@@ -59,13 +78,13 @@ public static class RepoSummaryBuilder
 
         sb.AppendLine();
         sb.AppendLine("## Top extensions");
-        foreach (var ext in stats.FilesByExtension.OrderByDescending(kv => kv.Value).Take(15))
+        foreach (var ext in stats.FilesByExtension.OrderByDescending(kv => kv.Value).Take(12))
         {
             var label = string.IsNullOrEmpty(ext.Key) ? "(no extension)" : ext.Key;
             sb.AppendLine($"- {label}: {ext.Value}");
         }
 
-        var selected = files.Where(f => f.SelectedForAnalysis).Take(80).ToList();
+        var selected = files.Where(f => f.SelectedForAnalysis).Take(maxSelectedFiles).ToList();
         if (selected.Count > 0)
         {
             sb.AppendLine();
@@ -82,7 +101,8 @@ public static class RepoSummaryBuilder
             }
         }
 
-        return sb.ToString().TrimEnd();
+        var text = sb.ToString().TrimEnd();
+        return maxChars is int limit ? PromptText.TruncateForLlm(text, limit) : text;
     }
 
     private static string FormatSize(long bytes) => bytes switch

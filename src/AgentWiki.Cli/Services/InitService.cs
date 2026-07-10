@@ -112,6 +112,8 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         AgentMdPath = AgentWikiConstants.DefaultAgentMdPath,
         MaxFilesToAnalyze = 500,
         EnableIncrementalUpdates = true,
+        LlmTimeoutSeconds = 300,
+        MaxLlmSummaryChars = 16_000,
         // Defaults already include bin/obj/node_modules/docs/wiki/.agentwiki.
         AzureOpenAI = new AzureOpenAiOptions
         {

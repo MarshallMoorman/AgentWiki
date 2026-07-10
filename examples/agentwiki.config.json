@@ -5,6 +5,8 @@
   "agentMdPath": "AGENTS.md",
   "maxFilesToAnalyze": 500,
   "enableIncrementalUpdates": true,
+  "llmTimeoutSeconds": 300,
+  "maxLlmSummaryChars": 16000,
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -179,7 +180,7 @@ public sealed class WikiGenerationOrchestrator(
             var user = prompts.Render("ModulePlanPrompt", new Dictionary<string, string>
             {
                 ["RepoName"] = analysis.RepoName,
-                ["RepoSummary"] = analysis.Summary
+                ["RepoSummary"] = SummaryForLlm(analysis, request.Config)
             });
 
             var completion = await llm.CompleteAsync(
@@ -200,7 +201,7 @@ public sealed class WikiGenerationOrchestrator(
             EnrichPlanFromInventory(plan, analysis);
             return plan;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Module planning via LLM failed; using offline planner");
             return OfflineModulePlanner.Plan(analysis);
@@ -252,7 +253,7 @@ public sealed class WikiGenerationOrchestrator(
 
             return document;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Module generation failed for {Module}; using offline content", descriptor.Id);
             var offline = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis);
@@ -284,7 +285,7 @@ public sealed class WikiGenerationOrchestrator(
             var user = prompts.Render("CrossCuttingPrompt", new Dictionary<string, string>
             {
                 ["RepoName"] = analysis.RepoName,
-                ["RepoSummary"] = analysis.Summary
+                ["RepoSummary"] = SummaryForLlm(analysis, request.Config)
             });
 
             var completion = await llm.CompleteAsync(
@@ -332,12 +333,20 @@ public sealed class WikiGenerationOrchestrator(
 
             return parsed;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Cross-cutting LLM generation failed; using offline content");
             return offline;
         }
     }
+
+    private static string SummaryForLlm(RepoAnalysisResult analysis, AgentWikiConfig config) =>
+        RepoSummaryBuilder.BuildForLlm(
+            analysis.RepoName,
+            analysis.RepoPath,
+            analysis.Stats,
+            analysis.Files,
+            maxChars: config.MaxLlmSummaryChars > 0 ? config.MaxLlmSummaryChars : 16_000);
 
     private IPromptManager ResolvePrompts(string repoPath)
     {
