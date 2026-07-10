@@ -44,12 +44,14 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
         string userPrompt,
         string? modelOverride = null,
         string? providerOverride = null,
+        LlmRequestOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentException.ThrowIfNullOrWhiteSpace(systemPrompt);
         ArgumentException.ThrowIfNullOrWhiteSpace(userPrompt);
 
+        options ??= LlmRequestOptions.WikiGeneration;
         var provider = NormalizeProvider(providerOverride ?? config.Provider);
         var model = modelOverride
             ?? (provider is "openai" or "github-models"
@@ -67,11 +69,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
             history.AddSystemMessage(systemPrompt);
             history.AddUserMessage(userPrompt);
 
-            var settings = new OpenAIPromptExecutionSettings
-            {
-                Temperature = 0.2,
-                ResponseFormat = "json_object"
-            };
+            var settings = CreateExecutionSettings(model, options);
 
             var message = await chat
                 .GetChatMessageContentAsync(history, settings, kernel, ct)
@@ -97,6 +95,61 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
         }, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Builds prompt settings. Temperature is omitted by default because many current
+    /// OpenAI models (reasoning models, some GPT-4.1/5 variants) reject it.
+    /// </summary>
+    public static OpenAIPromptExecutionSettings CreateExecutionSettings(
+        string? model,
+        LlmRequestOptions options)
+    {
+        var settings = new OpenAIPromptExecutionSettings();
+
+        if (options.RequireJsonObject)
+        {
+            settings.ResponseFormat = "json_object";
+        }
+
+        // Only set temperature when explicitly requested AND the model is known to accept it.
+        if (options.Temperature is double temperature && SupportsTemperature(model))
+        {
+            settings.Temperature = temperature;
+        }
+
+        return settings;
+    }
+
+    /// <summary>
+    /// Returns false for model families known to reject the temperature parameter.
+    /// </summary>
+    public static bool SupportsTemperature(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return true;
+        }
+
+        var m = model.Trim().ToLowerInvariant();
+
+        // OpenAI reasoning / o-series
+        if (m.StartsWith("o1", StringComparison.Ordinal)
+            || m.StartsWith("o3", StringComparison.Ordinal)
+            || m.StartsWith("o4", StringComparison.Ordinal)
+            || m.Contains("reason", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Newer families that often reject sampling params
+        if (m.StartsWith("gpt-5", StringComparison.Ordinal)
+            || m.Contains("codex", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static Kernel BuildKernel(AgentWikiConfig config, string provider, string? model)
     {
         var builder = Kernel.CreateBuilder();
@@ -106,7 +159,9 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
             case "openai":
             {
                 var apiKey = config.OpenAI.ApiKey
-                    ?? throw new InvalidOperationException("OpenAI ApiKey is not configured.");
+                    ?? throw new InvalidOperationException(
+                        "OpenAI ApiKey is not configured. Set openAI.apiKey in .agentwiki/config.json " +
+                        "or AGENTWIKI_OpenAI__ApiKey / .env.");
                 var modelId = model ?? config.OpenAI.Model ?? config.DefaultModel;
                 if (!string.IsNullOrWhiteSpace(config.OpenAI.Endpoint))
                 {
@@ -127,7 +182,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService
                 var apiKey = config.OpenAI.ApiKey
                     ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
                     ?? throw new InvalidOperationException(
-                        "GitHub Models requires OpenAI:ApiKey or GITHUB_TOKEN.");
+                        "GitHub Models requires OpenAI:ApiKey, AGENTWIKI_OpenAI__ApiKey, or GITHUB_TOKEN.");
                 var modelId = model ?? config.OpenAI.Model ?? config.DefaultModel;
                 var endpoint = string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
                     ? new Uri("https://models.inference.ai.azure.com")

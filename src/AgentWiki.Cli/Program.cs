@@ -97,6 +97,12 @@ try
             .WithExample("status")
             .WithExample("status", "--repo-path", ".")
             .WithExample("status", "--analyze");
+
+        config.AddCommand<TestProviderCommand>("test-provider")
+            .WithDescription("Verify LLM provider credentials with a minimal chat completion")
+            .WithExample("test-provider")
+            .WithExample("test-provider", "--provider", "openai", "--model", "gpt-4o")
+            .WithExample("test-provider", "--repo-path", ".");
     });
 
     return await app.RunAsync(args).ConfigureAwait(false);
@@ -137,4 +143,5 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<GenerateCommand>();
     services.AddSingleton<UpdateCommand>();
     services.AddSingleton<StatusCommand>();
+    services.AddSingleton<TestProviderCommand>();
 }

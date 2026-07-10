@@ -1,7 +1,7 @@
 {
   "outputPath": "docs/wiki",
   "defaultModel": "gpt-4o",
-  "provider": "azure-openai",
+  "provider": "openai",
   "agentMdPath": "AGENTS.md",
   "maxFilesToAnalyze": 500,
   "enableIncrementalUpdates": true,

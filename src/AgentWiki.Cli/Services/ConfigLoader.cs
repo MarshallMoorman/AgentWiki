@@ -33,7 +33,15 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         var resolvedRepo = Path.GetFullPath(repoPath);
         logger.LogDebug("Loading configuration for repo {RepoPath}", resolvedRepo);
 
+        // Optional .env in repo root (secrets). Does not override existing process env.
+        var dotenvCount = DotEnvLoader.LoadFromRepo(resolvedRepo, logger);
+        if (dotenvCount > 0)
+        {
+            logger.LogInformation("Loaded {Count} setting(s) from {Path}", dotenvCount, Path.Combine(resolvedRepo, ".env"));
+        }
+
         // Base defaults from appsettings.json (tool installation directory) + env vars.
+        // Priority later: CLI > config.json > env/.env > appsettings.
         var builder = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)

@@ -58,7 +58,8 @@ public sealed class ArchitectureGenerator(
                     userPrompt,
                     modelOverride,
                     providerOverride,
-                    cancellationToken)
+                    options: LlmRequestOptions.WikiGeneration,
+                    cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             var document = ParseArchitectureJson(completion.Content);

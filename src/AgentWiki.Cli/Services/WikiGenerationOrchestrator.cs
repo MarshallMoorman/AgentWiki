@@ -188,7 +188,8 @@ public sealed class WikiGenerationOrchestrator(
                     user,
                     request.ModelOverride,
                     request.ProviderOverride,
-                    cancellationToken)
+                    options: LlmRequestOptions.WikiGeneration,
+                    cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             var plan = ParseModulePlan(completion.Content);
@@ -237,7 +238,8 @@ public sealed class WikiGenerationOrchestrator(
                     user,
                     request.ModelOverride,
                     request.ProviderOverride,
-                    cancellationToken)
+                    options: LlmRequestOptions.WikiGeneration,
+                    cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             var document = ParseModuleDocument(completion.Content, descriptor);
@@ -291,7 +293,8 @@ public sealed class WikiGenerationOrchestrator(
                     user,
                     request.ModelOverride,
                     request.ProviderOverride,
-                    cancellationToken)
+                    options: LlmRequestOptions.WikiGeneration,
+                    cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             var parsed = ParseCrossCuttingList(completion.Content);

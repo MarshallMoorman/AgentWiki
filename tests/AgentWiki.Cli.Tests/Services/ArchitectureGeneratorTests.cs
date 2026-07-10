@@ -3,6 +3,7 @@ using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
+// LlmRequestOptions lives in Abstractions
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -77,6 +78,7 @@ public sealed class ArchitectureGeneratorTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<LlmRequestOptions?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -93,6 +95,7 @@ public sealed class ArchitectureGeneratorTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<LlmRequestOptions?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new LlmCompletionResult
             {
@@ -137,6 +140,7 @@ public sealed class ArchitectureGeneratorTests
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
+                It.IsAny<LlmRequestOptions?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 

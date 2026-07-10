@@ -22,6 +22,13 @@ public sealed class InitServiceTests
             File.Exists(Path.Combine(root, ".agentwiki", "config.json")).ShouldBeTrue();
             File.Exists(Path.Combine(root, ".agentwiki", "prompts", "SystemPrompt.txt")).ShouldBeTrue();
             File.Exists(Path.Combine(root, ".env.example")).ShouldBeTrue();
+
+            var json = await File.ReadAllTextAsync(Path.Combine(root, ".agentwiki", "config.json"));
+            json.ShouldContain("\"openAI\"");
+            json.ShouldContain("\"apiKey\"");
+            json.ShouldContain("\"model\"");
+            // Must not be an empty openAI object — keys should be scaffolded as placeholders.
+            json.ShouldNotContain("\"openAI\": {}");
         }
         finally
         {

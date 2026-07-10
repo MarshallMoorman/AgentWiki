@@ -89,6 +89,7 @@ AgentWiki/
 | `agent-wiki generate` | Full multi-step wiki generation |
 | `agent-wiki update` | Incremental update from git changes since last run |
 | `agent-wiki status` | Config, last-run, optional `--analyze` inventory |
+| `agent-wiki test-provider` | Verify LLM credentials with a minimal chat call |
 
 ### Common options
 
@@ -109,8 +110,32 @@ AgentWiki/
 
 1. CLI arguments  
 2. `.agentwiki/config.json` in the repo  
-3. Environment variables (`AGENTWIKI_*`, nested with `__`)  
+3. Environment variables (`AGENTWIKI_*`, nested with `__`) — including values loaded from repo-root `.env`  
 4. Tool `appsettings.json` defaults  
+
+### config.json vs `.env` — which do I need?
+
+| Source | Best for | Required? |
+|--------|----------|-----------|
+| `.agentwiki/config.json` | Non-secrets: provider, model, paths, ignore patterns, Azure endpoint/deployment | **Recommended** (created by `init`) |
+| `.env` (from `.env.example`) | **Secrets** (API keys) and local overrides | **Optional** — only if you want file-based secrets |
+| Process / CI env vars | CI secrets, deployed environments | **Optional** — same keys as `.env` |
+
+You do **not** need both. Typical setups:
+
+- **Local OpenAI:** put `provider` + `openAI.model` in `config.json`; put `AGENTWIKI_OpenAI__ApiKey` in `.env` (or export it).  
+- **Local everything in config:** works, but avoid committing API keys.  
+- **CI:** inject `AGENTWIKI_*` secrets in the pipeline; `config.json` can stay non-secret.
+
+`agent-wiki` auto-loads `.env` from the **repo root** when present. It never overrides variables already set in the process environment (shell/CI win).
+
+### Verify the LLM provider
+
+```bash
+dotnet run --project src/AgentWiki.Cli -- test-provider --repo-path .
+# or after tool install:
+agent-wiki test-provider --provider openai --model gpt-4o
+```
 
 ### Example `.agentwiki/config.json`
 
@@ -120,7 +145,7 @@ See also [`examples/agentwiki.config.json`](examples/agentwiki.config.json).
 {
   "outputPath": "docs/wiki",
   "defaultModel": "gpt-4o",
-  "provider": "azure-openai",
+  "provider": "openai",
   "agentMdPath": "AGENTS.md",
   "maxFilesToAnalyze": 500,
   "enableIncrementalUpdates": true,
@@ -129,6 +154,11 @@ See also [`examples/agentwiki.config.json`](examples/agentwiki.config.json).
     "deploymentName": "gpt-4o",
     "apiKey": "",
     "useManagedIdentity": false
+  },
+  "openAI": {
+    "endpoint": "",
+    "apiKey": "",
+    "model": "gpt-4o"
   }
 }
 ```
@@ -136,8 +166,16 @@ See also [`examples/agentwiki.config.json`](examples/agentwiki.config.json).
 ### Environment variables
 
 ```bash
-export AGENTWIKI_Provider=azure-openai
+# OpenAI
+export AGENTWIKI_Provider=openai
 export AGENTWIKI_DefaultModel=gpt-4o
+export AGENTWIKI_OpenAI__ApiKey=sk-...
+export AGENTWIKI_OpenAI__Model=gpt-4o
+# Optional custom base URL (compatible gateways):
+# export AGENTWIKI_OpenAI__Endpoint=https://...
+
+# Azure OpenAI
+export AGENTWIKI_Provider=azure-openai
 export AGENTWIKI_AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
 export AGENTWIKI_AzureOpenAI__DeploymentName=gpt-4o
 export AGENTWIKI_AzureOpenAI__ApiKey=...

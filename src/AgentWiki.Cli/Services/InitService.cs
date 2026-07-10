@@ -16,7 +16,8 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        // Keep empty strings so scaffolded keys (openAI.apiKey, etc.) are visible placeholders.
+        DefaultIgnoreCondition = JsonIgnoreCondition.Never
     };
 
     /// <inheritdoc />
@@ -103,6 +104,8 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
 
     private static AgentWikiConfig CreateDefaultConfig() => new()
     {
+        // RepoPath is resolved at runtime; omit a real path from scaffold.
+        RepoPath = ".",
         OutputPath = AgentWikiConstants.DefaultOutputPath,
         DefaultModel = AgentWikiConstants.DefaultModel,
         Provider = AgentWikiConstants.DefaultProvider,
@@ -114,26 +117,44 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         {
             Endpoint = "https://YOUR_RESOURCE.openai.azure.com/",
             DeploymentName = "gpt-4o",
+            ApiKey = "",
             UseManagedIdentity = false
+        },
+        OpenAI = new OpenAiOptions
+        {
+            Endpoint = "",
+            ApiKey = "",
+            Model = "gpt-4o"
         }
     };
 
     private static string BuildEnvExample() =>
         """
-        # AgentWiki environment variables (copy to .env and fill in — never commit secrets)
-        # Prefix: AGENTWIKI_
+        # AgentWiki environment variables
+        # --------------------------------
+        # Optional. Prefer putting non-secret settings in .agentwiki/config.json and
+        # secrets (API keys) here or in CI secret stores.
+        #
+        # How to use:
+        #   1. Copy this file to .env (never commit .env)
+        #   2. Fill in values — agent-wiki loads .env from the repo root automatically
+        #      (does not override variables already set in the process environment)
+        #   3. Or export the same keys in your shell / CI pipeline
+        #
+        # Prefix: AGENTWIKI_   Nested keys use double underscore (__)
 
-        AGENTWIKI_Provider=azure-openai
+        AGENTWIKI_Provider=openai
         AGENTWIKI_DefaultModel=gpt-4o
         AGENTWIKI_OutputPath=docs/wiki
 
-        # Azure OpenAI (prefer managed identity in CI / production)
+        # Azure OpenAI
         AGENTWIKI_AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
         AGENTWIKI_AzureOpenAI__DeploymentName=gpt-4o
         AGENTWIKI_AzureOpenAI__ApiKey=
         AGENTWIKI_AzureOpenAI__UseManagedIdentity=false
 
-        # OpenAI-compatible fallback
+        # OpenAI (public API) or OpenAI-compatible endpoint
+        # Leave Endpoint empty for https://api.openai.com
         AGENTWIKI_OpenAI__Endpoint=
         AGENTWIKI_OpenAI__ApiKey=
         AGENTWIKI_OpenAI__Model=gpt-4o
