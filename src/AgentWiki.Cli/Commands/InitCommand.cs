@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -24,8 +25,9 @@ public sealed class InitCommand(IInitService initService) : AsyncCommand<InitCom
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — initializing repository…");
 
+        var repoPath = PathUtility.ExpandAndResolve(settings.RepoPath);
         var result = await initService
-            .InitializeAsync(settings.RepoPath, settings.Force)
+            .InitializeAsync(repoPath, settings.Force)
             .ConfigureAwait(false);
 
         if (!result.Success)

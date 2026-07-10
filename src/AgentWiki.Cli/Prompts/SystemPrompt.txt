@@ -6,6 +6,7 @@ Key principles:
 - Be concise but complete.
 - Prefer bullet points, tables, and short code examples over long prose.
 - Always reference actual file paths from the inventory when possible.
+- Use **repo-relative** paths only (e.g. `src/Foo/Bar.cs`, `Policies/policy.xml`). Never write absolute machine paths like `/Users/…` or `C:\…`.
 - Highlight important patterns, conventions, and "gotchas".
 - Focus on what an agent needs to know to implement features or fix bugs correctly.
 - Never invent files that are not present in the provided inventory.

@@ -31,7 +31,8 @@ public static class RepoSummaryBuilder
     {
         var sb = new StringBuilder();
         sb.AppendLine($"# Repository: {repoName}");
-        sb.AppendLine($"Path: {repoPath}");
+        // Never emit machine-specific absolute paths — wiki docs must be portable.
+        sb.AppendLine($"Path: {PathUtility.RepoRootDisplayPath}");
         sb.AppendLine();
         sb.AppendLine("## Inventory summary");
         sb.AppendLine($"- Total files (after ignores): {stats.TotalFiles}");

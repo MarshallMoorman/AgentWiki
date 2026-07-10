@@ -2,7 +2,8 @@ namespace AgentWiki.Core.Models;
 
 /// <summary>
 /// Root configuration for an AgentWiki run.
-/// Loaded from CLI args, <c>.agentwiki/config.json</c>, environment variables, and appsettings.
+/// Priority (highest wins): CLI flags → repo <c>.env</c> → <c>.agentwiki/config.json</c>
+/// → process <c>AGENTWIKI_*</c> env → tool appsettings.
 /// </summary>
 public sealed class AgentWikiConfig
 {

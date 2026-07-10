@@ -32,12 +32,15 @@ _None listed._
 ## Related files
 
 - `tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj`
+- `tests/AgentWiki.Cli.Tests/Analysis/EnvConfigApplierTests.cs`
 - `tests/AgentWiki.Cli.Tests/Analysis/FileCategorizerTests.cs`
 - `tests/AgentWiki.Cli.Tests/Analysis/GitIgnoreMatcherTests.cs`
+- `tests/AgentWiki.Cli.Tests/Analysis/PathUtilityTests.cs`
 - `tests/AgentWiki.Cli.Tests/Analysis/PromptTextTests.cs`
 - `tests/AgentWiki.Cli.Tests/Generation/ArchitectureMarkdownRendererTests.cs`
 - `tests/AgentWiki.Cli.Tests/Generation/CostEstimatorTests.cs`
 - `tests/AgentWiki.Cli.Tests/Generation/LlmJsonTests.cs`
+- `tests/AgentWiki.Cli.Tests/Generation/ModuleMarkdownRendererTests.cs`
 - `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/AgentBootstrapperTests.cs`
 - `tests/AgentWiki.Cli.Tests/Services/ArchitectureGeneratorTests.cs`

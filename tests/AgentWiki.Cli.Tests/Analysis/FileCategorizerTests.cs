@@ -17,9 +17,21 @@ public sealed class FileCategorizerTests
     [InlineData("src/Foo.Tests/ServiceTests.cs", FileCategory.Tests)]
     [InlineData("diagrams/flow.mmd", FileCategory.Diagrams)]
     [InlineData("assets/logo.png", FileCategory.Other)]
+    [InlineData("Policies/all-operations-policy.xml", FileCategory.Configuration)]
+    [InlineData("azure-build-pipeline-api.yml", FileCategory.Configuration)]
+    [InlineData(".github/workflows/ci.yml", FileCategory.Configuration)]
     public void Categorize_ReturnsExpectedCategory(string path, FileCategory expected)
     {
         FileCategorizer.Categorize(path).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("Policies/all-operations-policy.xml", true)]
+    [InlineData("azure-build-pipeline-api.yml", true)]
+    [InlineData("src/Foo/Bar.cs", false)]
+    public void IsInfrastructurePath_DetectsDeployArtifacts(string path, bool expected)
+    {
+        FileCategorizer.IsInfrastructurePath(path).ShouldBe(expected);
     }
 
     [Theory]

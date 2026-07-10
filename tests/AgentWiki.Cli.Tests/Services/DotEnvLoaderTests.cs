@@ -5,7 +5,35 @@ namespace AgentWiki.Cli.Tests.Services;
 public sealed class DotEnvLoaderTests
 {
     [Fact]
-    public void Load_SetsUnsetVariablesOnly()
+    public void ParseFile_ReadsKeysAndIgnoresComments()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "agentwiki-dotenv-" + Guid.NewGuid().ToString("N") + ".env");
+        try
+        {
+            File.WriteAllText(path,
+                """
+                # comment
+                AGENTWIKI_A=one
+                export AGENTWIKI_B=two
+                AGENTWIKI_C="quoted value"
+                """);
+
+            var parsed = DotEnvLoader.ParseFile(path);
+            parsed["AGENTWIKI_A"].ShouldBe("one");
+            parsed["AGENTWIKI_B"].ShouldBe("two");
+            parsed["AGENTWIKI_C"].ShouldBe("quoted value");
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+    }
+
+    [Fact]
+    public void Load_SetsUnsetVariablesOnly_ByDefault()
     {
         var path = Path.Combine(Path.GetTempPath(), "agentwiki-dotenv-" + Guid.NewGuid().ToString("N") + ".env");
         var keyA = "AGENTWIKI_TEST_DOTENV_A_" + Guid.NewGuid().ToString("N")[..8];
@@ -37,6 +65,26 @@ public sealed class DotEnvLoaderTests
             {
                 File.Delete(path);
             }
+        }
+    }
+
+    [Fact]
+    public void ApplyToProcessEnvironment_CanOverrideExisting()
+    {
+        var key = "AGENTWIKI_TEST_OVERRIDE_" + Guid.NewGuid().ToString("N")[..8];
+        try
+        {
+            Environment.SetEnvironmentVariable(key, "old");
+            var applied = DotEnvLoader.ApplyToProcessEnvironment(
+                new Dictionary<string, string> { [key] = "new" },
+                overrideExisting: true);
+
+            applied.ShouldBe(1);
+            Environment.GetEnvironmentVariable(key).ShouldBe("new");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(key, null);
         }
     }
 }

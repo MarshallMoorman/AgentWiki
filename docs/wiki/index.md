@@ -25,7 +25,7 @@
 
 | Topic | Summary |
 |-------|---------|
-| [Configuration](cross-cutting/configuration.md) | Configuration files and project settings discovered in the inventory. |
+| [Configuration](cross-cutting/configuration.md) | Configuration, project settings, Policies/ (APIM), and pipeline definitions from the inventory. |
 | [Logging and Telemetry](cross-cutting/logging-and-telemetry.md) | Logging/telemetry-related files and conventions inferred from inventory. |
 | [Error Handling](cross-cutting/error-handling.md) | Error-handling patterns inferred from naming and result types in the inventory. |
 | [Testing](cross-cutting/testing.md) | Test projects and files discovered during analysis. |
@@ -33,13 +33,13 @@
 ## Quick facts
 
 - **Repository:** `agent-wiki`
-- **Generated at (UTC):** 2026-07-10T13:48:28.6747920+00:00
-- **Files (after ignores):** 102
-- **Selected for analysis:** 102
-- **Approx. lines:** 11,506
+- **Generated at (UTC):** 2026-07-10T14:18:51.9237040+00:00
+- **Files (after ignores):** 107
+- **Selected for analysis:** 107
+- **Approx. lines:** 12,465
 - **Modules documented:** 3
 - **Generation mode:** inventory-based
-- **Correlation ID:** `6276aeee38b04d57a6fcde36a83b68e0`
+- **Correlation ID:** `3f48e2e867844aeda1322879c9e6fdb0`
 
 ## How to use this wiki
 

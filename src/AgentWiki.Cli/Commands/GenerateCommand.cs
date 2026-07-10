@@ -1,5 +1,6 @@
 using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -30,37 +31,49 @@ public sealed class GenerateCommand(
             model: settings.Model,
             provider: settings.Provider);
 
-        var repoPath = Path.GetFullPath(config.RepoPath);
-        var outputPath = Path.IsPathRooted(config.OutputPath)
-            ? Path.GetFullPath(config.OutputPath)
-            : Path.GetFullPath(Path.Combine(repoPath, config.OutputPath));
+        var repoPath = PathUtility.ExpandAndResolve(config.RepoPath);
+        var outputPath = Path.IsPathRooted(PathUtility.ExpandHome(config.OutputPath))
+            ? PathUtility.ExpandAndResolve(config.OutputPath)
+            : PathUtility.ExpandAndResolve(Path.Combine(repoPath, config.OutputPath));
+
+        AnsiConsole.MarkupLine($"[grey]Repo:[/] {Markup.Escape(repoPath)}");
+        AnsiConsole.MarkupLine($"[grey]Output:[/] {Markup.Escape(outputPath)}");
+        AnsiConsole.MarkupLine(
+            $"[grey]Provider:[/] {Markup.Escape(config.Provider)}  [grey]Model:[/] {Markup.Escape(config.DefaultModel)}  [grey]Timeout:[/] {config.LlmTimeoutSeconds}s");
 
         if (!settings.Force && !settings.DryRun && Directory.Exists(outputPath) && Directory.EnumerateFileSystemEntries(outputPath).Any())
         {
-            if (!AnsiConsole.Confirm($"Output directory [cyan]{outputPath}[/] is not empty. Overwrite?", defaultValue: false))
+            if (!AnsiConsole.Confirm($"Output directory [cyan]{Markup.Escape(outputPath)}[/] is not empty. Overwrite?", defaultValue: false))
             {
                 AnsiConsole.MarkupLine("[yellow]Cancelled.[/]");
                 return 2;
             }
         }
 
-        var request = new WikiGenerationRequest
-        {
-            Config = config,
-            RepoPath = repoPath,
-            OutputPath = outputPath,
-            Force = settings.Force,
-            DryRun = settings.DryRun,
-            Incremental = false,
-            ModelOverride = settings.Model,
-            ProviderOverride = settings.Provider
-        };
-
         GenerationResult result = default!;
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Dots)
-            .StartAsync("Analyzing repository and running multi-step wiki generation…", async _ =>
+            .StartAsync("Starting…", async ctx =>
             {
+                var progress = new Progress<string>(msg =>
+                {
+                    // Spectre status supports markup; escape user/repo-derived text.
+                    ctx.Status(Markup.Escape(msg));
+                });
+
+                var request = new WikiGenerationRequest
+                {
+                    Config = config,
+                    RepoPath = repoPath,
+                    OutputPath = outputPath,
+                    Force = settings.Force,
+                    DryRun = settings.DryRun,
+                    Incremental = false,
+                    ModelOverride = settings.Model,
+                    ProviderOverride = settings.Provider,
+                    Progress = progress
+                };
+
                 result = await wikiGenerator.GenerateAsync(request).ConfigureAwait(false);
             })
             .ConfigureAwait(false);

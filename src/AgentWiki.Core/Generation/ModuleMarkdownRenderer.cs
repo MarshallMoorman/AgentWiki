@@ -117,8 +117,8 @@ public static class ModuleMarkdownRenderer
             sb.AppendLine("|--------|---------|");
             foreach (var module in modules)
             {
-                var purpose = TruncateAtWord(module.Purpose, 120);
-                sb.AppendLine($"| [{Escape(module.Title)}]({module.RelativePath}) | {Escape(purpose)} |");
+                // Full purpose text — agents need complete context; do not truncate.
+                sb.AppendLine($"| [{Escape(module.Title)}]({module.RelativePath}) | {Escape(FlattenCell(module.Purpose))} |");
             }
 
             sb.AppendLine();
@@ -132,7 +132,8 @@ public static class ModuleMarkdownRenderer
             sb.AppendLine("|-------|---------|");
             foreach (var item in crossCutting)
             {
-                sb.AppendLine($"| [{Escape(item.Title)}]({item.RelativePath}) | {Escape(TruncateAtWord(item.Summary, 120))} |");
+                // Full summary — do not truncate for table width.
+                sb.AppendLine($"| [{Escape(item.Title)}]({item.RelativePath}) | {Escape(FlattenCell(item.Summary))} |");
             }
 
             sb.AppendLine();
@@ -194,14 +195,8 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
     }
 
-    private static string Truncate(string value, int max)
-    {
-        var trimmed = value.Replace('\n', ' ').Trim();
-        return trimmed.Length <= max ? trimmed : trimmed[..(max - 1)] + "…";
-    }
-
-    /// <summary>Truncates on a word boundary so index tables do not look mid-sentence broken.</summary>
-    private static string TruncateAtWord(string value, int max)
+    /// <summary>Collapses whitespace for a single Markdown table cell without truncating content.</summary>
+    private static string FlattenCell(string value)
     {
         var trimmed = value.Replace('\n', ' ').Replace('\r', ' ').Trim();
         while (trimmed.Contains("  ", StringComparison.Ordinal))
@@ -209,19 +204,7 @@ public static class ModuleMarkdownRenderer
             trimmed = trimmed.Replace("  ", " ", StringComparison.Ordinal);
         }
 
-        if (trimmed.Length <= max)
-        {
-            return trimmed;
-        }
-
-        var slice = trimmed[..max];
-        var lastSpace = slice.LastIndexOf(' ');
-        if (lastSpace >= max / 2)
-        {
-            slice = slice[..lastSpace];
-        }
-
-        return slice.TrimEnd(',', ';', ':') + "…";
+        return trimmed;
     }
 
     private static string Escape(string value) =>

@@ -1,10 +1,12 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-10  
-**Current version:** 1.0.7  
-**Repo:** `/Users/mmoorman/dev/ea/agent-wiki` (CLI command: `agent-wiki`)
+**Current version:** 1.0.8  
+**Repo:** this repository root (CLI command: `agent-wiki`)
 
 This document is the single best place for a new coding agent or human to continue work without re-deriving session history.
+
+**Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit.
 
 ---
 
@@ -80,13 +82,18 @@ RepoAnalyzer
 ### Config priority (highest wins)
 
 1. CLI flags  
-2. `.agentwiki/config.json`  
-3. Env vars `AGENTWIKI_*` (including auto-loaded repo-root `.env`)  
-4. Tool `appsettings.json`  
+2. Repo-root `.env`  
+3. `.agentwiki/config.json`  
+4. Process env vars `AGENTWIKI_*` (and nested `__` keys)  
+5. Tool `appsettings.json`  
 
-**Secrets** → `.env` or CI secrets. **Non-secrets** → `config.json`.
+**Secrets** → `.env` or CI secrets. **Non-secrets** → `config.json` (or env when convenient).
+
+All LLM settings support env vars, e.g. `AGENTWIKI_OpenAI__Endpoint`, `AGENTWIKI_OpenAI__ApiKey`, `AGENTWIKI_OpenAI__Model`, `AGENTWIKI_AzureOpenAI__Endpoint`, `AGENTWIKI_AzureOpenAI__DeploymentName`, `AGENTWIKI_AzureOpenAI__ApiKey`, `AGENTWIKI_LlmTimeoutSeconds`.
 
 Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (default 16000), `maxFilesToAnalyze`, `ignorePatterns`.
+
+**Paths:** CLI expands `~` to the user home directory. Generated wiki Markdown uses **repo-relative** paths only.
 
 ---
 
@@ -114,13 +121,14 @@ Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeo
 | 1.0.5 | Flexible LLM JSON (`purpose` object, `dependencies` object → strings) |
 | 1.0.6 | Accept `{ "architecture_overview": "# markdown..." }` as full architecture page |
 | 1.0.7 | Handoff docs; anti-deprecation prompt rules; cleaner index/disclaimer language |
+| 1.0.8 | Fix config.json `llmTimeoutSeconds` merge; `.env` > config > process env priority; full LLM env vars; `~` path expansion; portable wiki paths; no index truncation; step progress console UX; Policies/pipeline analysis boost |
 
-### Known remaining polish (as of 1.0.7)
+### Known remaining polish (as of 1.0.8)
 
 - Module `dependencies` can still look noisy when models return deep objects (flattening improved but not perfect).
-- Index module purpose lines are truncated for table width (word-boundary now).
 - `gpt-chat-latest` often ignores our strict JSON schema and returns free-form fields — parsers must stay tolerant.
 - Target repos with old `.agentwiki/prompts/` may need `init --force` to pick up newer sample prompts.
+- LLM-authored prose may still invent absolute paths occasionally; prompts instruct relative paths.
 
 ---
 
@@ -172,12 +180,12 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 
 ## 9. Suggested next work (if continuing product)
 
-1. Stronger anti-deprecation / present-tense wiki style in all prompts  
-2. Cleaner index tables (no mid-sentence `…` truncations; optional full purpose on module pages only)  
-3. Optional structured-output schemas / stricter tool-calling if models support it  
-4. Cost/token usage metadata when provider returns usage  
-5. Azure DevOps pipeline sample parity with GitHub Actions  
-6. Refresh this repo’s own `docs/wiki/` with a full generate after each release  
+1. Optional structured-output schemas / stricter tool-calling if models support it  
+2. Richer cost/token usage when provider returns usage (already partially shown)  
+3. Azure DevOps pipeline sample parity with GitHub Actions  
+4. Refresh this repo’s own `docs/wiki/` with a full generate after each release  
+5. Post-process LLM output to strip accidental absolute paths  
+6. Optional “deployment” cross-cutting page dedicated to Policies/ + pipelines  
 
 ---
 
@@ -195,4 +203,4 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10 CLI, v1.0.7): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki (.NET 10 CLI, v1.0.8): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.

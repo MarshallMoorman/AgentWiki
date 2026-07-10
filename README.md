@@ -101,15 +101,26 @@ flowchart TB
 
 ## Configuration
 
-**Priority (highest wins):** CLI → `.agentwiki/config.json` → `AGENTWIKI_*` env (and repo `.env`) → tool `appsettings.json`.
+**Priority (highest wins):** CLI flags → repo `.env` → `.agentwiki/config.json` → process `AGENTWIKI_*` env → tool `appsettings.json`.
 
 | Source | Best for | Required? |
 |--------|----------|-----------|
+| `.env` | Secrets and local overrides (wins over config.json) | Optional |
 | `config.json` | Provider, model, paths, timeouts, ignore patterns | Recommended |
-| `.env` | API keys | Optional |
-| CI env | Production secrets | Optional |
+| Process env | CI secrets / non-interactive runs | Optional |
 
-See [`examples/agentwiki.config.json`](examples/agentwiki.config.json).
+All LLM settings can be set via environment variables (process env or `.env`):
+
+| Setting | Environment variable |
+|---------|----------------------|
+| Provider | `AGENTWIKI_Provider` |
+| Default model | `AGENTWIKI_DefaultModel` |
+| Timeout (seconds) | `AGENTWIKI_LlmTimeoutSeconds` |
+| Max summary chars | `AGENTWIKI_MaxLlmSummaryChars` |
+| Azure endpoint / deployment / key | `AGENTWIKI_AzureOpenAI__Endpoint`, `__DeploymentName`, `__ApiKey` |
+| OpenAI endpoint / model / key | `AGENTWIKI_OpenAI__Endpoint`, `__Model`, `__ApiKey` |
+
+See [`examples/agentwiki.config.json`](examples/agentwiki.config.json) and `.env.example` from `agent-wiki init`.
 
 Useful knobs:
 
@@ -117,13 +128,15 @@ Useful knobs:
 - `maxLlmSummaryChars` (default **16000**)
 - `maxFilesToAnalyze`, `enableIncrementalUpdates`, `ignorePatterns`
 
+**Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`).
+
 ## Logging
 
 | What | Where |
 |------|--------|
 | Detailed diagnostics | `~/.agentwiki/logs/agent-wiki-YYYYMMDD.log` |
-| Terminal UX | Spectre tables/spinners only (by default) |
-| Shown on | `status`, start of generate/update, errors |
+| Terminal UX | Step progress spinner + summary tables (no stack traces by default) |
+| Shown on | `status`, generate/update progress, errors |
 
 ```bash
 ls ~/.agentwiki/logs/

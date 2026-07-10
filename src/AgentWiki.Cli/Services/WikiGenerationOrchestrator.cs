@@ -44,6 +44,8 @@ public sealed class WikiGenerationOrchestrator(
             request.CorrelationId,
             scope.IsFull);
 
+        Report(request, "Generating architecture overview…");
+
         // Step 1: Architecture (selective LLM)
         ArchitectureDocument architecture;
         if (scope.IsFull || scope.Architecture)
@@ -69,6 +71,7 @@ public sealed class WikiGenerationOrchestrator(
         anyOffline |= architecture.UsedOfflineFallback;
 
         // Step 2: Module plan (always — needed for navigation coherence)
+        Report(request, "Planning modules…");
         var modulePlan = await PlanModulesAsync(analysis, request, scope, cancellationToken).ConfigureAwait(false);
         steps.Add("module-plan");
         usages.Add(modulePlan.TokenUsage);
@@ -76,9 +79,14 @@ public sealed class WikiGenerationOrchestrator(
 
         // Step 3: Module details (selective LLM)
         var modules = new List<ModuleDocument>();
-        foreach (var descriptor in modulePlan.Modules.Take(MaxModulesForLlm))
+        var moduleDescriptors = modulePlan.Modules.Take(MaxModulesForLlm).ToList();
+        var moduleIndex = 0;
+        foreach (var descriptor in moduleDescriptors)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            moduleIndex++;
+            Report(request, $"Documenting module {moduleIndex}/{moduleDescriptors.Count}: {descriptor.Name}…");
+
             var regenerate =
                 scope.IsFull
                 || scope.AllModules
@@ -104,6 +112,7 @@ public sealed class WikiGenerationOrchestrator(
         steps.Add($"modules:{modules.Count}");
 
         // Step 4: Cross-cutting concerns (selective LLM enrichment)
+        Report(request, "Documenting cross-cutting concerns…");
         var crossCutting = await GenerateCrossCuttingAsync(analysis, request, scope, cancellationToken)
             .ConfigureAwait(false);
         steps.Add($"cross-cutting:{crossCutting.Count}");
@@ -114,10 +123,12 @@ public sealed class WikiGenerationOrchestrator(
         }
 
         // Step 5: Cross-link / consistency pass (deterministic in v1; LLM optional later)
+        Report(request, "Validating cross-links…");
         ValidateAndNormalizeLinks(modules, crossCutting, warnings);
         steps.Add("cross-link-validation");
 
         // Step 6: Assemble sections including index
+        Report(request, "Assembling index and support pages…");
         var generatedAt = DateTimeOffset.UtcNow;
         var sections = BuildSections(
             analysis,
@@ -529,7 +540,8 @@ public sealed class WikiGenerationOrchestrator(
             sb.AppendLine();
             foreach (var module in modules)
             {
-                sb.AppendLine($"- [{module.Title}]({module.RelativePath}) — {Truncate(module.Purpose, 120)}");
+                var purpose = module.Purpose.Replace('\n', ' ').Replace('\r', ' ').Trim();
+                sb.AppendLine($"- [{module.Title}]({module.RelativePath}) — {purpose}");
             }
 
             sb.AppendLine();
@@ -661,10 +673,10 @@ public sealed class WikiGenerationOrchestrator(
             """;
     }
 
-    private static string Truncate(string value, int max)
+    private static void Report(WikiGenerationRequest request, string message)
     {
-        var trimmed = value.Replace('\n', ' ').Trim();
-        return trimmed.Length <= max ? trimmed : trimmed[..(max - 1)] + "…";
+        request.Progress?.Report(message);
+        // Progress is also mirrored at Information in the file log via callers; keep this quiet.
     }
 
     public static ModulePlan ParseModulePlan(string raw)

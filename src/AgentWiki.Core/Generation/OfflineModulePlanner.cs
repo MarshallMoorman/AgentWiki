@@ -169,16 +169,18 @@ public static partial class OfflineModulePlanner
                         || f.RelativePath.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
                         || f.RelativePath.EndsWith(".yml", StringComparison.OrdinalIgnoreCase)
                         || f.RelativePath.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase),
-            summary: "Configuration files and project settings discovered in the inventory.",
+            summary: "Configuration, project settings, Policies/ (APIM), and pipeline definitions from the inventory.",
             patterns:
             [
                 "Prefer environment-specific overrides over hard-coded values.",
-                "Keep secrets out of committed config; use env vars or secret stores."
+                "Keep secrets out of committed config; use env vars or secret stores.",
+                "Treat Policies/ XML and azure-*-pipeline YAML as part of the deployment surface, not optional noise."
             ],
             guidance:
             [
                 "Update `.agentwiki/config.json` for AgentWiki settings.",
-                "Document new config keys next to the code that consumes them."
+                "Document new config keys next to the code that consumes them.",
+                "When changing public APIs, check Policies/ and pipeline YAML for required deploy updates."
             ]));
 
         docs.Add(BuildConcern(

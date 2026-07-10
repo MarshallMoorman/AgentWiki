@@ -37,4 +37,9 @@ public sealed class WikiGenerationRequest
 
     /// <summary>Correlation id for structured logging of this run.</summary>
     public string CorrelationId { get; init; } = Guid.NewGuid().ToString("N");
+
+    /// <summary>
+    /// Optional console progress reporter (step status). File logging remains the detailed record.
+    /// </summary>
+    public IProgress<string>? Progress { get; init; }
 }

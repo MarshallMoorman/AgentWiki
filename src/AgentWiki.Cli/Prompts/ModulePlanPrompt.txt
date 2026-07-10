@@ -22,4 +22,6 @@ Rules:
 - Prefer real project folders / .csproj areas from the inventory.
 - Limit to the most important modules (max 8).
 - Do not invent paths that are not present in the inventory.
+- Use only **repo-relative** paths (never absolute machine paths like `/Users/…`).
+- When Policies/ or CI pipeline files exist, include them in relatedFiles or a deployment-oriented module if material.
 - Use stable kebab-case ids.

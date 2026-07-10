@@ -1,5 +1,6 @@
 using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -30,28 +31,36 @@ public sealed class UpdateCommand(
             model: settings.Model,
             provider: settings.Provider);
 
-        var repoPath = Path.GetFullPath(config.RepoPath);
-        var outputPath = Path.IsPathRooted(config.OutputPath)
-            ? Path.GetFullPath(config.OutputPath)
-            : Path.GetFullPath(Path.Combine(repoPath, config.OutputPath));
+        var repoPath = PathUtility.ExpandAndResolve(config.RepoPath);
+        var outputPath = Path.IsPathRooted(PathUtility.ExpandHome(config.OutputPath))
+            ? PathUtility.ExpandAndResolve(config.OutputPath)
+            : PathUtility.ExpandAndResolve(Path.Combine(repoPath, config.OutputPath));
 
-        var request = new WikiGenerationRequest
-        {
-            Config = config,
-            RepoPath = repoPath,
-            OutputPath = outputPath,
-            Force = true, // CI-friendly; non-interactive
-            DryRun = settings.DryRun,
-            Incremental = true,
-            ModelOverride = settings.Model,
-            ProviderOverride = settings.Provider
-        };
+        AnsiConsole.MarkupLine($"[grey]Repo:[/] {Markup.Escape(repoPath)}");
+        AnsiConsole.MarkupLine($"[grey]Output:[/] {Markup.Escape(outputPath)}");
+        AnsiConsole.MarkupLine(
+            $"[grey]Provider:[/] {Markup.Escape(config.Provider)}  [grey]Model:[/] {Markup.Escape(config.DefaultModel)}  [grey]Timeout:[/] {config.LlmTimeoutSeconds}s");
 
         GenerationResult result = default!;
         await AnsiConsole.Status()
             .Spinner(Spinner.Known.Dots)
-            .StartAsync("Detecting changes and updating wiki…", async _ =>
+            .StartAsync("Starting…", async ctx =>
             {
+                var progress = new Progress<string>(msg => ctx.Status(Markup.Escape(msg)));
+
+                var request = new WikiGenerationRequest
+                {
+                    Config = config,
+                    RepoPath = repoPath,
+                    OutputPath = outputPath,
+                    Force = true, // CI-friendly; non-interactive
+                    DryRun = settings.DryRun,
+                    Incremental = true,
+                    ModelOverride = settings.Model,
+                    ProviderOverride = settings.Provider,
+                    Progress = progress
+                };
+
                 result = await wikiGenerator.GenerateAsync(request).ConfigureAwait(false);
             })
             .ConfigureAwait(false);

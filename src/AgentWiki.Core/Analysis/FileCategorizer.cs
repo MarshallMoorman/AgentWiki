@@ -155,7 +155,9 @@ public static class FileCategorizer
             return FileCategory.Documentation;
         }
 
-        if (ConfigExtensions.Contains(extension)
+        // API Management policies, Azure pipelines, and similar deploy artifacts.
+        if (IsInfrastructurePath(normalized, fileName, lowerSegments)
+            || ConfigExtensions.Contains(extension)
             || ConfigFileNames.Contains(fileName)
             || fileName.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
             || fileName.EndsWith(".fsproj", StringComparison.OrdinalIgnoreCase)
@@ -181,4 +183,49 @@ public static class FileCategorizer
         || segment.EndsWith(".tests", StringComparison.Ordinal)
         || segment.EndsWith(".test", StringComparison.Ordinal)
         || segment.EndsWith("tests", StringComparison.Ordinal);
+
+    /// <summary>
+    /// True for deployment / infrastructure paths that agents should prefer in analysis
+    /// (API Management policies, Azure pipelines, Bicep/ARM, etc.).
+    /// </summary>
+    public static bool IsInfrastructurePath(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/');
+        var fileName = Path.GetFileName(normalized);
+        var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var lowerSegments = segments.Select(s => s.ToLowerInvariant()).ToArray();
+        return IsInfrastructurePath(normalized, fileName, lowerSegments);
+    }
+
+    private static bool IsInfrastructurePath(string normalized, string fileName, string[] lowerSegments)
+    {
+        if (lowerSegments.Any(s => s is "policies" or "policy" or "apim"
+                or "api-management" or "pipelines" or "pipeline"
+                or "infra" or "infrastructure" or "bicep" or "arm-templates"
+                or "workflows"))
+        {
+            return true;
+        }
+
+        var lowerName = fileName.ToLowerInvariant();
+        if (lowerName.Contains("pipeline", StringComparison.Ordinal)
+            || lowerName.Contains("apim", StringComparison.Ordinal)
+            || lowerName.EndsWith("-policy.xml", StringComparison.Ordinal)
+            || lowerName.EndsWith("policy.xml", StringComparison.Ordinal)
+            || lowerName.EndsWith(".bicep", StringComparison.Ordinal)
+            || lowerName.EndsWith(".bicepparam", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        // Common Azure DevOps / GitHub deploy filenames at repo root.
+        if (lowerName.StartsWith("azure-build-pipeline", StringComparison.Ordinal)
+            || lowerName.StartsWith("azure-pipelines", StringComparison.Ordinal)
+            || lowerName is "azure-pipelines.yml" or "azure-pipelines.yaml")
+        {
+            return true;
+        }
+
+        return false;
+    }
 }

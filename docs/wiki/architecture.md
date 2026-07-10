@@ -4,11 +4,11 @@
 
 ## Summary
 
-agent-wiki is a C#, Markdown, Shell, JSON, YAML codebase with 102 tracked files (~11,506 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
+agent-wiki is a C#, Markdown, Shell, JSON, YAML codebase with 107 tracked files (~12,465 lines of text). Inventory discovery used `Git`. This document was produced offline from repository analysis (no LLM call).
 
 ## System context
 
-Primary languages: C#, Markdown, Shell, JSON, YAML. Category mix — Source: 59, Tests: 21, Config: 9, Docs: 13.
+Primary languages: C#, Markdown, Shell, JSON, YAML. Category mix — Source: 59, Tests: 24, Config: 11, Docs: 13.
 
 ## Diagram
 
@@ -37,6 +37,9 @@ flowchart TB
 
 ## Key components
 
+- **agent-wiki-update.yml** (`.github/workflows/agent-wiki-update.yml`): Configuration / project definition
+- **AgentWikiLogging.cs** (`src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`): Configuration / project definition
+- **TypeRegistrar.cs** (`src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs`): Configuration / project definition
 - **bump-version.sh** (`.grok/skills/bump-version/scripts/bump-version.sh`): Source file (Shell)
 - **pack-and-install-tool.sh** (`scripts/pack-and-install-tool.sh`): Source file (Shell)
 - **CommandSettingsBase.cs** (`src/AgentWiki.Cli/Commands/CommandSettingsBase.cs`): Source file (C#)
@@ -45,13 +48,10 @@ flowchart TB
 - **StatusCommand.cs** (`src/AgentWiki.Cli/Commands/StatusCommand.cs`): Source file (C#)
 - **TestProviderCommand.cs** (`src/AgentWiki.Cli/Commands/TestProviderCommand.cs`): Source file (C#)
 - **UpdateCommand.cs** (`src/AgentWiki.Cli/Commands/UpdateCommand.cs`): Source file (C#)
-- **AgentWikiLogging.cs** (`src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`): Source file (C#)
-- **TypeRegistrar.cs** (`src/AgentWiki.Cli/Infrastructure/TypeRegistrar.cs`): Source file (C#)
 - **Program.cs** (`src/AgentWiki.Cli/Program.cs`): Source file (C#)
 - **AgentBootstrapper.cs** (`src/AgentWiki.Cli/Services/AgentBootstrapper.cs`): Source file (C#)
 - **ArchitectureGenerator.cs** (`src/AgentWiki.Cli/Services/ArchitectureGenerator.cs`): Source file (C#)
 - **ConfigLoader.cs** (`src/AgentWiki.Cli/Services/ConfigLoader.cs`): Source file (C#)
-- **DotEnvLoader.cs** (`src/AgentWiki.Cli/Services/DotEnvLoader.cs`): Source file (C#)
 
 ## Important flows
 

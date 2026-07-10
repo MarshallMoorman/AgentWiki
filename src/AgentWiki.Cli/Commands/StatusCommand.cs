@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Constants;
 using AgentWiki.Core.Models;
 using Spectre.Console;
@@ -36,11 +37,11 @@ public sealed class StatusCommand(
 
         config = configLoader.ApplyCliOverrides(config, repoPath: settings.RepoPath);
 
-        var repoPath = Path.GetFullPath(config.RepoPath);
+        var repoPath = PathUtility.ExpandAndResolve(config.RepoPath);
         var configFile = Path.Combine(repoPath, AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.ConfigFileName);
-        var outputPath = Path.IsPathRooted(config.OutputPath)
-            ? Path.GetFullPath(config.OutputPath)
-            : Path.GetFullPath(Path.Combine(repoPath, config.OutputPath));
+        var outputPath = Path.IsPathRooted(PathUtility.ExpandHome(config.OutputPath))
+            ? PathUtility.ExpandAndResolve(config.OutputPath)
+            : PathUtility.ExpandAndResolve(Path.Combine(repoPath, config.OutputPath));
         var metaPath = Path.Combine(outputPath, AgentWikiConstants.MetaFileName);
         var agentMd = Path.Combine(repoPath, config.AgentMdPath);
         var lastRun = await lastRunStore.LoadAsync(repoPath).ConfigureAwait(false);
@@ -58,6 +59,8 @@ public sealed class StatusCommand(
         table.AddRow("Output exists", Directory.Exists(outputPath) ? "[green]yes[/]" : "[yellow]no[/]");
         table.AddRow("Provider", Markup.Escape(config.Provider));
         table.AddRow("Model", Markup.Escape(config.DefaultModel));
+        table.AddRow("LLM timeout", $"{config.LlmTimeoutSeconds}s");
+        table.AddRow("Max summary chars", config.MaxLlmSummaryChars.ToString("N0"));
         table.AddRow("Agent MD", File.Exists(agentMd) ? $"[green]{Markup.Escape(agentMd)}[/]" : Markup.Escape(agentMd) + " [grey](missing)[/]");
         table.AddRow("Incremental", config.EnableIncrementalUpdates ? "enabled" : "disabled");
         table.AddRow("Max files", config.MaxFilesToAnalyze.ToString());
@@ -65,8 +68,18 @@ public sealed class StatusCommand(
         table.AddRow("Azure endpoint", string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
             ? "[grey](not set)[/]"
             : Markup.Escape(RedactEndpoint(config.AzureOpenAI.Endpoint)));
+        table.AddRow("Azure deployment", string.IsNullOrWhiteSpace(config.AzureOpenAI.DeploymentName)
+            ? "[grey](not set)[/]"
+            : Markup.Escape(config.AzureOpenAI.DeploymentName));
         table.AddRow("Azure API key", string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
         table.AddRow("Managed identity", config.AzureOpenAI.UseManagedIdentity ? "yes" : "no");
+        table.AddRow("OpenAI endpoint", string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
+            ? "[grey](default/public)[/]"
+            : Markup.Escape(RedactEndpoint(config.OpenAI.Endpoint)));
+        table.AddRow("OpenAI model", string.IsNullOrWhiteSpace(config.OpenAI.Model)
+            ? "[grey](not set)[/]"
+            : Markup.Escape(config.OpenAI.Model));
+        table.AddRow("OpenAI API key", string.IsNullOrWhiteSpace(config.OpenAI.ApiKey) ? "[grey](not set)[/]" : "[green]***[/]");
         table.AddRow("LLM ready", HasLlmReady(config) ? "[green]yes[/]" : "[yellow]no (offline fallback)[/]");
         table.AddRow("Log directory", Markup.Escape(AgentWikiLogging.LogDirectory));
         table.AddRow("Today's log", Markup.Escape(AgentWikiLogging.TodayLogFilePath));

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using AgentWiki.Cli.Infrastructure;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -32,9 +33,9 @@ public sealed class TestProviderCommand(
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — test LLM provider");
         AgentWikiLogging.WriteLogHint();
 
-        // Ensure .env is loaded for this repo path before reading config.
+        // Ensure .env is loaded for this repo path before reading config (~ supported).
         var config = await configLoader
-            .LoadAsync(settings.RepoPath, settings.ConfigPath)
+            .LoadAsync(PathUtility.ExpandAndResolve(settings.RepoPath), settings.ConfigPath)
             .ConfigureAwait(false);
 
         config = configLoader.ApplyCliOverrides(

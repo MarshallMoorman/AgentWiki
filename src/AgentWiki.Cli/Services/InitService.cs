@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Constants;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -28,7 +29,7 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
     {
         try
         {
-            var resolvedRepo = Path.GetFullPath(repoPath);
+            var resolvedRepo = PathUtility.ExpandAndResolve(repoPath);
             if (!Directory.Exists(resolvedRepo))
             {
                 return InitResult.Fail($"Repository path does not exist: {resolvedRepo}");
@@ -134,20 +135,23 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         """
         # AgentWiki environment variables
         # --------------------------------
-        # Optional. Prefer putting non-secret settings in .agentwiki/config.json and
-        # secrets (API keys) here or in CI secret stores.
+        # Prefer non-secrets in .agentwiki/config.json and secrets (API keys) here or in CI.
         #
         # How to use:
         #   1. Copy this file to .env (never commit .env)
         #   2. Fill in values — agent-wiki loads .env from the repo root automatically
-        #      (does not override variables already set in the process environment)
         #   3. Or export the same keys in your shell / CI pipeline
+        #
+        # Config priority (highest wins):
+        #   CLI flags > .env > .agentwiki/config.json > process env (AGENTWIKI_*) > appsettings
         #
         # Prefix: AGENTWIKI_   Nested keys use double underscore (__)
 
         AGENTWIKI_Provider=openai
         AGENTWIKI_DefaultModel=gpt-4o
         AGENTWIKI_OutputPath=docs/wiki
+        AGENTWIKI_LlmTimeoutSeconds=300
+        AGENTWIKI_MaxLlmSummaryChars=16000
 
         # Azure OpenAI
         AGENTWIKI_AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/

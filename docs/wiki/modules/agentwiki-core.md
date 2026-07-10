@@ -28,9 +28,9 @@ _None listed._
 - IWikiGenerationOrchestrator
 - IWikiGenerator
 - AgentWiki.Core
+- EnvConfigApplier
 - FileCategorizer
 - GitIgnoreMatcher
-- PromptText
 
 ## How to extend
 
@@ -57,8 +57,10 @@ _None listed._
 - `src/AgentWiki.Core/Abstractions/IWikiGenerationOrchestrator.cs`
 - `src/AgentWiki.Core/Abstractions/IWikiGenerator.cs`
 - `src/AgentWiki.Core/AgentWiki.Core.csproj`
+- `src/AgentWiki.Core/Analysis/EnvConfigApplier.cs`
 - `src/AgentWiki.Core/Analysis/FileCategorizer.cs`
 - `src/AgentWiki.Core/Analysis/GitIgnoreMatcher.cs`
+- `src/AgentWiki.Core/Analysis/PathUtility.cs`
 - `src/AgentWiki.Core/Analysis/PromptText.cs`
 - `src/AgentWiki.Core/Analysis/RepoSummaryBuilder.cs`
 - `src/AgentWiki.Core/Constants/AgentWikiConstants.cs`
@@ -68,8 +70,6 @@ _None listed._
 - `src/AgentWiki.Core/Generation/ModuleMarkdownRenderer.cs`
 - `src/AgentWiki.Core/Generation/OfflineArchitectureGenerator.cs`
 - `src/AgentWiki.Core/Generation/OfflineModulePlanner.cs`
-- `src/AgentWiki.Core/Generation/TokenUsageMath.cs`
-- `src/AgentWiki.Core/Models/AgentWikiConfig.cs`
 
 ## Navigation
 

@@ -28,7 +28,7 @@ public sealed class RepoAnalyzer(ILogger<RepoAnalyzer> logger) : IRepoAnalyzer
         ArgumentNullException.ThrowIfNull(config);
 
         var sw = Stopwatch.StartNew();
-        var root = Path.GetFullPath(repoPath);
+        var root = PathUtility.ExpandAndResolve(repoPath);
         if (!Directory.Exists(root))
         {
             throw new DirectoryNotFoundException($"Repository path does not exist: {root}");
@@ -327,22 +327,33 @@ public sealed class RepoAnalyzer(ILogger<RepoAnalyzer> logger) : IRepoAnalyzer
     }
 
     /// <summary>
-    /// Prefer source → tests → config → docs → diagrams → other; stable by path.
+    /// Prefer source → infrastructure (policies/pipelines) → tests → config → docs → diagrams → other;
+    /// stable by path. Infrastructure files are boosted so APIM policies and build pipelines
+    /// are included even when MaxFilesToAnalyze is tight.
     /// </summary>
     private static HashSet<string> SelectFilesForAnalysis(IReadOnlyList<RepoFile> files, int maxFiles)
     {
-        static int Priority(FileCategory c) => c switch
+        static int Priority(RepoFile f)
         {
-            FileCategory.SourceCode => 0,
-            FileCategory.Tests => 1,
-            FileCategory.Configuration => 2,
-            FileCategory.Documentation => 3,
-            FileCategory.Diagrams => 4,
-            _ => 5
-        };
+            // Boost deployment/infra artifacts above generic configuration.
+            if (FileCategorizer.IsInfrastructurePath(f.RelativePath))
+            {
+                return 1;
+            }
+
+            return f.Category switch
+            {
+                FileCategory.SourceCode => 0,
+                FileCategory.Tests => 2,
+                FileCategory.Configuration => 3,
+                FileCategory.Documentation => 4,
+                FileCategory.Diagrams => 5,
+                _ => 6
+            };
+        }
 
         return files
-            .OrderBy(f => Priority(f.Category))
+            .OrderBy(Priority)
             .ThenBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
             .Take(maxFiles)
             .Select(f => f.RelativePath)

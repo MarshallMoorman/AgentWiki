@@ -40,6 +40,7 @@ public sealed class ArchitectureGenerator(
         {
             var activePrompts = ResolvePromptManager(analysis.RepoPath);
             var systemPrompt = activePrompts.GetPrompt("SystemPrompt");
+            // Repo root display path is always portable ("."); AbsolutePath is never sent to the LLM.
             var summary = RepoSummaryBuilder.BuildForLlm(
                 analysis.RepoName,
                 analysis.RepoPath,

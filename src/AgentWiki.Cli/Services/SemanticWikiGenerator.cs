@@ -51,6 +51,7 @@ public sealed class SemanticWikiGenerator(
                 request.Incremental,
                 request.DryRun);
 
+            request.Progress?.Report("Analyzing repository inventory…");
             var analysis = await repoAnalyzer
                 .AnalyzeAsync(request.RepoPath, request.Config, cancellationToken)
                 .ConfigureAwait(false);
@@ -60,6 +61,7 @@ public sealed class SemanticWikiGenerator(
 
             if (request.Incremental)
             {
+                request.Progress?.Report("Detecting git changes since last run…");
                 changes ??= await changeDetector
                     .DetectAsync(request.RepoPath, request.Config, analysis, cancellationToken)
                     .ConfigureAwait(false);
@@ -101,13 +103,18 @@ public sealed class SemanticWikiGenerator(
                 Scope = scope,
                 ModelOverride = request.ModelOverride,
                 ProviderOverride = request.ProviderOverride,
-                CorrelationId = request.CorrelationId
+                CorrelationId = request.CorrelationId,
+                Progress = request.Progress
             };
 
             var bundle = await orchestrator
                 .GenerateAsync(analysis, request, scope, cancellationToken)
                 .ConfigureAwait(false);
 
+            request.Progress?.Report(
+                request.DryRun
+                    ? "Dry run — computing wiki pages without writing…"
+                    : "Writing wiki Markdown files…");
             var sectionsToWrite = FilterSectionsForWrite(bundle.Sections, scope, request.OutputPath, request.Incremental);
             var filesWritten = await outputWriter
                 .WriteAsync(request.OutputPath, sectionsToWrite, request.DryRun, cancellationToken)
@@ -129,6 +136,7 @@ public sealed class SemanticWikiGenerator(
 
             if (!request.DryRun)
             {
+                request.Progress?.Report("Updating meta and AGENTS.md bootstrap…");
                 await WriteMetaAsync(request, analysis, bundle, filesWritten, changes, cancellationToken)
                     .ConfigureAwait(false);
 
