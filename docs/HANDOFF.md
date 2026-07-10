@@ -1,7 +1,7 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-10  
-**Current version:** 1.0.6  
+**Current version:** 1.0.7  
 **Repo:** `/Users/mmoorman/dev/ea/agent-wiki` (CLI command: `agent-wiki`)
 
 This document is the single best place for a new coding agent or human to continue work without re-deriving session history.
@@ -113,14 +113,14 @@ Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeo
 | 1.0.4 | Auto-append “JSON” to messages for `json_object` format |
 | 1.0.5 | Flexible LLM JSON (`purpose` object, `dependencies` object → strings) |
 | 1.0.6 | Accept `{ "architecture_overview": "# markdown..." }` as full architecture page |
+| 1.0.7 | Handoff docs; anti-deprecation prompt rules; cleaner index/disclaimer language |
 
-### Known remaining polish (as of 1.0.6)
+### Known remaining polish (as of 1.0.7)
 
 - Module `dependencies` can still look noisy when models return deep objects (flattening improved but not perfect).
-- Index module purpose lines are truncated for table width (can look incomplete).
-- LLM may invent “deprecated/legacy” language; prompts should forbid that unless source has `[Obsolete]` (address in prompt updates).
+- Index module purpose lines are truncated for table width (word-boundary now).
 - `gpt-chat-latest` often ignores our strict JSON schema and returns free-form fields — parsers must stay tolerant.
-- Sample wiki under this repo’s `docs/wiki/` may be offline-generated and stale relative to code.
+- Target repos with old `.agentwiki/prompts/` may need `init --force` to pick up newer sample prompts.
 
 ---
 
@@ -195,4 +195,4 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10 CLI, v1.0.6): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki (.NET 10 CLI, v1.0.7): generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, with offline fallback, git incremental updates, Spectre CLI, and logs at `~/.agentwiki/logs`. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
