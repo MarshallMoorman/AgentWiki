@@ -38,16 +38,14 @@ jobs:
       - name: Test
         run: dotnet test AgentWiki.slnx -c Release --no-build --verbosity normal
 
-      - name: Compile Desktop companion
+      - name: Pack global tools
         run: |
-          # Avalonia UI compile smoke (no display required for build).
-          # Desktop is not published to NuGet.org; CLI tool remains the CI automation surface.
-          dotnet build src/AgentWiki.Desktop/AgentWiki.Desktop.csproj -c Release --no-restore
-
-      - name: Pack global tool
-        run: |
+          # CLI: CI automation surface. Desktop: interactive companion (separate package).
+          # Neither is published to NuGet.org from this workflow.
           mkdir -p artifacts
           dotnet pack src/AgentWiki.Cli -c Release --no-build -o artifacts
+          # Desktop pack builds Avalonia assets; compile is covered by pack.
+          dotnet pack src/AgentWiki.Desktop -c Release -o artifacts
           ls -la artifacts
 
       - name: Upload nupkg artifacts
@@ -58,7 +56,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Smoke-test packed tool
+      - name: Smoke-test packed tools
         run: |
           set -euo pipefail
           echo "Installing from local pack (CI artifact only — not published to NuGet.org)"
@@ -67,3 +65,8 @@ jobs:
           dotnet tool install AgentWiki.Cli --tool-path "$TOOLS_DIR" --add-source artifacts
           "$TOOLS_DIR/agent-wiki" --version
           "$TOOLS_DIR/agent-wiki" --help | head -20
+          # Install Desktop tool package only (do not launch GUI on headless runners).
+          dotnet tool install AgentWiki.Desktop --tool-path "$TOOLS_DIR" --add-source artifacts
+          test -x "$TOOLS_DIR/agent-wiki-ui" || test -f "$TOOLS_DIR/agent-wiki-ui"
+          echo "agent-wiki-ui tool shim present"
+          ls -la "$TOOLS_DIR"

@@ -12,9 +12,9 @@ Instructions for coding agents working **on AgentWiki itself** (not on a target 
 ## Product snapshot
 
 - **CLI:** `agent-wiki` (Spectre.Console.Cli) — primary for CI/agents
-- **Desktop companion:** Avalonia 12 UI (`AgentWiki.Desktop`) — same engine, interactive use
+- **Desktop companion:** Avalonia 12 UI — package `AgentWiki.Desktop`, command `agent-wiki-ui` (separate from CLI tool)
 - **Runtime:** .NET 10 / C# latest
-- **Projects:** `AgentWiki.Core` (models/helpers), `AgentWiki.App` (services/SK/git), `AgentWiki.Cli` (thin Spectre host), `AgentWiki.Desktop` (Avalonia MVVM), tests
+- **Projects:** `AgentWiki.Core` (models/helpers), `AgentWiki.App` (services/SK/git), `AgentWiki.Cli` (thin Spectre host / `agent-wiki`), `AgentWiki.Desktop` (Avalonia / `agent-wiki-ui`), tests
 - **AI:** Microsoft.SemanticKernel → OpenAI / Azure OpenAI / GitHub Models
 - **Version:** keep `Directory.Build.props` and `AgentWikiConstants.Version` in sync (`/bump-version` skill)
 - **Do not publish to NuGet.org** (local pack / Azure Artifacts later)
@@ -43,8 +43,10 @@ dotnet test AgentWiki.slnx
 ./scripts/pack-and-install-tool.sh
 agent-wiki --version
 
-# Desktop companion (local interactive UI)
-./scripts/run-desktop.sh
+# Desktop companion tool (or from source)
+./scripts/pack-and-install-tool.sh --desktop-only
+agent-wiki-ui
+# from source: ./scripts/run-desktop.sh
 ```
 
 ## Logs while debugging CLI behavior

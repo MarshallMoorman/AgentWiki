@@ -53,13 +53,23 @@ dotnet run --project src/AgentWiki.Cli -- generate --repo-path /path/to/repo --f
 
 ### Desktop companion (optional)
 
-Same engine as the CLI, for interactive use (repo picker, progress UI, settings editor, wiki browser). **CLI remains primary for CI and automation.** Not published to NuGet.org.
+Same engine as the CLI, for interactive use (repo picker, progress UI, settings editor, wiki browser). **CLI remains primary for CI and automation.** Delivered as a **separate** global tool package (`AgentWiki.Desktop` → `agent-wiki-ui`), not merged into the CLI nupkg. Not published to NuGet.org.
 
 ```bash
+# Install both tools (or: --cli-only / --desktop-only)
+./scripts/pack-and-install-tool.sh
+agent-wiki-ui
+
+# From source without installing
 ./scripts/run-desktop.sh
 # or
 dotnet run --project src/AgentWiki.Desktop
 ```
+
+| Tool | Package | Role |
+|------|---------|------|
+| `agent-wiki` | `AgentWiki.Cli` | CLI for scripts / CI / agents |
+| `agent-wiki-ui` | `AgentWiki.Desktop` | Avalonia desktop companion |
 
 | UI surface | CLI equivalent |
 |------------|----------------|
@@ -98,7 +108,7 @@ flowchart TB
 | `src/AgentWiki.Core` | Models, analysis, offline planners, flexible LLM JSON |
 | `src/AgentWiki.App` | Application services (SK LLM, git, orchestrator, config) shared by hosts |
 | `src/AgentWiki.Cli` | Thin Spectre.Console.Cli host + tool packaging |
-| `src/AgentWiki.Desktop` | Avalonia 12 desktop companion (MVVM) |
+| `src/AgentWiki.Desktop` | Avalonia 12 desktop companion (MVVM); global tool `agent-wiki-ui` |
 | `tests/AgentWiki.Cli.Tests` | Service + offline E2E tests |
 | `tests/AgentWiki.Desktop.Tests` | ViewModel / config-editor unit tests |
 
@@ -204,8 +214,9 @@ Generated docs describe the **current** codebase. Prompts instruct the model **n
 
 ```bash
 ./.grok/skills/bump-version/scripts/bump-version.sh patch   # or minor|major|X.Y.Z
-./scripts/pack-and-install-tool.sh
+./scripts/pack-and-install-tool.sh          # packs + installs agent-wiki and agent-wiki-ui
 agent-wiki --version
+# agent-wiki-ui   # launches Desktop
 ```
 
 Also available as project skill: `/bump-version`.

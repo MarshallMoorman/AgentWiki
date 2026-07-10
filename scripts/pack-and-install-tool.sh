@@ -1,40 +1,100 @@
 #!/usr/bin/env bash
-# Pack AgentWiki as a local dotnet tool and install/update it globally.
-# Mirrors the README "Install as a local dotnet tool" flow.
+# Pack AgentWiki as local dotnet tool(s) and install/update them globally.
+#
+#   ./scripts/pack-and-install-tool.sh           # CLI + Desktop (default)
+#   ./scripts/pack-and-install-tool.sh Release
+#   ./scripts/pack-and-install-tool.sh Release --cli-only
+#   ./scripts/pack-and-install-tool.sh Release --desktop-only
+#
+# Not published to NuGet.org; local artifacts/ + Azure Artifacts later.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-CONFIG="${1:-Release}"
-ARTIFACTS_DIR="${ARTIFACTS_DIR:-$ROOT/artifacts}"
-PACKAGE_ID="AgentWiki.Cli"
-TOOL_COMMAND="agent-wiki"
+CONFIG="Release"
+PACK_CLI=1
+PACK_DESKTOP=1
 
-echo "==> Building and packing $PACKAGE_ID ($CONFIG)"
+for arg in "$@"; do
+  case "$arg" in
+    Debug|Release)
+      CONFIG="$arg"
+      ;;
+    --cli-only)
+      PACK_CLI=1
+      PACK_DESKTOP=0
+      ;;
+    --desktop-only)
+      PACK_CLI=0
+      PACK_DESKTOP=1
+      ;;
+    --help|-h)
+      sed -n '2,12p' "$0"
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
+
+ARTIFACTS_DIR="${ARTIFACTS_DIR:-$ROOT/artifacts}"
 mkdir -p "$ARTIFACTS_DIR"
-dotnet pack src/AgentWiki.Cli -c "$CONFIG" -o "$ARTIFACTS_DIR"
+
+install_or_update_tool() {
+  local package_id="$1"
+  local tool_command="$2"
+
+  if dotnet tool list -g | awk '{print $1}' | grep -qx "$package_id"; then
+    echo "==> Updating global tool $package_id"
+    dotnet tool update --global --add-source "$ARTIFACTS_DIR" "$package_id"
+  else
+    echo "==> Installing global tool $package_id"
+    dotnet tool install --global --add-source "$ARTIFACTS_DIR" "$package_id"
+  fi
+
+  if command -v "$tool_command" >/dev/null 2>&1; then
+    echo "==> Verified: $tool_command"
+    # Desktop has no --version CLI contract; only probe CLI.
+    if [[ "$tool_command" == "agent-wiki" ]]; then
+      "$tool_command" --version || true
+    fi
+  else
+    echo "Warning: '$tool_command' not on PATH yet."
+    echo "Ensure global tools path is configured, e.g.:"
+    echo "  export PATH=\"\$PATH:\$HOME/.dotnet/tools\""
+    return 1
+  fi
+}
+
+if [[ "$PACK_CLI" -eq 1 ]]; then
+  echo "==> Building and packing AgentWiki.Cli ($CONFIG) → agent-wiki"
+  dotnet pack src/AgentWiki.Cli -c "$CONFIG" -o "$ARTIFACTS_DIR"
+fi
+
+if [[ "$PACK_DESKTOP" -eq 1 ]]; then
+  echo "==> Building and packing AgentWiki.Desktop ($CONFIG) → agent-wiki-ui"
+  # Desktop must build for pack (not --no-build) so Avalonia assets are included.
+  dotnet pack src/AgentWiki.Desktop -c "$CONFIG" -o "$ARTIFACTS_DIR"
+fi
 
 echo "==> Package(s) in $ARTIFACTS_DIR"
 ls -la "$ARTIFACTS_DIR"/*.nupkg 2>/dev/null || true
 
-if dotnet tool list -g | awk '{print $1}' | grep -qx "$PACKAGE_ID"; then
-  echo "==> Updating global tool $PACKAGE_ID"
-  dotnet tool update --global --add-source "$ARTIFACTS_DIR" "$PACKAGE_ID"
-else
-  echo "==> Installing global tool $PACKAGE_ID"
-  dotnet tool install --global --add-source "$ARTIFACTS_DIR" "$PACKAGE_ID"
+if [[ "$PACK_CLI" -eq 1 ]]; then
+  install_or_update_tool "AgentWiki.Cli" "agent-wiki"
 fi
 
-echo "==> Verifying install"
-if command -v "$TOOL_COMMAND" >/dev/null 2>&1; then
-  "$TOOL_COMMAND" --version
-  "$TOOL_COMMAND" --help | head -20
-else
-  echo "Warning: '$TOOL_COMMAND' not on PATH yet."
-  echo "Ensure global tools path is configured, e.g.:"
-  echo "  export PATH=\"\$PATH:\$HOME/.dotnet/tools\""
-  exit 1
+if [[ "$PACK_DESKTOP" -eq 1 ]]; then
+  install_or_update_tool "AgentWiki.Desktop" "agent-wiki-ui"
 fi
 
-echo "==> Done. Use: $TOOL_COMMAND generate --repo-path . --force"
+echo "==> Done."
+if [[ "$PACK_CLI" -eq 1 ]]; then
+  echo "    CLI:     agent-wiki generate --repo-path . --force"
+fi
+if [[ "$PACK_DESKTOP" -eq 1 ]]; then
+  echo "    Desktop: agent-wiki-ui"
+fi

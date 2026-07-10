@@ -64,8 +64,8 @@ Shown on `status`, start of `generate`/`update`, and on errors. Console is Spect
 | Desktop | `src/AgentWiki.Desktop/` | Avalonia 12 MVVM companion (full CLI parity) |
 | Tests | `tests/AgentWiki.Cli.Tests/`, `tests/AgentWiki.Desktop.Tests/` | xUnit + Shouldly + Moq |
 | Skills | `.grok/skills/bump-version/` | Version bump skill + script |
-| Pack script | `scripts/pack-and-install-tool.sh` | `dotnet pack` + global tool install/update |
-| Desktop run | `scripts/run-desktop.sh` | Local Avalonia companion |
+| Pack script | `scripts/pack-and-install-tool.sh` | Pack/install `agent-wiki` + `agent-wiki-ui` (`--cli-only` / `--desktop-only`) |
+| Desktop run | `scripts/run-desktop.sh` or `agent-wiki-ui` | Avalonia companion (source or global tool) |
 
 **Hosts:** CLI (CI/automation) and Desktop (interactive) both call **AgentWiki.App**. Do not put Spectre or Avalonia in App.
 
@@ -204,8 +204,12 @@ Plan: `docs/plans/ui-companion-avalonia.md` (status: implemented for v1 parity).
 - Progress via `WikiGenerationRequest.Progress`; cancel via `CancellationToken`.
 - UI prefs: `~/.agentwiki/ui-settings.json` (recent repos, last path).
 - Secrets: Settings saves keys to `.env` only; non-secrets to `config.json`.
+- **Tool packaging:** separate nupkg `AgentWiki.Desktop` → global command **`agent-wiki-ui`** (not in the CLI package).
 
 ```bash
+./scripts/pack-and-install-tool.sh --desktop-only
+agent-wiki-ui
+# or from source
 ./scripts/run-desktop.sh
 ```
 
@@ -213,7 +217,7 @@ Plan: `docs/plans/ui-companion-avalonia.md` (status: implemented for v1 parity).
 
 | Workflow | Role |
 |----------|------|
-| `.github/workflows/ci.yml` | Build, test, compile Desktop, pack nupkg as GitHub Actions artifact (no feed publish yet) |
+| `.github/workflows/ci.yml` | Build, test, pack CLI + Desktop nupkgs as artifacts; smoke-install both tools (no GUI launch) |
 | `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR (weekly / manual) |
 | `examples/github-actions/agent-wiki-update.yml` | **Consumer template** — copy into other repos |
 
@@ -235,4 +239,4 @@ Plan: `docs/plans/ui-companion-avalonia.md` (status: implemented for v1 parity).
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10, v1.0.10): Core + App services + thin Spectre CLI + Avalonia 12 Desktop companion; generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. CLI stays primary for CI. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki (.NET 10, v1.1.0): Core + App services + thin Spectre CLI (`agent-wiki`) + Avalonia 12 Desktop tool (`agent-wiki-ui`); generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. CLI stays primary for CI. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
