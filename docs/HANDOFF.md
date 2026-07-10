@@ -187,13 +187,13 @@ AGENTS.md           # bootstrap block (or CLAUDE.md if present)
 3. Azure DevOps pipeline sample parity with GitHub Actions  
 4. Post-process LLM output to strip accidental absolute paths  
 5. Optional “deployment” cross-cutting page dedicated to Policies/ + pipelines  
-6. Configure `NUGET_API_KEY` and publish `AgentWiki.Cli` via `v*` tags  
+6. When ready: push nupkg to Azure Artifacts (not NuGet.org) from CI  
 
 ### CI (this repo)
 
 | Workflow | Role |
 |----------|------|
-| `.github/workflows/ci.yml` | Build, test, pack nupkg artifact; optional NuGet on tags |
+| `.github/workflows/ci.yml` | Build, test, pack nupkg as GitHub Actions artifact (no feed publish yet) |
 | `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR (weekly / manual) |
 | `examples/github-actions/agent-wiki-update.yml` | **Consumer template** — copy into other repos |
 

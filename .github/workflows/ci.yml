@@ -3,14 +3,12 @@ name: CI
 on:
   push:
     branches: [main, master]
-    tags: ["v*"]
   pull_request:
     branches: [main, master]
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -57,50 +55,9 @@ jobs:
       - name: Smoke-test packed tool
         run: |
           set -euo pipefail
-          nupkg=$(ls artifacts/AgentWiki.Cli.*.nupkg | head -1)
-          echo "Installing from $nupkg"
-          # Isolated tools dir so we do not touch the runner global tools permanently
-          export DOTNET_ROOT="${DOTNET_ROOT:-}"
+          echo "Installing from local pack (CI artifact only — not published to NuGet.org)"
           TOOLS_DIR="$RUNNER_TEMP/agentwiki-tools"
           mkdir -p "$TOOLS_DIR"
           dotnet tool install AgentWiki.Cli --tool-path "$TOOLS_DIR" --add-source artifacts
           "$TOOLS_DIR/agent-wiki" --version
           "$TOOLS_DIR/agent-wiki" --help | head -20
-
-  # Optional NuGet.org publish when a v* tag is pushed and NUGET_API_KEY is configured.
-  publish-nuget:
-    name: Publish to NuGet.org
-    needs: build-test-pack
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Download nupkg
-        uses: actions/download-artifact@v4
-        with:
-          name: agentwiki-nupkg
-          path: artifacts
-
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Push package
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "${NUGET_API_KEY:-}" ]; then
-            echo "NUGET_API_KEY secret is not set — skipping NuGet.org publish."
-            echo "Add repository secret NUGET_API_KEY to enable release publishing."
-            exit 0
-          fi
-          for pkg in artifacts/*.nupkg; do
-            echo "Pushing $pkg"
-            dotnet nuget push "$pkg" \
-              --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
-          done

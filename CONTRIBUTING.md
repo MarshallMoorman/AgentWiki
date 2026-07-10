@@ -74,15 +74,15 @@ Supported placeholders depend on the prompt (e.g. `{{RepoName}}`, `{{RepoSummary
 
 ## CI
 
-- **PR / push:** `.github/workflows/ci.yml` builds, tests, packs, and uploads the nupkg artifact.
-- **Tags `v*`:** same workflow optionally pushes to NuGet.org when `NUGET_API_KEY` is configured.
+- **PR / push:** `.github/workflows/ci.yml` builds, tests, packs, and uploads the nupkg as a **workflow artifact** (no external feed publish yet).
 - **This repo wiki:** `.github/workflows/wiki-refresh.yml` regenerates `docs/wiki/` offline and opens a PR.
 - **Consumer template:** `examples/github-actions/agent-wiki-update.yml` (copy into other repos).
+- **Azure Artifacts / NuGet:** not configured yet; pack + artifact upload is enough until a feed is ready.
 
 ## Release checklist (maintainers)
 
 1. Bump version: `./.grok/skills/bump-version/scripts/bump-version.sh patch` (or minor/major).
 2. Ensure CI is green on `main`.
 3. Smoke-test: `./scripts/pack-and-install-tool.sh && agent-wiki --version`.
-4. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z` (triggers NuGet publish if secret is set).
-5. Confirm the GitHub Actions artifact / NuGet package.
+4. Download the `agentwiki-nupkg` artifact from the CI run if you need to share the package.
+5. (Later) Push the nupkg to Azure Artifacts when that pipeline is ready.

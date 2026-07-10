@@ -198,7 +198,7 @@ Also available as project skill: `/bump-version`.
 
 | Workflow | Path | Purpose |
 |----------|------|---------|
-| **CI** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | On push/PR: restore → build → test → pack `AgentWiki.Cli` nupkg → upload artifacts. On `v*` tags: optional NuGet.org publish (`NUGET_API_KEY` secret). |
+| **CI** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | On push/PR: restore → build → test → pack `AgentWiki.Cli` nupkg → upload as a **workflow artifact** (not published to NuGet.org). |
 | **Wiki refresh** | [`.github/workflows/wiki-refresh.yml`](.github/workflows/wiki-refresh.yml) | Dogfoods AgentWiki on *this* repo (offline generate + PR). Weekly schedule + manual dispatch. |
 | **Consumer example** | [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) | **Copy into your app repos** to run `agent-wiki update` and open a docs PR. |
 
@@ -207,22 +207,17 @@ Also available as project skill: `/bump-version`.
 1. Copy [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) to `.github/workflows/agent-wiki-update.yml`.
 2. Run `agent-wiki init` once in the repo (commit `.agentwiki/config.json`, not secrets).
 3. Optionally set secrets (`OPENAI_API_KEY`, `AZURE_OPENAI_*`, etc.) and vars (`AGENTWIKI_PROVIDER`, …). Without secrets, update still works **offline**.
+4. Point the install step at your feed when you start publishing the tool (local pack, Azure Artifacts, etc.).
 
 ```bash
-# local install of the tool (after a release is on NuGet.org)
-dotnet tool install -g AgentWiki.Cli
-# or from a local pack:
-# ./scripts/pack-and-install-tool.sh
+# Local install from a pack produced by CI or scripts/pack-and-install-tool.sh
+./scripts/pack-and-install-tool.sh
+agent-wiki --version
 ```
 
-### Publishing this tool
+### Packaging this tool (no public NuGet yet)
 
-```bash
-# CI uploads artifacts on every main build.
-# To publish to NuGet.org: create a git tag and ensure NUGET_API_KEY is set.
-git tag v1.0.10
-git push origin v1.0.10
-```
+CI always **packs** and uploads the `.nupkg` as a GitHub Actions artifact so you can download it from a run. Publishing to Azure Artifacts (or NuGet.org) can be added later when you are ready; it is intentionally not wired up now.
 
 ## License
 
