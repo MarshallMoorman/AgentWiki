@@ -1,11 +1,15 @@
+using System.ClientModel;
+using System.ClientModel.Primitives;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
+using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using OpenAI;
 using Polly;
 
 namespace AgentWiki.App.Services;
@@ -14,6 +18,12 @@ namespace AgentWiki.App.Services;
 /// Semantic Kernel-backed chat completion for Azure OpenAI and OpenAI-compatible endpoints,
 /// with Polly retries for transient failures and configurable HTTP timeouts.
 /// </summary>
+/// <remarks>
+/// Important: the OpenAI/.NET ClientPipeline default <c>NetworkTimeout</c> is <b>100 seconds</b>.
+/// Setting only <see cref="HttpClient.Timeout"/> is not enough — long completions still fail around
+/// ~5 minutes when the SDK retries 100s network operations. We set <c>NetworkTimeout</c> from
+/// <see cref="AgentWikiConfig.LlmTimeoutSeconds"/> and disable the SDK retry policy (Polly retries instead).
+/// </remarks>
 public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, IDisposable
 {
     private readonly ILogger<SemanticKernelLlmCompletionService> _logger;
@@ -208,6 +218,14 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         var builder = Kernel.CreateBuilder();
         var httpClient = GetOrCreateHttpClient(timeoutSeconds);
 
+        // System.ClientModel default NetworkTimeout is 100s. With the OpenAI SDK's built-in
+        // ClientRetryPolicy (≈3 tries) that surfaces as ~5 minute failures even when
+        // HttpClient.Timeout / AGENTWIKI_LlmTimeoutSeconds is 600.
+        _logger.LogInformation(
+            "LLM client timeouts: networkTimeout={NetworkTimeout}s httpClientTimeout={HttpTimeout}s (SDK default network timeout is 100s)",
+            timeoutSeconds,
+            timeoutSeconds);
+
         switch (provider)
         {
             case "openai":
@@ -215,24 +233,13 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 var apiKey = config.OpenAI.ApiKey
                     ?? throw new InvalidOperationException(
                         "OpenAI ApiKey is not configured. Set openAI.apiKey in .agentwiki/config.json " +
-                        "or AGENTWIKI_OpenAI__ApiKey / .env.");
+                        "or AGENTWIKI_OpenAI__ApiKey / AGENTWIKI_ApiKey / OPENAI_API_KEY / .env.");
                 var modelId = model ?? LlmSettings.ResolveModel(config);
-                if (!string.IsNullOrWhiteSpace(config.OpenAI.Endpoint))
-                {
-                    builder.AddOpenAIChatCompletion(
-                        modelId: modelId,
-                        apiKey: apiKey,
-                        endpoint: new Uri(config.OpenAI.Endpoint),
-                        httpClient: httpClient);
-                }
-                else
-                {
-                    builder.AddOpenAIChatCompletion(
-                        modelId: modelId,
-                        apiKey: apiKey,
-                        httpClient: httpClient);
-                }
-
+                Uri? endpoint = string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
+                    ? null
+                    : new Uri(config.OpenAI.Endpoint);
+                var client = CreateOpenAiClient(apiKey, endpoint, httpClient, timeoutSeconds);
+                builder.AddOpenAIChatCompletion(modelId: modelId, openAIClient: client);
                 break;
             }
             case "github-models":
@@ -245,11 +252,8 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 var endpoint = string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
                     ? new Uri("https://models.inference.ai.azure.com")
                     : new Uri(config.OpenAI.Endpoint);
-                builder.AddOpenAIChatCompletion(
-                    modelId: modelId,
-                    apiKey: apiKey,
-                    endpoint: endpoint,
-                    httpClient: httpClient);
+                var client = CreateOpenAiClient(apiKey, endpoint, httpClient, timeoutSeconds);
+                builder.AddOpenAIChatCompletion(modelId: modelId, openAIClient: client);
                 break;
             }
             default:
@@ -261,31 +265,66 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                     ?? config.DefaultModel
                     ?? throw new InvalidOperationException("AzureOpenAI:DeploymentName is not configured.");
 
-                if (config.AzureOpenAI.UseManagedIdentity)
-                {
-                    builder.AddAzureOpenAIChatCompletion(
-                        deploymentName: deployment,
-                        endpoint: endpoint,
-                        credentials: new DefaultAzureCredential(),
-                        httpClient: httpClient);
-                }
-                else
-                {
-                    var apiKey = config.AzureOpenAI.ApiKey
-                        ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured.");
-
-                    builder.AddAzureOpenAIChatCompletion(
-                        deploymentName: deployment,
-                        endpoint: endpoint,
-                        apiKey: apiKey,
-                        httpClient: httpClient);
-                }
-
+                var azureClient = CreateAzureOpenAiClient(config, endpoint, httpClient, timeoutSeconds);
+                builder.AddAzureOpenAIChatCompletion(
+                    deploymentName: deployment,
+                    azureOpenAIClient: azureClient);
                 break;
             }
         }
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Builds an <see cref="OpenAIClient"/> with NetworkTimeout aligned to AgentWiki config.
+    /// </summary>
+    public static OpenAIClient CreateOpenAiClient(
+        string apiKey,
+        Uri? endpoint,
+        HttpClient httpClient,
+        int timeoutSeconds)
+    {
+        var options = new OpenAIClientOptions
+        {
+            NetworkTimeout = TimeSpan.FromSeconds(timeoutSeconds),
+            // Polly owns retries; SDK retries × NetworkTimeout was masking as a 5‑minute failure.
+            RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
+            Transport = new HttpClientPipelineTransport(httpClient)
+        };
+        if (endpoint is not null)
+        {
+            options.Endpoint = endpoint;
+        }
+
+        return new OpenAIClient(new ApiKeyCredential(apiKey), options);
+    }
+
+    /// <summary>
+    /// Builds an <see cref="AzureOpenAIClient"/> with NetworkTimeout aligned to AgentWiki config.
+    /// </summary>
+    public static AzureOpenAIClient CreateAzureOpenAiClient(
+        AgentWikiConfig config,
+        string endpoint,
+        HttpClient httpClient,
+        int timeoutSeconds)
+    {
+        var options = new AzureOpenAIClientOptions
+        {
+            NetworkTimeout = TimeSpan.FromSeconds(timeoutSeconds),
+            RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
+            Transport = new HttpClientPipelineTransport(httpClient)
+        };
+
+        var uri = new Uri(endpoint);
+        if (config.AzureOpenAI.UseManagedIdentity)
+        {
+            return new AzureOpenAIClient(uri, new DefaultAzureCredential(), options);
+        }
+
+        var apiKey = config.AzureOpenAI.ApiKey
+            ?? throw new InvalidOperationException("AzureOpenAI:ApiKey is not configured.");
+        return new AzureOpenAIClient(uri, new ApiKeyCredential(apiKey), options);
     }
 
     private HttpClient GetOrCreateHttpClient(int timeoutSeconds)
@@ -295,13 +334,17 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
             if (_httpClient is null || _httpTimeoutSeconds != timeoutSeconds)
             {
                 _httpClient?.Dispose();
+                // HttpClient.Timeout is a whole-request ceiling; keep it slightly above NetworkTimeout
+                // so the ClientPipeline network timeout is the controlling budget.
                 _httpClient = new HttpClient
                 {
-                    // Large multi-step wiki prompts need more than the 100s .NET default.
-                    Timeout = TimeSpan.FromSeconds(timeoutSeconds)
+                    Timeout = TimeSpan.FromSeconds(Math.Min(timeoutSeconds + 30, 930))
                 };
                 _httpTimeoutSeconds = timeoutSeconds;
-                _logger.LogDebug("Configured LLM HttpClient timeout={Timeout}s", timeoutSeconds);
+                _logger.LogDebug(
+                    "Configured LLM HttpClient timeout={Timeout}s (networkTimeout={Network}s)",
+                    _httpClient.Timeout.TotalSeconds,
+                    timeoutSeconds);
             }
 
             return _httpClient;
