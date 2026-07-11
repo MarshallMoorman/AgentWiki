@@ -1,6 +1,6 @@
 # AgentWiki — session handoff (for new conversations)
 
-**Last updated:** 2026-07-10  
+**Last updated:** 2026-07-11  
 **Current version:** **1.1.0** (working toward **1.2.x** per single-repo polish plan)  
 **Repo:** this repository root  
 **Active plan:** [`docs/plans/docs-plan-single-repo-polish-v1.2.md`](plans/docs-plan-single-repo-polish-v1.2.md)
@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** Phases 1–4 committed; Phase 5 (cost/observability/dry-run) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** Phases 1–5 committed; Phase 6 (AzDO sample + theme + docs) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -159,7 +159,22 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
-### v1.2 Phase 5 — Cost, Observability & Dry-Run (ready to commit)
+### v1.2 Phase 6 — Azure DevOps + Desktop theme + docs (ready to commit)
+
+- **Azure Pipelines sample:** `examples/azure-pipelines/agent-wiki-update.yml` (schedule, secrets, dry-run, optional PR)
+- **Desktop theme:** Settings → Appearance — `system` / `dark` / `light` via `ThemeService`, persisted in `~/.agentwiki/ui-settings.json`
+- App default theme follows OS (`RequestedThemeVariant=Default`); Fluent dark+light palettes already present
+- README / CONTRIBUTING / AGENTS / HANDOFF updated for full v1.2 plan
+- **Version:** still **1.1.0** on main — when ready for release: `/bump-version` → `1.2.0` then pack (do not NuGet.org publish)
+- Tests: theme unit tests; full suite green
+
+| Hotspot | Path |
+|---------|------|
+| AzDO sample | `examples/azure-pipelines/agent-wiki-update.yml` |
+| Theme | `ThemeService`, `UiSettings.Theme`, `SettingsView` |
+| UI prefs | `~/.agentwiki/ui-settings.json` |
+
+### v1.2 Phase 5 — Cost, Observability & Dry-Run (committed `58f472b`)
 
 - **Dry-run plan:** create / update / unchanged classification (content-aware)  
 - **Run summary:** correlation ID, steps, modules, offline flag, tokens, est. cost (CLI + Desktop)  
@@ -234,12 +249,14 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 | 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
 | 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish (after Phase 5)
+### Known remaining polish (after Phase 6 / plan complete)
 
 - Cost estimates are approximate (not billing-grade)  
 - App Insights uses lightweight REST ingestion (not full SDK)  
-- Desktop theme switching still Phase 6  
-- **Next plan phase:** Phase 6 — Azure DevOps sample + Desktop theme + docs polish
+- Wiki browser: same-page `#anchors` / tree highlight after in-app nav (optional UX)  
+- Desktop nupkg large (Avalonia natives); no notarization  
+- **Release:** bump to **1.2.0** when ready (`/bump-version` + pack); do not publish NuGet.org  
+- Multi-repo / vector / Azure Artifacts publishing remain out of plan scope  
 
 ---
 
@@ -298,8 +315,10 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 2. ~~Phase 2 — Richer offline + Roslyn~~ → **committed**  
 3. ~~Phase 3 — API endpoint documentation~~ → **committed**  
 4. ~~Phase 4 — Module discovery improvements~~ → **committed**  
-5. ~~Phase 5 — Cost, observability, dry-run~~ → **done (awaiting commit)**  
-6. **Phase 6 — Azure DevOps sample + Desktop theme + docs polish**  
+5. ~~Phase 5 — Cost, observability, dry-run~~ → **committed**  
+6. ~~Phase 6 — Azure DevOps sample + Desktop theme + docs polish~~ → **done (awaiting commit)**  
+
+**v1.2 single-repo polish plan: implementation complete.** Tag **1.2.0** when you want a release.
 
 Out of scope for this plan: multi-repo workspace, vector search, publishing.
 
@@ -309,7 +328,8 @@ Out of scope for this plan: multi-repo workspace, vector search, publishing.
 |----------|------|
 | `.github/workflows/ci.yml` | Build, test, pack CLI + Desktop, smoke-install tools |
 | `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR |
-| `examples/github-actions/agent-wiki-update.yml` | **Consumer template** |
+| `examples/github-actions/agent-wiki-update.yml` | **Consumer template (GitHub)** |
+| `examples/azure-pipelines/agent-wiki-update.yml` | **Consumer template (Azure DevOps)** |
 
 ---
 
@@ -338,4 +358,4 @@ Out of scope for this plan: multi-repo workspace, vector search, publishing.
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki **v1.1.0** (.NET 10): shared `AgentWiki.App` engine; global tools **`agent-wiki`** (CLI/CI) and **`agent-wiki-ui`** (Avalonia 12 Desktop companion). Generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. Do not publish to NuGet.org. Read **`docs/HANDOFF.md`** first; do not re-scaffold.
+> Continue AgentWiki **v1.1.0** working toward **1.2.0** (.NET 10): shared `AgentWiki.App`; tools **`agent-wiki`** + **`agent-wiki-ui`**. v1.2 single-repo polish plan implemented (post-processor, Roslyn offline, api-endpoints, module discovery, cost/dry-run, AzDO sample, Desktop theme). Read **`docs/HANDOFF.md`** + `docs/plans/docs-plan-single-repo-polish-v1.2.md`. Do not publish to NuGet.org; do not re-scaffold. Bump to 1.2.0 when releasing.

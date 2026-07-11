@@ -14,6 +14,12 @@ public sealed class UiSettings
     /// <summary>Last selected repository path.</summary>
     public string? LastRepoPath { get; set; }
 
+    /// <summary>
+    /// Appearance preference: <c>system</c> (default, follow OS), <c>dark</c>, or <c>light</c>.
+    /// Stored in <c>~/.agentwiki/ui-settings.json</c>.
+    /// </summary>
+    public string Theme { get; set; } = "system";
+
     public void RememberRepo(string absolutePath)
     {
         if (string.IsNullOrWhiteSpace(absolutePath))

@@ -1,6 +1,6 @@
 # AgentWiki Single-Repo Polish Plan (v1.2)
 
-**Status:** Ready for implementation  
+**Status:** Implemented (awaiting 1.2.0 version tag)  
 **Target version:** 1.2.x  
 **Date:** 2026-07-10  
 **Scope:** Finish and harden single-repo mode only. Multi-repo Workspace and Vector work are intentionally deferred (see existing GitHub issues).  

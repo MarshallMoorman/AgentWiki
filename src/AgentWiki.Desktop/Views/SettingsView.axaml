@@ -19,6 +19,24 @@
 
       <TextBlock Text="{Binding Message}" Classes="success-text" TextWrapping="Wrap" IsVisible="{Binding Message.Length}" />
 
+      <Border Classes="card">
+        <StackPanel Spacing="10">
+          <TextBlock Text="APPEARANCE" Classes="section-title" />
+          <Grid ColumnDefinitions="140,*">
+            <TextBlock Text="Theme" Classes="field-label" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Spacing="4">
+              <ComboBox ItemsSource="{Binding ThemeChoices}"
+                        SelectedItem="{Binding ThemePreference}"
+                        Classes="aw-input"
+                        HorizontalAlignment="Left"
+                        MinWidth="200" />
+              <TextBlock Classes="dim" FontSize="11.5" TextWrapping="Wrap"
+                         Text="Desktop only — system follows OS dark/light. Saved to ~/.agentwiki/ui-settings.json (not repo config)." />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+
       <Grid ColumnDefinitions="*,*">
         <!-- General -->
         <Border Classes="card" Margin="0,0,8,0">

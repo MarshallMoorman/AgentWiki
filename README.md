@@ -226,7 +226,7 @@ Generated docs describe the **current** codebase. Prompts instruct the model **n
 
 | Source | Location |
 |--------|----------|
-| Tool defaults | `src/AgentWiki.Cli/Prompts/*.txt` (embedded) |
+| Tool defaults | `src/AgentWiki.App/Prompts/*.txt` (embedded) |
 | Per-repo overrides | `.agentwiki/prompts/` (from `init`) |
 
 ## Versioning & release
@@ -250,30 +250,46 @@ Also available as project skill: `/bump-version`.
 | [`AgentWiki-Project-Specification.md`](AgentWiki-Project-Specification.md) | Original product spec |
 | [`docs/wiki/`](docs/wiki/) | Sample/self wiki (may lag; regenerate after large changes) |
 
-## CI / GitHub Actions
+## CI / automation
 
 | Workflow | Path | Purpose |
 |----------|------|---------|
-| **CI** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | On push/PR: restore → build → test → pack `AgentWiki.Cli` nupkg → upload as a **workflow artifact** (not published to NuGet.org). |
+| **CI** | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | On push/PR: restore → build → test → pack CLI + Desktop nupkgs → upload as **workflow artifacts** (not published to NuGet.org). |
 | **Wiki refresh** | [`.github/workflows/wiki-refresh.yml`](.github/workflows/wiki-refresh.yml) | Dogfoods AgentWiki on *this* repo (offline generate + PR). Weekly schedule + manual dispatch. |
-| **Consumer example** | [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) | **Copy into your app repos** to run `agent-wiki update` and open a docs PR. |
+| **Consumer (GitHub)** | [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) | **Copy into your app repos** to run `agent-wiki update` and open a docs PR. |
+| **Consumer (Azure DevOps)** | [`examples/azure-pipelines/agent-wiki-update.yml`](examples/azure-pipelines/agent-wiki-update.yml) | **Copy-paste Azure Pipelines** sample with schedule, secrets, dry-run, and optional PR. |
 
 ### Consumer repos (use AgentWiki in your pipeline)
+
+**GitHub Actions**
 
 1. Copy [`examples/github-actions/agent-wiki-update.yml`](examples/github-actions/agent-wiki-update.yml) to `.github/workflows/agent-wiki-update.yml`.
 2. Run `agent-wiki init` once in the repo (commit `.agentwiki/config.json`, not secrets).
 3. Optionally set secrets (`OPENAI_API_KEY`, `AZURE_OPENAI_*`, etc.) and vars (`AGENTWIKI_PROVIDER`, …). Without secrets, update still works **offline**.
 4. Point the install step at your feed when you start publishing the tool (local pack, Azure Artifacts, etc.).
 
+**Azure DevOps**
+
+1. Copy [`examples/azure-pipelines/agent-wiki-update.yml`](examples/azure-pipelines/agent-wiki-update.yml) into your repo and create a pipeline from it.
+2. Link a variable group (or pipeline variables) for optional secrets: `OPENAI_API_KEY`, `AZURE_OPENAI_*`, `AGENTWIKI_PROVIDER`, …
+3. Enable **Allow scripts to access the OAuth token** if you want the sample to open a PR via REST.
+4. Without LLM secrets the pipeline still runs **offline** generation/update.
+5. Use pipeline parameters for full `generate --force` or `--dry-run`.
+
 ```bash
 # Local install from a pack produced by CI or scripts/pack-and-install-tool.sh
 ./scripts/pack-and-install-tool.sh
 agent-wiki --version
+agent-wiki-ui   # Desktop companion (Settings → Appearance for dark/light/system theme)
 ```
 
 ### Packaging this tool (no public NuGet yet)
 
 CI always **packs** and uploads the `.nupkg` as a GitHub Actions artifact so you can download it from a run. Publishing to Azure Artifacts (or NuGet.org) can be added later when you are ready; it is intentionally not wired up now.
+
+### Desktop theme
+
+`agent-wiki-ui` follows the **system** theme by default. Override in **Settings → Appearance** (`system` | `dark` | `light`). Preference is stored in `~/.agentwiki/ui-settings.json` (not in the target repo).
 
 ## License
 

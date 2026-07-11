@@ -82,7 +82,8 @@ agent-wiki-ui
 | API endpoints | `EndpointCatalog`, `ApiEndpointsMarkdownRenderer`, orchestrator endpoint step |
 | CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
 | Cost / dry-run / telemetry | `CostEstimator`, `MarkdownOutputWriter`, `IRunTelemetry`, `GenerateCommand.RenderResult` |
-| Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |
+| Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; theme: `ThemeService` + `ui-settings.json` |
+| CI samples | `examples/github-actions/`, `examples/azure-pipelines/` |
 | Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer`, `IStaticAnalyzer` |
 | Incremental update | `GitChangeDetector`, `LastRunStore`, `SemanticWikiGenerator` |
 | Config / init | `ConfigLoader`, `InitService`, `DotEnvLoader` |

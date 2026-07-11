@@ -28,4 +28,11 @@ public sealed class UiSettingsStoreTests
         settings.RecentRepos.Count.ShouldBe(2);
         settings.RecentRepos[0].ShouldEndWith("a");
     }
+
+    [Fact]
+    public void Theme_DefaultsToSystem()
+    {
+        var settings = new UiSettings();
+        settings.Theme.ShouldBe("system");
+    }
 }

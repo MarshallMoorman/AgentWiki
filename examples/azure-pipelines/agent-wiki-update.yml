@@ -1,0 +1,205 @@
+# Example Azure Pipelines workflow for *consumer* repositories that use AgentWiki.
+#
+# Copy this file into your repo (e.g. azure-pipelines/agent-wiki-update.yml or
+# as a pipeline YAML path in Azure DevOps). Then wire variables / variable groups.
+#
+# Installs AgentWiki.Cli as a global tool. Until the package is published to a feed
+# your org can reach, either:
+#   - pack from this repo (scripts/pack-and-install-tool.sh) and push to Azure Artifacts, or
+#   - download the nupkg from a GitHub Actions CI artifact and add a local NuGet source.
+#
+# Works offline without LLM credentials (inventory-based wiki). With secrets set,
+# live LLM enrichment is used when available.
+#
+# Related: examples/github-actions/agent-wiki-update.yml (GitHub Actions parity)
+
+trigger: none
+
+schedules:
+  - cron: "0 2 * * *"
+    displayName: Daily AgentWiki refresh (02:00 UTC)
+    branches:
+      include:
+        - main
+        - master
+    always: true
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+  - name: forceFullGenerate
+    displayName: Run full generate --force instead of incremental update
+    type: boolean
+    default: false
+  - name: dryRun
+    displayName: Dry-run only (no files written / no PR)
+    type: boolean
+    default: false
+
+variables:
+  # Prefer a Variable Group (e.g. "agentwiki") linked to this pipeline for secrets.
+  # Non-secrets can also live as pipeline variables.
+  agentWikiVersion: "" # pin e.g. 1.1.0 when published; empty = latest
+  # Optional private feed (Azure Artifacts). Leave empty for nuget.org / default sources.
+  # nugetFeedUrl: https://pkgs.dev.azure.com/ORG/PROJECT/_packaging/FEED/nuget/v3/index.json
+
+stages:
+  - stage: Wiki
+    displayName: AgentWiki update
+    jobs:
+      - job: UpdateWiki
+        displayName: Generate / update wiki
+        timeoutInMinutes: 30
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            persistCredentials: true
+
+          - task: UseDotNet@2
+            displayName: Setup .NET 10
+            inputs:
+              packageType: sdk
+              version: "10.0.x"
+
+          # Optional: authenticate to Azure Artifacts when using a private feed.
+          # - task: NuGetAuthenticate@1
+
+          - script: |
+              set -euo pipefail
+              if [ -n "${NUGET_FEED_URL:-}" ]; then
+                dotnet nuget add source "$NUGET_FEED_URL" --name agentwiki-feed || true
+              fi
+              if [ -n "$(AgentWikiVersion)" ]; then
+                dotnet tool install --global AgentWiki.Cli --version "$(AgentWikiVersion)"
+              else
+                # Until published: replace with pack from artifacts or a private feed.
+                dotnet tool install --global AgentWiki.Cli
+              fi
+              echo "##vso[task.prependpath]$HOME/.dotnet/tools"
+              agent-wiki --version
+            displayName: Install agent-wiki tool
+            env:
+              NUGET_FEED_URL: $(nugetFeedUrl)
+              AgentWikiVersion: $(agentWikiVersion)
+
+          - script: |
+              set -euo pipefail
+              # Secrets / vars — map from Variable Group or pipeline variables.
+              # Do NOT commit real keys. Use secret variables in Azure DevOps.
+              export AGENTWIKI_Provider="${AGENTWIKI_PROVIDER:-openai}"
+              export AGENTWIKI_DefaultModel="${AGENTWIKI_DEFAULT_MODEL:-gpt-4o}"
+              export AGENTWIKI_LlmTimeoutSeconds="${AGENTWIKI_LLM_TIMEOUT_SECONDS:-600}"
+
+              # Optional LLM credentials (pipeline secret variables)
+              if [ -n "${AZURE_OPENAI_ENDPOINT:-}" ]; then
+                export AGENTWIKI_AzureOpenAI__Endpoint="$AZURE_OPENAI_ENDPOINT"
+              fi
+              if [ -n "${AZURE_OPENAI_DEPLOYMENT:-}" ]; then
+                export AGENTWIKI_AzureOpenAI__DeploymentName="$AZURE_OPENAI_DEPLOYMENT"
+              fi
+              if [ -n "${AZURE_OPENAI_API_KEY:-}" ]; then
+                export AGENTWIKI_AzureOpenAI__ApiKey="$AZURE_OPENAI_API_KEY"
+              fi
+              if [ -n "${OPENAI_API_KEY:-}" ]; then
+                export AGENTWIKI_OpenAI__ApiKey="$OPENAI_API_KEY"
+              fi
+              if [ -n "${OPENAI_ENDPOINT:-}" ]; then
+                export AGENTWIKI_OpenAI__Endpoint="$OPENAI_ENDPOINT"
+              fi
+              if [ -n "${OPENAI_MODEL:-}" ]; then
+                export AGENTWIKI_OpenAI__Model="$OPENAI_MODEL"
+              fi
+
+              EXTRA_ARGS=()
+              if [ "${DRY_RUN}" = "True" ] || [ "${DRY_RUN}" = "true" ]; then
+                EXTRA_ARGS+=(--dry-run)
+              fi
+
+              if [ "${FORCE_FULL}" = "True" ] || [ "${FORCE_FULL}" = "true" ]; then
+                agent-wiki generate --repo-path . --output docs/wiki --force "${EXTRA_ARGS[@]}"
+              else
+                # Incremental when .agentwiki/last-run.json exists; offline OK without keys.
+                agent-wiki update --repo-path . --output docs/wiki "${EXTRA_ARGS[@]}"
+              fi
+            displayName: Run agent-wiki
+            env:
+              FORCE_FULL: ${{ parameters.forceFullGenerate }}
+              DRY_RUN: ${{ parameters.dryRun }}
+              AGENTWIKI_PROVIDER: $(AGENTWIKI_PROVIDER)
+              AGENTWIKI_DEFAULT_MODEL: $(AGENTWIKI_DEFAULT_MODEL)
+              AGENTWIKI_LLM_TIMEOUT_SECONDS: $(AGENTWIKI_LLM_TIMEOUT_SECONDS)
+              AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
+              AZURE_OPENAI_DEPLOYMENT: $(AZURE_OPENAI_DEPLOYMENT)
+              AZURE_OPENAI_API_KEY: $(AZURE_OPENAI_API_KEY)
+              OPENAI_API_KEY: $(OPENAI_API_KEY)
+              OPENAI_ENDPOINT: $(OPENAI_ENDPOINT)
+              OPENAI_MODEL: $(OPENAI_MODEL)
+
+          - script: |
+              set -euo pipefail
+              if [ "${DRY_RUN}" = "True" ] || [ "${DRY_RUN}" = "true" ]; then
+                echo "Dry-run — skipping PR."
+                echo "##vso[task.setvariable variable=wikiChanged]false"
+                exit 0
+              fi
+              if git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md | grep -q .; then
+                echo "Wiki files changed."
+                git status --porcelain -- docs/wiki AGENTS.md CLAUDE.md
+                echo "##vso[task.setvariable variable=wikiChanged]true"
+              else
+                echo "No wiki changes."
+                echo "##vso[task.setvariable variable=wikiChanged]false"
+              fi
+            displayName: Detect wiki changes
+            env:
+              DRY_RUN: ${{ parameters.dryRun }}
+
+          # Creates a branch + PR via Azure DevOps REST when changes exist.
+          # Requires "Contribute" permission for the build service identity.
+          - script: |
+              set -euo pipefail
+              if [ "$(wikiChanged)" != "true" ]; then
+                echo "No PR needed."
+                exit 0
+              fi
+
+              BRANCH="agent-wiki/update-$(Build.BuildId)"
+              git config user.email "agent-wiki@azure-pipelines.local"
+              git config user.name "AgentWiki Pipeline"
+              git checkout -b "$BRANCH"
+              git add docs/wiki AGENTS.md CLAUDE.md 2>/dev/null || true
+              git add docs/wiki || true
+              git status
+              git commit -m "docs(wiki): refresh agent-optimized wiki" || {
+                echo "Nothing to commit after add."
+                exit 0
+              }
+              git push origin "HEAD:refs/heads/$BRANCH"
+
+              # Open PR (Azure DevOps REST). SYSTEM_ACCESSTOKEN needs "Allow scripts to access OAuth token".
+              ORG_URL="$(System.CollectionUri)"
+              PROJECT="$(System.TeamProject)"
+              REPO="$(Build.Repository.Name)"
+              TARGET="$(Build.SourceBranchName)"
+              API="${ORG_URL}${PROJECT}/_apis/git/repositories/${REPO}/pullrequests?api-version=7.1"
+              BODY=$(cat <<EOF
+              {
+                "sourceRefName": "refs/heads/${BRANCH}",
+                "targetRefName": "refs/heads/${TARGET}",
+                "title": "docs(wiki): refresh AgentWiki documentation",
+                "description": "Regenerated docs/wiki (and possibly AGENTS.md) via agent-wiki.\\n\\nReview AI-assisted content before merge."
+              }
+              EOF
+              )
+              curl -sS -X POST \
+                -H "Authorization: Bearer $(System.AccessToken)" \
+                -H "Content-Type: application/json" \
+                -d "$BODY" \
+                "$API" || echo "PR create returned non-zero (may already exist)."
+            displayName: Commit and open PR
+            condition: and(succeeded(), eq(variables['wikiChanged'], 'true'))
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)

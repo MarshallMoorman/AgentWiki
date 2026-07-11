@@ -10,11 +10,13 @@ namespace AgentWiki.Desktop.ViewModels;
 
 public partial class SettingsViewModel(
     IConfigLoader configLoader,
-    ConfigEditorService configEditor) : ViewModelBase
+    ConfigEditorService configEditor,
+    UiSettingsStore uiSettingsStore) : ViewModelBase
 {
     private string _repoPath = "";
     private string? _existingOpenAiKey;
     private string? _existingAzureKey;
+    private bool _suppressThemeSave;
 
     [ObservableProperty]
     private string _outputPath = "docs/wiki";
@@ -78,15 +80,21 @@ public partial class SettingsViewModel(
     [ObservableProperty]
     private bool _isSaving;
 
+    [ObservableProperty]
+    private string _themePreference = ThemeService.System;
+
     public ObservableCollection<KeyValueItem> EffectiveRows { get; } = [];
 
     public string[] ProviderChoices { get; } =
         ["azure-openai", "openai", "github-models", "offline"];
 
+    public string[] ThemeChoices { get; } = ThemeService.Choices;
+
     public async Task LoadAsync(string repoPath)
     {
         _repoPath = repoPath;
         Message = "";
+        await LoadThemeAsync().ConfigureAwait(true);
         var config = await configLoader.LoadAsync(repoPath).ConfigureAwait(true);
         config = configLoader.ApplyCliOverrides(config, repoPath: repoPath);
 
@@ -119,6 +127,48 @@ public partial class SettingsViewModel(
         RefreshEffective(config);
     }
 
+    private async Task LoadThemeAsync()
+    {
+        _suppressThemeSave = true;
+        try
+        {
+            var ui = await uiSettingsStore.LoadAsync().ConfigureAwait(true);
+            ThemePreference = ThemeService.Normalize(ui.Theme);
+            ThemeService.Apply(ThemePreference);
+        }
+        finally
+        {
+            _suppressThemeSave = false;
+        }
+    }
+
+    partial void OnThemePreferenceChanged(string value)
+    {
+        if (_suppressThemeSave)
+        {
+            return;
+        }
+
+        _ = PersistThemeAsync(value);
+    }
+
+    private async Task PersistThemeAsync(string value)
+    {
+        try
+        {
+            var normalized = ThemeService.Normalize(value);
+            var ui = await uiSettingsStore.LoadAsync().ConfigureAwait(true);
+            ui.Theme = normalized;
+            ThemeService.Apply(normalized);
+            await uiSettingsStore.SaveAsync(ui).ConfigureAwait(true);
+            Message = $"Appearance: {ThemeService.DisplayName(normalized)} theme (saved to ~/.agentwiki/ui-settings.json).";
+        }
+        catch (Exception ex)
+        {
+            Message = $"Theme save failed: {ex.Message}";
+        }
+    }
+
     private void RefreshEffective(AgentWikiConfig config)
     {
         EffectiveRows.Clear();
@@ -127,6 +177,7 @@ public partial class SettingsViewModel(
         EffectiveRows.Add(new("Timeout", $"{config.LlmTimeoutSeconds}s"));
         EffectiveRows.Add(new("Max summary chars", config.MaxLlmSummaryChars.ToString("N0")));
         EffectiveRows.Add(new("LLM ready", LlmSettings.DescribeNotReadyReason(config) ?? "yes"));
+        EffectiveRows.Add(new("Desktop theme", ThemeService.DisplayName(ThemePreference)));
         EffectiveRows.Add(new(
             "Priority",
             "UI/CLI → .env → config.json → AGENTWIKI_* → appsettings"));

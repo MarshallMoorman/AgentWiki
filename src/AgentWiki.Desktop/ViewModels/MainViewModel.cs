@@ -145,6 +145,7 @@ public partial class MainViewModel : ViewModelBase
         _uiSettings = await _uiSettingsStore.LoadAsync().ConfigureAwait(true);
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            ThemeService.Apply(_uiSettings.Theme);
             RecentRepos.Clear();
             foreach (var r in _uiSettings.RecentRepos)
             {
@@ -168,6 +169,19 @@ public partial class MainViewModel : ViewModelBase
             }
         }
     }
+
+    /// <summary>Applies and persists a theme preference (system / dark / light).</summary>
+    public async Task SetThemeAsync(string preference)
+    {
+        var normalized = ThemeService.Normalize(preference);
+        _uiSettings.Theme = normalized;
+        await Dispatcher.UIThread.InvokeAsync(() => ThemeService.Apply(normalized));
+        await _uiSettingsStore.SaveAsync(_uiSettings).ConfigureAwait(true);
+        StatusMessage = $"Theme set to {ThemeService.DisplayName(normalized)}.";
+    }
+
+    /// <summary>Current theme preference from UI settings.</summary>
+    public string CurrentTheme => ThemeService.Normalize(_uiSettings.Theme);
 
     public async Task SetRepoPathAsync(string path)
     {
