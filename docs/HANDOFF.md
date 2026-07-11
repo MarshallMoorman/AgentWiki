@@ -1,8 +1,9 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-10  
-**Current version:** **1.1.0**  
+**Current version:** **1.1.0** (working toward **1.2.x** per single-repo polish plan)  
 **Repo:** this repository root  
+**Active plan:** [`docs/plans/docs-plan-single-repo-polish-v1.2.md`](plans/docs-plan-single-repo-polish-v1.2.md)
 
 | Surface | Package | Command |
 |---------|---------|---------|
@@ -11,9 +12,9 @@
 
 This document is the single best place for a new coding agent or human to continue work without re-deriving session history.
 
-**Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit.
+**Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** `main` clean; recent commits include App extraction + Desktop UI (`29d2842`) and separate Desktop tool packaging (`05aee50`). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** implementing v1.2 Phase 1 (WikiPostProcessor). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -90,7 +91,7 @@ AgentWiki.slnx
 |-------|------|------|
 | Core models | `src/AgentWiki.Core/Models/` | Config, wiki docs, generation results |
 | Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, prompt truncation, `LlmSettings` |
-| Core generation | `src/AgentWiki.Core/Generation/` | Markdown renderers, offline planners, flexible LLM JSON |
+| Core generation | `src/AgentWiki.Core/Generation/` | Markdown renderers, offline planners, flexible LLM JSON, **WikiPostProcessor** |
 | **App services** | `src/AgentWiki.App/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap |
 | App DI | `src/AgentWiki.App/ServiceCollectionExtensions.cs` | `AddAgentWikiServices()` |
 | Prompts | `src/AgentWiki.App/Prompts/` | Embedded defaults; override via `.agentwiki/prompts/` |
@@ -118,6 +119,8 @@ RepoAnalyzer
 
 Progress: `WikiGenerationRequest.Progress` (`IProgress<string>`). Cancellation token threaded through generator/orchestrator/LLM.
 
+Post-process: after structured docs + after section render, `IWikiPostProcessor` cleans paths/deps/deprecation/links (configurable).
+
 ### Config priority (highest wins)
 
 1. CLI / UI overrides  
@@ -129,9 +132,9 @@ Progress: `WikiGenerationRequest.Progress` (`IProgress<string>`). Cancellation t
 **Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
 Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `maxFilesToAnalyze`, `ignorePatterns`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `maxFilesToAnalyze`, `ignorePatterns`.
 
-**Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only.
+**Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only. Post-processor rewrites accidental absolute paths after generation.
 
 ---
 
@@ -151,31 +154,30 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ---
 
-## 5. What landed in 1.1.0 (this conversation arc)
+## 5. What landed recently
 
-### Architecture
-- Extracted **`AgentWiki.App`** from Cli services (feature-preserving; 99 CLI tests green)
-- CLI is thin Spectre host using `AddAgentWikiServices()`
-- Desktop is Avalonia 12.1 + CommunityToolkit.Mvvm, full parity matrix from plan
+### v1.2 Phase 1 — Foundation & Guardrails (in progress / ready to commit)
 
-### Desktop product
-- Pages: Dashboard, Generate, Update, Setup, Settings, Provider, Wiki, Logs  
-- Dark theme design system (`Themes/AppTheme.axaml`, `Styles/AppStyles.axaml`)  
-- Markdown preview via Markdown.Avalonia; **single-click** tree open  
-- **Hyperlinks:** `WikiHyperlinkCommand` — http(s) external, relative `.md` in-app  
-- **Fonts:** platform mono only (Menlo / Consolas / monospace) — composite Inter/Consolas stacks crash Avalonia on macOS  
-- UI prefs: `~/.agentwiki/ui-settings.json`  
-- Packaging: `PackAsTool` → **`agent-wiki-ui`**
+- **`IWikiPostProcessor` / `WikiPostProcessor`** (Core) — path rewrite, dependency normalization, deprecation neutralization, basic markdown link hygiene  
+- Wired into **`WikiGenerationOrchestrator`** after structured generation and after section render (LLM **and** offline)  
+- Config: `enablePostProcessing` (default `true`), `postProcessingMode` (`lenient` \| `strict`) + env `AGENTWIKI_EnablePostProcessing` / `AGENTWIKI_PostProcessingMode`  
+- Corrections logged (rule id counts); summary warning on the run when any applied  
+- Soft `[Obsolete]` inventory scan gates deprecation neutralization  
+- Tests: `WikiPostProcessorTests` + orchestrator integration (~110 CLI + 9 Desktop green)  
+- Plan: `docs/plans/docs-plan-single-repo-polish-v1.2.md`
 
-### CI / docs
-- Packs both nupkgs; smoke-installs both tools (no GUI launch on runners)  
-- README / AGENTS / plan updated  
+| Hotspot | Path |
+|---------|------|
+| Interface | `src/AgentWiki.Core/Abstractions/IWikiPostProcessor.cs` |
+| Implementation | `src/AgentWiki.Core/Generation/WikiPostProcessor.cs` |
+| Models | `src/AgentWiki.Core/Models/WikiPostProcessModels.cs` |
+| Orchestrator | `src/AgentWiki.App/Services/WikiGenerationOrchestrator.cs` |
+| DI | `AddAgentWikiServices()` → `IWikiPostProcessor` |
 
-### Commits (main)
-| SHA | Summary |
-|-----|---------|
-| `29d2842` | App extraction + Desktop UI companion (v1.1.0) |
-| `05aee50` | Separate Desktop global tool `agent-wiki-ui` |
+### v1.1.0 — App extraction + Desktop
+
+- Extracted **`AgentWiki.App`**; CLI thin Spectre host; Desktop Avalonia 12 → `agent-wiki-ui`  
+- Commits: `29d2842`, `05aee50`, HANDOFF refresh `8655b74`
 
 ### Historical CLI fixes (1.0.x) still relevant
 
@@ -184,15 +186,14 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 | 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
 | 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish
+### Known remaining polish (after Phase 1)
 
-- Module `dependencies` can still look noisy from free-form LLM JSON  
-- `gpt-chat-latest` often ignores strict schemas — keep parsers tolerant  
+- Post-processor is heuristic — edge-case LLM noise may remain; keep parsers tolerant  
+- `gpt-chat-latest` often ignores strict schemas  
 - Stale `.agentwiki/prompts/` need `init --force` for newer samples  
-- LLM may invent absolute paths; prompts say relative  
 - Desktop nupkg large; no notarization/signing  
-- Wiki browser: same-page `#anchors` not scrolled yet  
-- Tree selection does not auto-highlight after in-app link navigation  
+- Wiki browser: same-page `#anchors` not scrolled; tree highlight after in-app link nav  
+- **Next plan phases:** Roslyn offline, API endpoints, module discovery, cost/observability, AzDO sample + theme
 
 ---
 
@@ -245,12 +246,16 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 
 ## 9. Suggested next work
 
-1. Azure Artifacts publish for **CLI** nupkg first (not NuGet.org); Desktop second or keep GH artifact  
-2. Desktop: tree highlight after link nav; in-page `#` anchors; optional compact density  
-3. Optional structured-output / tool-calling when models support it  
-4. Post-process LLM output to strip accidental absolute paths  
-5. Azure DevOps pipeline sample parity with GitHub Actions  
-6. Shrink Desktop nupkg if possible (RID-specific packs)  
+**Follow `docs/plans/docs-plan-single-repo-polish-v1.2.md` phases (commit after each):**
+
+1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **done (awaiting commit)**  
+2. **Phase 2 — Richer offline + Roslyn** (`IStaticAnalyzer`, offline quality)  
+3. Phase 3 — API endpoint documentation  
+4. Phase 4 — Module discovery improvements  
+5. Phase 5 — Cost, observability, dry-run  
+6. Phase 6 — Azure DevOps sample + Desktop theme + docs polish  
+
+Out of scope for this plan: multi-repo workspace, vector search, publishing.
 
 ### CI (this repo)
 

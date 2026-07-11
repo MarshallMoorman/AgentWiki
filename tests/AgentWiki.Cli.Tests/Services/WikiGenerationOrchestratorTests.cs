@@ -32,6 +32,7 @@ public sealed class WikiGenerationOrchestratorTests
             arch.Object,
             llm.Object,
             prompts,
+            new WikiPostProcessor(),
             NullLogger<WikiGenerationOrchestrator>.Instance);
 
         var bundle = await sut.GenerateAsync(
@@ -52,6 +53,105 @@ public sealed class WikiGenerationOrchestratorTests
         bundle.Sections.Any(s => s.RelativePath.StartsWith("cross-cutting/", StringComparison.Ordinal)).ShouldBeTrue();
         bundle.StepsCompleted.Count.ShouldBeGreaterThan(3);
         bundle.UsedOfflineFallback.ShouldBeTrue();
+        bundle.StepsCompleted.ShouldContain("post-process-structured");
+        bundle.StepsCompleted.ShouldContain("post-process-markdown");
+    }
+
+    [Fact]
+    public async Task GenerateAsync_PostProcessor_CleansInjectedAbsolutePaths()
+    {
+        var analysis = CreateAnalysis();
+        var absPath = Path.Combine(analysis.RepoPath, "src", "App", "Program.cs");
+        var arch = new Mock<IArchitectureGenerator>();
+        arch.Setup(a => a.GenerateAsync(
+                It.IsAny<RepoAnalysisResult>(),
+                It.IsAny<AgentWikiConfig>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ArchitectureDocument
+            {
+                Title = "Architecture",
+                Summary = $"Entry at {absPath}. This component is deprecated.",
+                UsedOfflineFallback = true,
+                KeyComponents =
+                [
+                    new ArchitectureComponent
+                    {
+                        Name = "App",
+                        Path = absPath,
+                        Purpose = "Host"
+                    }
+                ]
+            });
+
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
+            .Returns(false);
+
+        var sut = new WikiGenerationOrchestrator(
+            arch.Object,
+            llm.Object,
+            new PromptManager(NullLogger<PromptManager>.Instance),
+            new WikiPostProcessor(),
+            NullLogger<WikiGenerationOrchestrator>.Instance);
+
+        var bundle = await sut.GenerateAsync(
+            analysis,
+            new WikiGenerationRequest
+            {
+                Config = new AgentWikiConfig { EnablePostProcessing = true },
+                RepoPath = analysis.RepoPath,
+                OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
+            },
+            scope: IncrementalScope.Full());
+
+        bundle.Architecture.Summary.ShouldNotContain(analysis.RepoPath);
+        bundle.Architecture.KeyComponents[0].Path.ShouldBe("src/App/Program.cs");
+        bundle.Architecture.Summary.ShouldNotContain("deprecated", Case.Insensitive);
+        bundle.Warnings.ShouldContain(w => w.Contains("Post-processor", StringComparison.OrdinalIgnoreCase));
+
+        var archSection = bundle.Sections.Single(s => s.RelativePath == "architecture.md");
+        archSection.Content.ShouldNotContain("/tmp/repo");
+    }
+
+    [Fact]
+    public async Task GenerateAsync_PostProcessorDisabled_IsSkipped()
+    {
+        var analysis = CreateAnalysis();
+        var arch = new Mock<IArchitectureGenerator>();
+        arch.Setup(a => a.GenerateAsync(
+                It.IsAny<RepoAnalysisResult>(),
+                It.IsAny<AgentWikiConfig>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OfflineArchitectureGenerator.Generate(analysis));
+
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
+            .Returns(false);
+
+        var sut = new WikiGenerationOrchestrator(
+            arch.Object,
+            llm.Object,
+            new PromptManager(NullLogger<PromptManager>.Instance),
+            new WikiPostProcessor(),
+            NullLogger<WikiGenerationOrchestrator>.Instance);
+
+        var bundle = await sut.GenerateAsync(
+            analysis,
+            new WikiGenerationRequest
+            {
+                Config = new AgentWikiConfig { EnablePostProcessing = false },
+                RepoPath = analysis.RepoPath,
+                OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
+            },
+            scope: IncrementalScope.Full());
+
+        bundle.StepsCompleted.ShouldNotContain("post-process-structured");
+        bundle.StepsCompleted.ShouldNotContain("post-process-markdown");
+        bundle.Warnings.ShouldNotContain(w => w.Contains("Post-processor", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

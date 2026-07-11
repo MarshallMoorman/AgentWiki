@@ -16,6 +16,7 @@ public sealed class WikiGenerationOrchestrator(
     IArchitectureGenerator architectureGenerator,
     ILlmCompletionService llm,
     IPromptManager promptManager,
+    IWikiPostProcessor postProcessor,
     ILogger<WikiGenerationOrchestrator> logger) : IWikiGenerationOrchestrator
 {
     private const int MaxModulesForLlm = 8;
@@ -37,6 +38,7 @@ public sealed class WikiGenerationOrchestrator(
         var warnings = new List<string>(analysis.Warnings);
         var usages = new List<TokenUsage?>();
         var anyOffline = false;
+        var postCorrections = new List<WikiPostProcessCorrection>();
 
         logger.LogInformation(
             "Orchestrator starting for {Repo} (correlationId={CorrelationId}, full={Full})",
@@ -127,6 +129,26 @@ public sealed class WikiGenerationOrchestrator(
         ValidateAndNormalizeLinks(modules, crossCutting, warnings);
         steps.Add("cross-link-validation");
 
+        // Step 5b: Guardrails on structured docs (LLM + offline)
+        if (request.Config.EnablePostProcessing)
+        {
+            Report(request, "Post-processing wiki content…");
+            var processContext = BuildPostProcessContext(analysis, request, knownWikiPages: null);
+            postCorrections.AddRange(postProcessor.ProcessArchitecture(architecture, processContext).Corrections);
+            postCorrections.AddRange(postProcessor.ProcessModulePlan(modulePlan, processContext).Corrections);
+            foreach (var module in modules)
+            {
+                postCorrections.AddRange(postProcessor.ProcessModule(module, processContext).Corrections);
+            }
+
+            foreach (var item in crossCutting)
+            {
+                postCorrections.AddRange(postProcessor.ProcessCrossCutting(item, processContext).Corrections);
+            }
+
+            steps.Add("post-process-structured");
+        }
+
         // Step 6: Assemble sections including index
         Report(request, "Assembling index and support pages…");
         var generatedAt = DateTimeOffset.UtcNow;
@@ -138,6 +160,38 @@ public sealed class WikiGenerationOrchestrator(
             request,
             generatedAt);
         steps.Add("index-and-support-pages");
+
+        // Step 6b: Guardrails on rendered Markdown
+        if (request.Config.EnablePostProcessing)
+        {
+            var knownPages = sections
+                .Select(s => s.RelativePath.Replace('\\', '/'))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var processContext = BuildPostProcessContext(analysis, request, knownPages);
+            var (cleanedSections, sectionResult) = postProcessor.ProcessSections(sections, processContext);
+            sections = cleanedSections.ToList();
+            postCorrections.AddRange(sectionResult.Corrections);
+            steps.Add("post-process-markdown");
+
+            if (postCorrections.Count > 0)
+            {
+                logger.LogInformation(
+                    "Wiki post-processor applied {Count} correction(s) for {Repo}",
+                    postCorrections.Count,
+                    analysis.RepoName);
+                foreach (var group in postCorrections.GroupBy(c => c.RuleId).OrderByDescending(g => g.Count()))
+                {
+                    logger.LogDebug(
+                        "Post-process rule {Rule}: {Count} correction(s)",
+                        group.Key,
+                        group.Count());
+                }
+
+                warnings.Add(
+                    $"Post-processor applied {postCorrections.Count} correction(s) " +
+                    $"(paths/dependencies/deprecation/links). See logs for details.");
+            }
+        }
 
         if (anyOffline)
         {
@@ -164,6 +218,32 @@ public sealed class WikiGenerationOrchestrator(
             TokenUsage = total,
             Warnings = warnings,
             StepsCompleted = steps
+        };
+    }
+
+    private static WikiPostProcessContext BuildPostProcessContext(
+        RepoAnalysisResult analysis,
+        WikiGenerationRequest request,
+        IReadOnlySet<string>? knownWikiPages)
+    {
+        var knownRepoPaths = analysis.Files
+            .Select(f => f.RelativePath.Replace('\\', '/'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var wikiRoot = !string.IsNullOrWhiteSpace(request.OutputPath)
+            ? request.OutputPath
+            : Path.Combine(analysis.RepoPath, request.Config.OutputPath);
+
+        return new WikiPostProcessContext
+        {
+            RepoRoot = analysis.RepoPath,
+            WikiOutputRoot = wikiRoot,
+            Mode = WikiPostProcessor.ParseMode(request.Config.PostProcessingMode),
+            SourceHasObsoleteMarkers = WikiPostProcessor.DetectObsoleteMarkers(
+                analysis.RepoPath,
+                analysis.Files),
+            KnownWikiPages = knownWikiPages ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
+            KnownRepoPaths = knownRepoPaths
         };
     }
 

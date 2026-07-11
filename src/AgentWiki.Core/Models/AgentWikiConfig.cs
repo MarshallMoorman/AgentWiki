@@ -40,6 +40,18 @@ public sealed class AgentWikiConfig
     /// </summary>
     public int MaxLlmSummaryChars { get; set; } = 16_000;
 
+    /// <summary>
+    /// When true (default), run <c>IWikiPostProcessor</c> guardrails after generation steps
+    /// (absolute path rewrite, dependency cleanup, deprecation neutralization, link hygiene).
+    /// </summary>
+    public bool EnablePostProcessing { get; set; } = true;
+
+    /// <summary>
+    /// Post-processing strictness: <c>lenient</c> (default) rewrites suspect language;
+    /// <c>strict</c> drops unverified deprecation claims more aggressively.
+    /// </summary>
+    public string PostProcessingMode { get; set; } = "lenient";
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [

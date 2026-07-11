@@ -153,6 +153,8 @@ All LLM settings can be set via environment variables (process env or `.env`):
 | Default model | `AGENTWIKI_DefaultModel` |
 | Timeout (seconds) | `AGENTWIKI_LlmTimeoutSeconds` |
 | Max summary chars | `AGENTWIKI_MaxLlmSummaryChars` |
+| Post-processing on/off | `AGENTWIKI_EnablePostProcessing` |
+| Post-processing mode | `AGENTWIKI_PostProcessingMode` (`lenient` \| `strict`) |
 | Azure endpoint / deployment / key | `AGENTWIKI_AzureOpenAI__Endpoint`, `__DeploymentName`, `__ApiKey` |
 | OpenAI endpoint / model / key | `AGENTWIKI_OpenAI__Endpoint`, `__Model`, `__ApiKey` |
 
@@ -162,9 +164,11 @@ Useful knobs:
 
 - `llmTimeoutSeconds` (default **300**)
 - `maxLlmSummaryChars` (default **16000**)
+- `enablePostProcessing` (default **true**) — guardrails after LLM/offline generation
+- `postProcessingMode` — `lenient` (default) or `strict` (drops unverified deprecation claims more aggressively)
 - `maxFilesToAnalyze`, `enableIncrementalUpdates`, `ignorePatterns`
 
-**Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`).
+**Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`). A post-processor also rewrites accidental absolute paths in LLM output.
 
 ## Logging
 

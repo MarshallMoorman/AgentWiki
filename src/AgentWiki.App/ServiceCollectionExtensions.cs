@@ -1,5 +1,6 @@
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Generation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentWiki.App;
@@ -25,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPromptManager, PromptManager>();
         services.AddSingleton<ILlmCompletionService, SemanticKernelLlmCompletionService>();
         services.AddSingleton<IArchitectureGenerator, ArchitectureGenerator>();
+        services.AddSingleton<IWikiPostProcessor, WikiPostProcessor>();
         services.AddSingleton<IWikiGenerationOrchestrator, WikiGenerationOrchestrator>();
         services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
         services.AddSingleton<ILastRunStore, LastRunStore>();

@@ -183,6 +183,20 @@ public static class EnvConfigApplier
             && maxChars > 0)
         {
             config.MaxLlmSummaryChars = maxChars;
+            return;
+        }
+
+        if (name.Equals("EnablePostProcessing", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var enablePost))
+        {
+            config.EnablePostProcessing = enablePost;
+            return;
+        }
+
+        if (name.Equals("PostProcessingMode", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(value))
+        {
+            config.PostProcessingMode = value.Trim();
         }
     }
 

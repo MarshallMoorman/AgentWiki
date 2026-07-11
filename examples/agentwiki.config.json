@@ -7,6 +7,8 @@
   "enableIncrementalUpdates": true,
   "llmTimeoutSeconds": 300,
   "maxLlmSummaryChars": 16000,
+  "enablePostProcessing": true,
+  "postProcessingMode": "lenient",
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

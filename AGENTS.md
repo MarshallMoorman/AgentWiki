@@ -76,7 +76,7 @@ agent-wiki-ui
 
 | Ask | Where to work |
 |-----|----------------|
-| Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson` |
+| Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson`, `WikiPostProcessor` |
 | CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
 | Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |
 | Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer` |

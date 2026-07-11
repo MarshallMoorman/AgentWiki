@@ -86,6 +86,7 @@ public sealed class EndToEndOfflineTests
                 arch.Object,
                 llm.Object,
                 new PromptManager(NullLogger<PromptManager>.Instance),
+                new WikiPostProcessor(),
                 NullLogger<WikiGenerationOrchestrator>.Instance),
             new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance),
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),

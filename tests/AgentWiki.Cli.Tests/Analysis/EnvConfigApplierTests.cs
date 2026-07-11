@@ -20,13 +20,17 @@ public sealed class EnvConfigApplierTests
             new("AGENTWIKI_AzureOpenAI__ApiKey", "azure-key"),
             new("AGENTWIKI_OpenAI__Endpoint", "https://openai.example/v1"),
             new("AGENTWIKI_OpenAI__ApiKey", "openai-key"),
-            new("AGENTWIKI_OpenAI__Model", "gpt-chat-latest")
+            new("AGENTWIKI_OpenAI__Model", "gpt-chat-latest"),
+            new("AGENTWIKI_EnablePostProcessing", "false"),
+            new("AGENTWIKI_PostProcessingMode", "strict")
         ]);
 
         config.Provider.ShouldBe("openai");
         config.DefaultModel.ShouldBe("gpt-test");
         config.LlmTimeoutSeconds.ShouldBe(600);
         config.MaxLlmSummaryChars.ShouldBe(8000);
+        config.EnablePostProcessing.ShouldBeFalse();
+        config.PostProcessingMode.ShouldBe("strict");
         config.AzureOpenAI.Endpoint.ShouldBe("https://azure.example/");
         config.AzureOpenAI.DeploymentName.ShouldBe("dep-1");
         config.AzureOpenAI.ApiKey.ShouldBe("azure-key");

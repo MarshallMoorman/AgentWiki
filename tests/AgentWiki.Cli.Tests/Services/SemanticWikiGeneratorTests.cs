@@ -117,6 +117,7 @@ public sealed class SemanticWikiGeneratorTests
             arch.Object,
             llm.Object,
             new PromptManager(NullLogger<PromptManager>.Instance),
+            new WikiPostProcessor(),
             NullLogger<WikiGenerationOrchestrator>.Instance);
 
         if (changeDetector is null)
