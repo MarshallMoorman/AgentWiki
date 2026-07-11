@@ -13,9 +13,9 @@
     <Company>AgentWiki</Company>
     <Product>AgentWiki</Product>
     <Copyright>Copyright (c) AgentWiki Contributors</Copyright>
-    <Version>1.2.0</Version>
-    <AssemblyVersion>1.2.0.0</AssemblyVersion>
-    <FileVersion>1.2.0.0</FileVersion>
-    <InformationalVersion>1.2.0</InformationalVersion>
+    <Version>1.2.1</Version>
+    <AssemblyVersion>1.2.1.0</AssemblyVersion>
+    <FileVersion>1.2.1.0</FileVersion>
+    <InformationalVersion>1.2.1</InformationalVersion>
   </PropertyGroup>
 </Project>
