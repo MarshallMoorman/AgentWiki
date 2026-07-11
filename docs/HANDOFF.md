@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** implementing v1.2 Phase 1 (WikiPostProcessor). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** v1.2 Phase 1 committed; Phase 2 (Roslyn offline) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -90,7 +90,7 @@ AgentWiki.slnx
 | Layer | Path | Role |
 |-------|------|------|
 | Core models | `src/AgentWiki.Core/Models/` | Config, wiki docs, generation results |
-| Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, prompt truncation, `LlmSettings` |
+| Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, **RoslynStaticAnalyzer**, `LlmSettings` |
 | Core generation | `src/AgentWiki.Core/Generation/` | Markdown renderers, offline planners, flexible LLM JSON, **WikiPostProcessor** |
 | **App services** | `src/AgentWiki.App/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap |
 | App DI | `src/AgentWiki.App/ServiceCollectionExtensions.cs` | `AddAgentWikiServices()` |
@@ -105,13 +105,15 @@ AgentWiki.slnx
 
 ```
 RepoAnalyzer
+  → (optional) RoslynStaticAnalyzer → analysis.StaticAnalysis
   → (update only) GitChangeDetector + IncrementalScope
   → WikiGenerationOrchestrator
-       1. ArchitectureGenerator (LLM or offline)
+       1. ArchitectureGenerator (LLM or offline; offline uses static symbols)
        2. Module plan (LLM full runs / offline)
-       3. Module pages (per module, LLM or offline)
+       3. Module pages (per module, LLM or offline + Roslyn types/endpoints)
        4. Cross-cutting pages
        5. Index + support pages
+       6. WikiPostProcessor guardrails
   → MarkdownOutputWriter
   → AgentBootstrapper (AGENTS.md)
   → LastRunStore (.agentwiki/last-run.json)
@@ -119,7 +121,8 @@ RepoAnalyzer
 
 Progress: `WikiGenerationRequest.Progress` (`IProgress<string>`). Cancellation token threaded through generator/orchestrator/LLM.
 
-Post-process: after structured docs + after section render, `IWikiPostProcessor` cleans paths/deps/deprecation/links (configurable).
+Post-process: after structured docs + after section render, `IWikiPostProcessor` cleans paths/deps/deprecation/links (configurable).  
+Static analysis: syntax-only Roslyn (no compile); graceful skip for non-.NET / failures.
 
 ### Config priority (highest wins)
 
@@ -132,7 +135,7 @@ Post-process: after structured docs + after section render, `IWikiPostProcessor`
 **Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
 Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `maxFilesToAnalyze`, `ignorePatterns`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `maxFilesToAnalyze`, `ignorePatterns`.
 
 **Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only. Post-processor rewrites accidental absolute paths after generation.
 
@@ -156,23 +159,29 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
-### v1.2 Phase 1 — Foundation & Guardrails (in progress / ready to commit)
+### v1.2 Phase 2 — Richer Offline + Roslyn (ready to commit)
 
-- **`IWikiPostProcessor` / `WikiPostProcessor`** (Core) — path rewrite, dependency normalization, deprecation neutralization, basic markdown link hygiene  
-- Wired into **`WikiGenerationOrchestrator`** after structured generation and after section render (LLM **and** offline)  
-- Config: `enablePostProcessing` (default `true`), `postProcessingMode` (`lenient` \| `strict`) + env `AGENTWIKI_EnablePostProcessing` / `AGENTWIKI_PostProcessingMode`  
-- Corrections logged (rule id counts); summary warning on the run when any applied  
-- Soft `[Obsolete]` inventory scan gates deprecation neutralization  
-- Tests: `WikiPostProcessorTests` + orchestrator integration (~110 CLI + 9 Desktop green)  
-- Plan: `docs/plans/docs-plan-single-repo-polish-v1.2.md`
+- **`IStaticAnalyzer` / `RoslynStaticAnalyzer`** — syntax-only C# walk (public types, controllers, minimal APIs, Functions, DI hints, `[Obsolete]`, entry points)  
+- Attached on `RepoAnalysisResult.StaticAnalysis` from **`SemanticWikiGenerator`** when `enableRoslynAnalysis`  
+- Offline architecture + module pages prefer real symbols over path-only heuristics  
+- Endpoint facts collected for Phase 3 `api-endpoints.md`  
+- Config: `enableRoslynAnalysis`, `maxProjectsToAnalyze`, `maxSourceFilesForRoslyn`  
+- Package: `Microsoft.CodeAnalysis.CSharp` 4.14.0 on Core  
+- Tests: `RoslynStaticAnalyzerTests` (sample web + non-.NET skip); suite **114 CLI + 9 Desktop**
 
 | Hotspot | Path |
 |---------|------|
-| Interface | `src/AgentWiki.Core/Abstractions/IWikiPostProcessor.cs` |
-| Implementation | `src/AgentWiki.Core/Generation/WikiPostProcessor.cs` |
-| Models | `src/AgentWiki.Core/Models/WikiPostProcessModels.cs` |
-| Orchestrator | `src/AgentWiki.App/Services/WikiGenerationOrchestrator.cs` |
-| DI | `AddAgentWikiServices()` → `IWikiPostProcessor` |
+| Interface | `src/AgentWiki.Core/Abstractions/IStaticAnalyzer.cs` |
+| Implementation | `src/AgentWiki.Core/Analysis/RoslynStaticAnalyzer.cs` |
+| Models | `src/AgentWiki.Core/Models/StaticAnalysisModels.cs` |
+| Offline use | `OfflineArchitectureGenerator`, `OfflineModulePlanner` |
+| Wire-up | `SemanticWikiGenerator` → `AddAgentWikiServices()` |
+
+### v1.2 Phase 1 — Foundation & Guardrails (committed `e2f79ac`)
+
+- **`IWikiPostProcessor` / `WikiPostProcessor`** — paths, deps, deprecation, link hygiene  
+- Config: `enablePostProcessing`, `postProcessingMode`  
+- Plan: `docs/plans/docs-plan-single-repo-polish-v1.2.md`
 
 ### v1.1.0 — App extraction + Desktop
 
@@ -186,14 +195,13 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 | 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
 | 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish (after Phase 1)
+### Known remaining polish (after Phase 2)
 
-- Post-processor is heuristic — edge-case LLM noise may remain; keep parsers tolerant  
-- `gpt-chat-latest` often ignores strict schemas  
-- Stale `.agentwiki/prompts/` need `init --force` for newer samples  
-- Desktop nupkg large; no notarization/signing  
-- Wiki browser: same-page `#anchors` not scrolled; tree highlight after in-app link nav  
-- **Next plan phases:** Roslyn offline, API endpoints, module discovery, cost/observability, AzDO sample + theme
+- Roslyn is syntax-only (no semantic model / full compile) — some symbols may be incomplete  
+- Endpoint page (`api-endpoints.md`) not yet emitted — data is collected for Phase 3  
+- Post-processor is heuristic; keep LLM parsers tolerant  
+- Desktop nupkg large; theme switching still Phase 6  
+- **Next plan phase:** Phase 3 — API endpoint documentation
 
 ---
 
@@ -248,9 +256,9 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 
 **Follow `docs/plans/docs-plan-single-repo-polish-v1.2.md` phases (commit after each):**
 
-1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **done (awaiting commit)**  
-2. **Phase 2 — Richer offline + Roslyn** (`IStaticAnalyzer`, offline quality)  
-3. Phase 3 — API endpoint documentation  
+1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **committed**  
+2. ~~Phase 2 — Richer offline + Roslyn~~ → **done (awaiting commit)**  
+3. **Phase 3 — API endpoint documentation**
 4. Phase 4 — Module discovery improvements  
 5. Phase 5 — Cost, observability, dry-run  
 6. Phase 6 — Azure DevOps sample + Desktop theme + docs polish  

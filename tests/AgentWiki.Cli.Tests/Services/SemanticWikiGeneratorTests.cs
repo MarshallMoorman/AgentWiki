@@ -1,5 +1,6 @@
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -134,6 +135,7 @@ public sealed class SemanticWikiGeneratorTests
 
         return new SemanticWikiGenerator(
             analyzer,
+            new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
             orchestrator,
             new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance),
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),

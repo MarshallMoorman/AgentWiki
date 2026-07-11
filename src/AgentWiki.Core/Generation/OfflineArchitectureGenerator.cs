@@ -39,19 +39,8 @@ public static class OfflineArchitectureGenerator
             });
         }
 
-        var keyComponents = analysis.Files
-            .Where(f => f.SelectedForAnalysis && f.Category is FileCategory.SourceCode or FileCategory.Configuration)
-            .OrderBy(f => FileCategorizer.IsInfrastructurePath(f.RelativePath) ? 0
-                : f.Category == FileCategory.SourceCode ? 1 : 2)
-            .ThenBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
-            .Take(15)
-            .Select(f => new ArchitectureComponent
-            {
-                Name = Path.GetFileName(f.RelativePath),
-                Path = f.RelativePath,
-                Purpose = InferComponentPurpose(f)
-            })
-            .ToList();
+        var staticAnalysis = analysis.StaticAnalysis;
+        var keyComponents = BuildKeyComponents(analysis, staticAnalysis);
 
         var policyFiles = analysis.Files
             .Where(f => IsPolicyPath(f.RelativePath))
@@ -100,41 +89,175 @@ public static class OfflineArchitectureGenerator
                 "Include Policies/ and pipeline YAML when reasoning about deployment, routing, and runtime auth/throttle behavior.");
         }
 
-        var mermaid = BuildMermaid(analysis);
+        if (staticAnalysis is { Succeeded: true, UsedRoslyn: true })
+        {
+            if (staticAnalysis.EntryPoints.Count > 0)
+            {
+                dataFlows.Insert(0,
+                    "Application entry points: "
+                    + string.Join(", ", staticAnalysis.EntryPoints.Take(6).Select(p => $"`{p}`"))
+                    + ".");
+            }
+
+            if (staticAnalysis.Endpoints.Count > 0)
+            {
+                dataFlows.Add(
+                    $"Discovered {staticAnalysis.Endpoints.Count} HTTP/Function endpoint(s) via static analysis "
+                    + $"(e.g. {string.Join(", ", staticAnalysis.Endpoints.Take(3).Select(e => $"`{e.HttpMethod} {e.Route}`"))}"
+                    + (staticAnalysis.Endpoints.Count > 3 ? ", …" : "")
+                    + ").");
+            }
+
+            if (staticAnalysis.DiRegistrations.Count > 0)
+            {
+                decisions.Add(
+                    "DI registration hints observed in source: "
+                    + string.Join(", ", staticAnalysis.DiRegistrations.Take(8).Select(d => $"`{d}`"))
+                    + (staticAnalysis.DiRegistrations.Count > 8 ? ", …" : "")
+                    + ".");
+            }
+        }
+
+        var mermaid = BuildMermaid(analysis, staticAnalysis);
+        var gotchas = new List<string>
+        {
+            "Offline mode cannot infer runtime topology or domain rules—verify against source.",
+            "Ignored paths (bin/obj/node_modules/docs/wiki) are intentionally excluded from analysis."
+        };
+        if (staticAnalysis is { ObsoleteSymbols.Count: > 0 })
+        {
+            gotchas.Add(
+                "Obsolete markers found in source: "
+                + string.Join(", ", staticAnalysis.ObsoleteSymbols.Take(6).Select(s => $"`{s}`"))
+                + (staticAnalysis.ObsoleteSymbols.Count > 6 ? ", …" : "")
+                + ".");
+        }
+
+        var howToExtend = new List<string>
+        {
+            "Add source under existing top-level folders to match observed layout.",
+            "Configure Azure OpenAI / OpenAI credentials to upgrade this page to LLM-authored architecture.",
+            "Adjust IgnorePatterns and MaxFilesToAnalyze in .agentwiki/config.json to refine inventory."
+        };
+        if (staticAnalysis is { PublicTypes.Count: > 0 })
+        {
+            howToExtend.Insert(0,
+                "Prefer extending existing public types/interfaces discovered by static analysis before inventing new layers.");
+        }
+
+        var summary =
+            $"{analysis.RepoName} is a {languages} codebase with {stats.TotalFiles} tracked files " +
+            $"(~{stats.TotalLines:N0} lines of text). Inventory discovery used `{analysis.DiscoveryMethod}`. " +
+            "This document was produced offline from repository analysis (no LLM call).";
+        if (staticAnalysis is { Succeeded: true, FilesAnalyzed: > 0 })
+        {
+            summary += " " + staticAnalysis.Summary;
+        }
+
+        var systemContext =
+            $"Primary languages: {languages}. " +
+            $"Category mix — Source: {Cat(stats, FileCategory.SourceCode)}, " +
+            $"Tests: {Cat(stats, FileCategory.Tests)}, " +
+            $"Config: {Cat(stats, FileCategory.Configuration)}, " +
+            $"Docs: {Cat(stats, FileCategory.Documentation)}."
+            + (policyFiles.Count > 0 ? $" API Management / edge policies: {policyFiles.Count} file(s)." : "")
+            + (pipelineFiles.Count > 0 ? $" CI/CD pipeline definition(s): {pipelineFiles.Count}." : "");
+        if (staticAnalysis is { Projects.Count: > 0 })
+        {
+            systemContext += " Projects: "
+                             + string.Join(", ", staticAnalysis.Projects.Take(8).Select(p => $"`{p.Name}` ({p.Kind})"))
+                             + (staticAnalysis.Projects.Count > 8 ? ", …" : "")
+                             + ".";
+        }
 
         return new ArchitectureDocument
         {
             Title = $"{analysis.RepoName} Architecture Overview",
-            Summary =
-                $"{analysis.RepoName} is a {languages} codebase with {stats.TotalFiles} tracked files " +
-                $"(~{stats.TotalLines:N0} lines of text). Inventory discovery used `{analysis.DiscoveryMethod}`. " +
-                "This document was produced offline from repository analysis (no LLM call).",
-            SystemContext =
-                $"Primary languages: {languages}. " +
-                $"Category mix — Source: {Cat(stats, FileCategory.SourceCode)}, " +
-                $"Tests: {Cat(stats, FileCategory.Tests)}, " +
-                $"Config: {Cat(stats, FileCategory.Configuration)}, " +
-                $"Docs: {Cat(stats, FileCategory.Documentation)}."
-                + (policyFiles.Count > 0 ? $" API Management / edge policies: {policyFiles.Count} file(s)." : "")
-                + (pipelineFiles.Count > 0 ? $" CI/CD pipeline definition(s): {pipelineFiles.Count}." : ""),
+            Summary = summary,
+            SystemContext = systemContext,
             Layers = layers,
             KeyComponents = keyComponents,
             DataFlows = dataFlows,
             Decisions = decisions,
-            Gotchas =
-            [
-                "Offline mode cannot infer runtime topology or domain rules—verify against source.",
-                "Ignored paths (bin/obj/node_modules/docs/wiki) are intentionally excluded from analysis."
-            ],
-            HowToExtend =
-            [
-                "Add source under existing top-level folders to match observed layout.",
-                "Configure Azure OpenAI / OpenAI credentials to upgrade this page to LLM-authored architecture.",
-                "Adjust IgnorePatterns and MaxFilesToAnalyze in .agentwiki/config.json to refine inventory."
-            ],
+            Gotchas = gotchas,
+            HowToExtend = howToExtend,
             MermaidDiagram = mermaid,
             UsedOfflineFallback = true
         };
+    }
+
+    private static List<ArchitectureComponent> BuildKeyComponents(
+        RepoAnalysisResult analysis,
+        StaticAnalysisResult? staticAnalysis)
+    {
+        var components = new List<ArchitectureComponent>();
+
+        if (staticAnalysis is { Succeeded: true })
+        {
+            foreach (var project in staticAnalysis.Projects.Take(10))
+            {
+                components.Add(new ArchitectureComponent
+                {
+                    Name = project.Name,
+                    Path = project.RelativePath,
+                    Purpose =
+                        $"{project.Kind} project — {project.PublicTypeCount} public type(s)"
+                        + (project.EndpointCount > 0 ? $", {project.EndpointCount} endpoint(s)" : "")
+                        + (project.EntryPoints.Count > 0
+                            ? $"; entry: {string.Join(", ", project.EntryPoints.Take(3).Select(e => $"`{e}`"))}"
+                            : "")
+                });
+            }
+
+            foreach (var type in staticAnalysis.PublicTypes
+                         .Where(t => t.Kind is "class" or "interface" or "record")
+                         .OrderBy(t => t.Name.EndsWith("Controller", StringComparison.Ordinal) ? 0
+                             : t.Kind == "interface" ? 1 : 2)
+                         .ThenBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+                         .Take(12))
+            {
+                var attrs = type.Attributes.Count > 0
+                    ? " [" + string.Join(", ", type.Attributes.Take(4)) + "]"
+                    : "";
+                components.Add(new ArchitectureComponent
+                {
+                    Name = type.Name,
+                    Path = type.RelativePath,
+                    Purpose = $"Public {type.Kind}"
+                              + (string.IsNullOrWhiteSpace(type.Namespace) ? "" : $" in `{type.Namespace}`")
+                              + attrs
+                });
+            }
+        }
+
+        if (components.Count >= 8)
+        {
+            return components.Take(20).ToList();
+        }
+
+        // Inventory fallback / supplement
+        foreach (var f in analysis.Files
+                     .Where(f => f.SelectedForAnalysis && f.Category is FileCategory.SourceCode or FileCategory.Configuration)
+                     .OrderBy(f => FileCategorizer.IsInfrastructurePath(f.RelativePath) ? 0
+                         : f.Category == FileCategory.SourceCode ? 1 : 2)
+                     .ThenBy(f => f.RelativePath, StringComparer.OrdinalIgnoreCase)
+                     .Take(15))
+        {
+            if (components.Any(c => string.Equals(c.Path, f.RelativePath, StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(c.Name, Path.GetFileNameWithoutExtension(f.RelativePath), StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            components.Add(new ArchitectureComponent
+            {
+                Name = Path.GetFileName(f.RelativePath),
+                Path = f.RelativePath,
+                Purpose = InferComponentPurpose(f)
+            });
+        }
+
+        return components.Take(20).ToList();
     }
 
     private static string InferComponentPurpose(RepoFile f)
@@ -192,8 +315,22 @@ public static class OfflineArchitectureGenerator
             _ => $"Project area `{folder}`"
         };
 
-    private static string BuildMermaid(RepoAnalysisResult analysis)
+    private static string BuildMermaid(RepoAnalysisResult analysis, StaticAnalysisResult? staticAnalysis)
     {
+        if (staticAnalysis is { Projects.Count: > 0 }
+            && staticAnalysis.Projects.Any(p => p.RelativePath is not "." and not "(repository)"))
+        {
+            var lines = new List<string> { "flowchart TB", $"    Root[{SanitizeMermaid(analysis.RepoName)}]" };
+            var i = 0;
+            foreach (var project in staticAnalysis.Projects.Take(8))
+            {
+                var id = $"P{i++}";
+                lines.Add($"    Root --> {id}[{SanitizeMermaid(project.Name)} ({project.Kind})]");
+            }
+
+            return string.Join('\n', lines);
+        }
+
         var nodes = analysis.Stats.TopFolders
             .Where(f => f.RelativePath is not "(root)")
             .Take(6)
@@ -208,12 +345,15 @@ public static class OfflineArchitectureGenerator
                 """;
         }
 
-        var lines = new List<string> { "flowchart TB", $"    Root[{analysis.RepoName}]" };
+        var folderLines = new List<string> { "flowchart TB", $"    Root[{SanitizeMermaid(analysis.RepoName)}]" };
         foreach (var node in nodes)
         {
-            lines.Add($"    Root --> {node.Id}[{node.Label}]");
+            folderLines.Add($"    Root --> {node.Id}[{SanitizeMermaid(node.Label)}]");
         }
 
-        return string.Join('\n', lines);
+        return string.Join('\n', folderLines);
     }
+
+    private static string SanitizeMermaid(string label) =>
+        label.Replace('[', '(').Replace(']', ')').Replace('"', '\'');
 }

@@ -14,6 +14,7 @@ namespace AgentWiki.App.Services;
 /// </summary>
 public sealed class SemanticWikiGenerator(
     IRepoAnalyzer repoAnalyzer,
+    IStaticAnalyzer staticAnalyzer,
     IWikiGenerationOrchestrator orchestrator,
     IOutputWriter outputWriter,
     IAgentBootstrapper agentBootstrapper,
@@ -55,6 +56,22 @@ public sealed class SemanticWikiGenerator(
             var analysis = await repoAnalyzer
                 .AnalyzeAsync(request.RepoPath, request.Config, cancellationToken)
                 .ConfigureAwait(false);
+
+            // Optional Roslyn enrichment (offline-safe; skipped for non-.NET / on failure).
+            if (request.Config.EnableRoslynAnalysis)
+            {
+                request.Progress?.Report("Running static analysis (Roslyn)…");
+                var staticResult = await staticAnalyzer
+                    .AnalyzeAsync(analysis, request.Config, cancellationToken)
+                    .ConfigureAwait(false);
+                analysis.StaticAnalysis = staticResult;
+                if (staticResult.Warnings.Count > 0)
+                {
+                    logger.LogDebug(
+                        "Static analysis warnings: {Warnings}",
+                        string.Join("; ", staticResult.Warnings.Take(5)));
+                }
+            }
 
             ChangeDetectionResult? changes = request.ChangeDetection;
             IncrementalScope scope = IncrementalScope.Full();

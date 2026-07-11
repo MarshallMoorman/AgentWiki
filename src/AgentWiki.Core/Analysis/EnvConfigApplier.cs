@@ -197,6 +197,29 @@ public static class EnvConfigApplier
             && !string.IsNullOrWhiteSpace(value))
         {
             config.PostProcessingMode = value.Trim();
+            return;
+        }
+
+        if (name.Equals("EnableRoslynAnalysis", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var enableRoslyn))
+        {
+            config.EnableRoslynAnalysis = enableRoslyn;
+            return;
+        }
+
+        if (name.Equals("MaxProjectsToAnalyze", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var maxProjects)
+            && maxProjects > 0)
+        {
+            config.MaxProjectsToAnalyze = maxProjects;
+            return;
+        }
+
+        if (name.Equals("MaxSourceFilesForRoslyn", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var maxRoslynFiles)
+            && maxRoslynFiles > 0)
+        {
+            config.MaxSourceFilesForRoslyn = maxRoslynFiles;
         }
     }
 

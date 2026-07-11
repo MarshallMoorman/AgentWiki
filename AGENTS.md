@@ -77,9 +77,10 @@ agent-wiki-ui
 | Ask | Where to work |
 |-----|----------------|
 | Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson`, `WikiPostProcessor` |
+| Offline / Roslyn quality | `RoslynStaticAnalyzer`, `OfflineArchitectureGenerator`, `OfflineModulePlanner` |
 | CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
 | Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |
-| Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer` |
+| Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer`, `IStaticAnalyzer` |
 | Incremental update | `GitChangeDetector`, `LastRunStore`, `SemanticWikiGenerator` |
 | Config / init | `ConfigLoader`, `InitService`, `DotEnvLoader` |
 | Release | `/bump-version`, `scripts/pack-and-install-tool.sh` |

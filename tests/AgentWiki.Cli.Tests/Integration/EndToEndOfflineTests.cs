@@ -1,5 +1,6 @@
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -82,6 +83,7 @@ public sealed class EndToEndOfflineTests
 
         return new SemanticWikiGenerator(
             new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance),
+            new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
             new WikiGenerationOrchestrator(
                 arch.Object,
                 llm.Object,

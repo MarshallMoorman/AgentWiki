@@ -52,6 +52,18 @@ public sealed class AgentWikiConfig
     /// </summary>
     public string PostProcessingMode { get; set; } = "lenient";
 
+    /// <summary>
+    /// When true (default), run optional Roslyn syntax analysis on C# sources for richer offline wikis.
+    /// Gracefully skipped for non-.NET repos or on failure.
+    /// </summary>
+    public bool EnableRoslynAnalysis { get; set; } = true;
+
+    /// <summary>Max .csproj/.fsproj projects to treat as analysis roots (default 20).</summary>
+    public int MaxProjectsToAnalyze { get; set; } = 20;
+
+    /// <summary>Max C# source files to parse with Roslyn (default 200).</summary>
+    public int MaxSourceFilesForRoslyn { get; set; } = 200;
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [

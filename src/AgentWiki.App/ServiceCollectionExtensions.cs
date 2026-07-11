@@ -1,5 +1,6 @@
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IConfigLoader, ConfigLoader>();
         services.AddSingleton<IInitService, InitService>();
         services.AddSingleton<IRepoAnalyzer, RepoAnalyzer>();
+        services.AddSingleton<IStaticAnalyzer, RoslynStaticAnalyzer>();
         services.AddSingleton<IOutputWriter, MarkdownOutputWriter>();
         services.AddSingleton<IPromptManager, PromptManager>();
         services.AddSingleton<ILlmCompletionService, SemanticKernelLlmCompletionService>();

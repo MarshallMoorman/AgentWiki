@@ -9,6 +9,9 @@
   "maxLlmSummaryChars": 16000,
   "enablePostProcessing": true,
   "postProcessingMode": "lenient",
+  "enableRoslynAnalysis": true,
+  "maxProjectsToAnalyze": 20,
+  "maxSourceFilesForRoslyn": 200,
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

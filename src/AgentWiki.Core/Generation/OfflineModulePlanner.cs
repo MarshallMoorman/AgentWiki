@@ -119,41 +119,230 @@ public static partial class OfflineModulePlanner
                 && f.Category is FileCategory.SourceCode or FileCategory.Configuration))
             .ToList();
 
-        return new ModuleDocument
+        var staticAnalysis = analysis.StaticAnalysis;
+        var moduleTypes = FilterTypesForModule(descriptor, staticAnalysis);
+        var moduleEndpoints = FilterEndpointsForModule(descriptor, staticAnalysis);
+        var moduleEntry = FilterEntryPointsForModule(descriptor, staticAnalysis, sourceFiles);
+        var moduleDi = FilterDiForModule(descriptor, staticAnalysis, moduleTypes);
+        var moduleObsolete = FilterObsoleteForModule(descriptor, staticAnalysis, moduleTypes);
+
+        var purpose = string.IsNullOrWhiteSpace(descriptor.Summary)
+            ? $"Module `{descriptor.Name}` inferred from repository inventory."
+            : descriptor.Summary;
+        if (moduleTypes.Count > 0)
         {
-            Id = descriptor.Id,
-            Title = descriptor.Name,
-            Purpose = string.IsNullOrWhiteSpace(descriptor.Summary)
-                ? $"Module `{descriptor.Name}` inferred from repository inventory."
-                : descriptor.Summary,
-            EntryPoints = sourceFiles
-                .Where(p => p.EndsWith("Program.cs", StringComparison.OrdinalIgnoreCase)
-                            || p.Contains("/Commands/", StringComparison.OrdinalIgnoreCase)
-                            || p.EndsWith("Startup.cs", StringComparison.OrdinalIgnoreCase))
-                .Take(10)
-                .ToList(),
-            Dependencies = descriptor.RootPaths,
-            KeyTypes = sourceFiles
+            purpose +=
+                $" Static analysis found {moduleTypes.Count} public type(s)"
+                + (moduleEndpoints.Count > 0 ? $" and {moduleEndpoints.Count} endpoint(s)" : "")
+                + ".";
+        }
+
+        var keyTypes = moduleTypes.Count > 0
+            ? moduleTypes
+                .Select(t =>
+                {
+                    var ns = string.IsNullOrWhiteSpace(t.Namespace) ? "" : $"{t.Namespace}.";
+                    var attrs = t.Attributes.Count > 0 ? $" [{string.Join(", ", t.Attributes.Take(3))}]" : "";
+                    return $"{t.Kind} {ns}{t.Name}{attrs} (`{t.RelativePath}`)";
+                })
+                .Take(15)
+                .ToList()
+            : sourceFiles
                 .Select(Path.GetFileNameWithoutExtension)
                 .Where(n => !string.IsNullOrWhiteSpace(n))
                 .Cast<string>()
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(15)
-                .ToList(),
-            HowToExtend =
-            [
-                $"Add new types under {string.Join(", ", descriptor.RootPaths.Select(p => $"`{p}`"))}.",
-                "Keep public surface area documented in this module page when behavior changes.",
-                "Prefer existing abstractions/interfaces before introducing new layers."
-            ],
-            Gotchas =
-            [
-                "This module page was generated offline from file inventory; verify responsibilities against source.",
-                "Related file lists may be capped; inspect the project folder for the full set."
-            ],
+                .ToList();
+
+        // Surface endpoints as key-type-like lines until dedicated Endpoints section (Phase 3).
+        if (moduleEndpoints.Count > 0)
+        {
+            foreach (var ep in moduleEndpoints.Take(8))
+            {
+                var line = $"{ep.HttpMethod} {ep.Route} → {ep.HandlerName} ({ep.Kind})";
+                if (!keyTypes.Contains(line, StringComparer.OrdinalIgnoreCase))
+                {
+                    keyTypes.Add(line);
+                }
+            }
+        }
+
+        var howToExtend = new List<string>
+        {
+            $"Add new types under {string.Join(", ", descriptor.RootPaths.Select(p => $"`{p}`"))}.",
+            "Keep public surface area documented in this module page when behavior changes.",
+            "Prefer existing abstractions/interfaces before introducing new layers."
+        };
+        if (moduleTypes.Any(t => t.Kind == "interface"))
+        {
+            howToExtend.Insert(0,
+                "Implement or extend existing public interfaces in this module rather than introducing parallel abstractions.");
+        }
+
+        if (moduleDi.Count > 0)
+        {
+            howToExtend.Add(
+                "DI registration hints: " + string.Join(", ", moduleDi.Take(6).Select(d => $"`{d}`")) + ".");
+        }
+
+        var gotchas = new List<string>
+        {
+            staticAnalysis is { UsedRoslyn: true }
+                ? "This module page was enriched with Roslyn syntax analysis; still verify behavior against source."
+                : "This module page was generated offline from file inventory; verify responsibilities against source.",
+            "Related file lists may be capped; inspect the project folder for the full set."
+        };
+        if (moduleObsolete.Count > 0)
+        {
+            gotchas.Add(
+                "Obsolete symbols in this module: "
+                + string.Join(", ", moduleObsolete.Take(5).Select(s => $"`{s}`"))
+                + ".");
+        }
+
+        return new ModuleDocument
+        {
+            Id = descriptor.Id,
+            Title = descriptor.Name,
+            Purpose = purpose,
+            EntryPoints = moduleEntry.Count > 0
+                ? moduleEntry.Take(10).ToList()
+                : sourceFiles
+                    .Where(p => p.EndsWith("Program.cs", StringComparison.OrdinalIgnoreCase)
+                                || p.Contains("/Commands/", StringComparison.OrdinalIgnoreCase)
+                                || p.EndsWith("Startup.cs", StringComparison.OrdinalIgnoreCase))
+                    .Take(10)
+                    .ToList(),
+            Dependencies = descriptor.RootPaths,
+            KeyTypes = keyTypes.Take(20).ToList(),
+            HowToExtend = howToExtend,
+            Gotchas = gotchas,
             RelatedFiles = descriptor.RelatedFiles.Take(MaxFilesPerModule).ToList(),
             UsedOfflineFallback = true
         };
+    }
+
+    private static List<TypeSymbolInfo> FilterTypesForModule(
+        ModuleDescriptor descriptor,
+        StaticAnalysisResult? staticAnalysis)
+    {
+        if (staticAnalysis is not { PublicTypes.Count: > 0 })
+        {
+            return [];
+        }
+
+        return staticAnalysis.PublicTypes
+            .Where(t => BelongsToModule(t.RelativePath, t.ProjectName, descriptor))
+            .OrderBy(t => t.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static List<EndpointInfo> FilterEndpointsForModule(
+        ModuleDescriptor descriptor,
+        StaticAnalysisResult? staticAnalysis)
+    {
+        if (staticAnalysis is not { Endpoints.Count: > 0 })
+        {
+            return [];
+        }
+
+        return staticAnalysis.Endpoints
+            .Where(e => BelongsToModule(e.RelativePath, e.ProjectName, descriptor))
+            .ToList();
+    }
+
+    private static List<string> FilterEntryPointsForModule(
+        ModuleDescriptor descriptor,
+        StaticAnalysisResult? staticAnalysis,
+        List<string> sourceFiles)
+    {
+        var fromStatic = staticAnalysis?.EntryPoints
+            .Where(p => BelongsToModule(p, projectName: null, descriptor))
+            .ToList() ?? [];
+
+        if (fromStatic.Count > 0)
+        {
+            return fromStatic;
+        }
+
+        return sourceFiles
+            .Where(p => p.EndsWith("Program.cs", StringComparison.OrdinalIgnoreCase)
+                        || p.Contains("/Commands/", StringComparison.OrdinalIgnoreCase)
+                        || p.EndsWith("Startup.cs", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private static List<string> FilterDiForModule(
+        ModuleDescriptor descriptor,
+        StaticAnalysisResult? staticAnalysis,
+        List<TypeSymbolInfo> moduleTypes)
+    {
+        if (staticAnalysis is not { DiRegistrations.Count: > 0 })
+        {
+            return [];
+        }
+
+        // Prefer DI lines that mention types in this module; otherwise include all if module has Program.cs.
+        var typeNames = moduleTypes.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var matched = staticAnalysis.DiRegistrations
+            .Where(d => typeNames.Any(t => d.Contains(t, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (matched.Count > 0)
+        {
+            return matched;
+        }
+
+        var hasEntry = staticAnalysis.EntryPoints.Any(p => BelongsToModule(p, null, descriptor));
+        return hasEntry ? staticAnalysis.DiRegistrations.Take(15).ToList() : [];
+    }
+
+    private static List<string> FilterObsoleteForModule(
+        ModuleDescriptor descriptor,
+        StaticAnalysisResult? staticAnalysis,
+        List<TypeSymbolInfo> moduleTypes)
+    {
+        if (staticAnalysis is not { ObsoleteSymbols.Count: > 0 })
+        {
+            return [];
+        }
+
+        var typeNames = moduleTypes.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return staticAnalysis.ObsoleteSymbols
+            .Where(s => typeNames.Any(t => s.Contains(t, StringComparison.OrdinalIgnoreCase))
+                        || BelongsToModule(s, null, descriptor))
+            .ToList();
+    }
+
+    private static bool BelongsToModule(string relativePath, string? projectName, ModuleDescriptor descriptor)
+    {
+        if (!string.IsNullOrWhiteSpace(projectName)
+            && (projectName.Equals(descriptor.Name, StringComparison.OrdinalIgnoreCase)
+                || projectName.Equals(descriptor.Id, StringComparison.OrdinalIgnoreCase)
+                || descriptor.Id.Contains(Slug(projectName), StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var path = relativePath.Replace('\\', '/');
+        foreach (var root in descriptor.RootPaths)
+        {
+            var prefix = root.Replace('\\', '/').TrimEnd('/') + "/";
+            if (prefix is "./" or "/")
+            {
+                return true;
+            }
+
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                || path.Equals(root.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return descriptor.RelatedFiles.Any(f =>
+            f.Equals(relativePath, StringComparison.OrdinalIgnoreCase));
     }
 
     public static IReadOnlyList<CrossCuttingDocument> BuildCrossCutting(RepoAnalysisResult analysis)

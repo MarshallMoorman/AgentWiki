@@ -239,9 +239,9 @@ public sealed class WikiGenerationOrchestrator(
             RepoRoot = analysis.RepoPath,
             WikiOutputRoot = wikiRoot,
             Mode = WikiPostProcessor.ParseMode(request.Config.PostProcessingMode),
-            SourceHasObsoleteMarkers = WikiPostProcessor.DetectObsoleteMarkers(
-                analysis.RepoPath,
-                analysis.Files),
+            SourceHasObsoleteMarkers =
+                (analysis.StaticAnalysis?.ObsoleteSymbols.Count > 0)
+                || WikiPostProcessor.DetectObsoleteMarkers(analysis.RepoPath, analysis.Files),
             KnownWikiPages = knownWikiPages ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase),
             KnownRepoPaths = knownRepoPaths
         };

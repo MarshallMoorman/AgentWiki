@@ -16,6 +16,12 @@ public sealed class RepoAnalysisResult
 
     public IReadOnlyList<string> Warnings { get; init; } = [];
     public TimeSpan Duration { get; init; }
+
+    /// <summary>
+    /// Optional Roslyn / static analysis enrichment attached after inventory.
+    /// Null when analysis was not requested or not yet run.
+    /// </summary>
+    public StaticAnalysisResult? StaticAnalysis { get; set; }
 }
 
 /// <summary>

@@ -22,7 +22,10 @@ public sealed class EnvConfigApplierTests
             new("AGENTWIKI_OpenAI__ApiKey", "openai-key"),
             new("AGENTWIKI_OpenAI__Model", "gpt-chat-latest"),
             new("AGENTWIKI_EnablePostProcessing", "false"),
-            new("AGENTWIKI_PostProcessingMode", "strict")
+            new("AGENTWIKI_PostProcessingMode", "strict"),
+            new("AGENTWIKI_EnableRoslynAnalysis", "false"),
+            new("AGENTWIKI_MaxProjectsToAnalyze", "12"),
+            new("AGENTWIKI_MaxSourceFilesForRoslyn", "80")
         ]);
 
         config.Provider.ShouldBe("openai");
@@ -31,6 +34,9 @@ public sealed class EnvConfigApplierTests
         config.MaxLlmSummaryChars.ShouldBe(8000);
         config.EnablePostProcessing.ShouldBeFalse();
         config.PostProcessingMode.ShouldBe("strict");
+        config.EnableRoslynAnalysis.ShouldBeFalse();
+        config.MaxProjectsToAnalyze.ShouldBe(12);
+        config.MaxSourceFilesForRoslyn.ShouldBe(80);
         config.AzureOpenAI.Endpoint.ShouldBe("https://azure.example/");
         config.AzureOpenAI.DeploymentName.ShouldBe("dep-1");
         config.AzureOpenAI.ApiKey.ShouldBe("azure-key");
