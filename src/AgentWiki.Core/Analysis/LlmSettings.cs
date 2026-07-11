@@ -71,7 +71,7 @@ public static class LlmSettings
                     || string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey))
                 => "Azure endpoint and/or API key not set",
             "openai" or "github-models" when string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
-                => "OpenAI API key not set (config openAI.apiKey, .env, or AGENTWIKI_OpenAI__ApiKey)",
+                => "OpenAI API key not set (openAI.apiKey, .env, AGENTWIKI_OpenAI__ApiKey, AGENTWIKI_ApiKey, or OPENAI_API_KEY)",
             _ => null
         };
     }

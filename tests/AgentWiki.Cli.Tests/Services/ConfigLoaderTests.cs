@@ -8,6 +8,40 @@ namespace AgentWiki.Cli.Tests.Services;
 public sealed class ConfigLoaderTests
 {
     [Fact]
+    public void ApplyStandardSecretEnvFallbacks_FillsOpenAiKeyFromOpenAiApiKey()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "sk-standard-env");
+            var config = new AgentWikiConfig();
+            ConfigLoader.ApplyStandardSecretEnvFallbacks(config);
+            config.OpenAI.ApiKey.ShouldBe("sk-standard-env");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", previous);
+        }
+    }
+
+    [Fact]
+    public void ApplyStandardSecretEnvFallbacks_DoesNotOverrideExistingKey()
+    {
+        var previous = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        try
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", "sk-standard-env");
+            var config = new AgentWikiConfig { OpenAI = { ApiKey = "already-set" } };
+            ConfigLoader.ApplyStandardSecretEnvFallbacks(config);
+            config.OpenAI.ApiKey.ShouldBe("already-set");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("OPENAI_API_KEY", previous);
+        }
+    }
+
+    [Fact]
     public async Task LoadAsync_ReturnsDefaultsWhenNoConfigFile()
     {
         var root = CreateTempDir();

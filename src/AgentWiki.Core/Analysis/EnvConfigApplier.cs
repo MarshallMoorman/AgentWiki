@@ -145,6 +145,37 @@ public static class EnvConfigApplier
             return;
         }
 
+        // Convenience aliases (common profile mistakes / shorthand):
+        //   AGENTWIKI_ApiKey           → OpenAI.ApiKey (and Azure if empty)
+        //   AGENTWIKI_OpenAI_ApiKey    → OpenAI.ApiKey  (single underscore)
+        // Prefer the nested form: AGENTWIKI_OpenAI__ApiKey / AGENTWIKI_AzureOpenAI__ApiKey
+        if (name.Equals("ApiKey", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("OpenAI_ApiKey", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("OpenAiApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                config.OpenAI.ApiKey = value;
+                if (string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey))
+                {
+                    config.AzureOpenAI.ApiKey = value;
+                }
+            }
+
+            return;
+        }
+
+        if (name.Equals("AzureOpenAI_ApiKey", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("AzureApiKey", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                config.AzureOpenAI.ApiKey = value;
+            }
+
+            return;
+        }
+
         if (name.Equals("AgentMdPath", StringComparison.OrdinalIgnoreCase))
         {
             if (!string.IsNullOrWhiteSpace(value))

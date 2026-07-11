@@ -44,4 +44,30 @@ public sealed class EnvConfigApplierTests
         config.OpenAI.ApiKey.ShouldBe("openai-key");
         config.OpenAI.Model.ShouldBe("gpt-chat-latest");
     }
+
+    [Fact]
+    public void Apply_RootApiKeyAlias_MapsToOpenAiApiKey()
+    {
+        // Common profile shorthand that previously was ignored.
+        var config = new AgentWikiConfig { Provider = "openai" };
+        EnvConfigApplier.Apply(config,
+        [
+            new("AGENTWIKI_Provider", "openai"),
+            new("AGENTWIKI_ApiKey", "sk-profile-key")
+        ]);
+
+        config.OpenAI.ApiKey.ShouldBe("sk-profile-key");
+    }
+
+    [Fact]
+    public void Apply_SingleUnderscoreOpenAiApiKeyAlias_MapsToOpenAiApiKey()
+    {
+        var config = new AgentWikiConfig();
+        EnvConfigApplier.Apply(config,
+        [
+            new("AGENTWIKI_OpenAI_ApiKey", "sk-single-underscore")
+        ]);
+
+        config.OpenAI.ApiKey.ShouldBe("sk-single-underscore");
+    }
 }

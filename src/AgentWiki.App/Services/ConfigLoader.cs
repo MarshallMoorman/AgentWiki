@@ -66,6 +66,10 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
                 string.Join(", ", processEnv.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase)));
         }
 
+        // 2b) Well-known industry env vars as fill-if-empty fallbacks (OPENAI_API_KEY, etc.).
+        //     Never override values already set by AGENTWIKI_* / appsettings.
+        ApplyStandardSecretEnvFallbacks(config);
+
         // 3) .agentwiki/config.json (or explicit --config path).
         //    Only properties *present* in the JSON overwrite lower layers
         //    (missing/commented keys must not reset env vars to class defaults).
@@ -105,15 +109,87 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
                 exported);
         }
 
+        // Re-apply standard env fallbacks after config.json/.env so empty placeholders
+        // in JSON do not leave keys blank when OPENAI_API_KEY is in the shell.
+        // .env AGENTWIKI_* already applied above and wins over these fallbacks.
+        ApplyStandardSecretEnvFallbacks(config);
+
         config.RepoPath = resolvedRepo;
+        var openAiKeySet = !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey);
+        var azureKeySet = !string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey)
+                          || config.AzureOpenAI.UseManagedIdentity;
         logger.LogInformation(
-            "Resolved LLM settings: provider={Provider} model={Model} timeout={Timeout}s maxSummaryChars={MaxChars}",
+            "Resolved LLM settings: provider={Provider} model={Model} timeout={Timeout}s maxSummaryChars={MaxChars} openAiKey={OpenAiKey} azureCreds={AzureCreds}",
             config.Provider,
             config.DefaultModel,
             config.LlmTimeoutSeconds,
-            config.MaxLlmSummaryChars);
+            config.MaxLlmSummaryChars,
+            openAiKeySet ? "set" : "missing",
+            azureKeySet ? "set" : "missing");
 
         return config;
+    }
+
+    /// <summary>
+    /// Fills empty OpenAI/Azure credential fields from common process environment names
+    /// used by OpenAI SDKs and Azure tooling. Does not overwrite non-empty values.
+    /// </summary>
+    /// <summary>
+    /// Public for unit tests; used during config load.
+    /// </summary>
+    public static void ApplyStandardSecretEnvFallbacks(AgentWikiConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        static string? Get(params string[] names)
+        {
+            foreach (var name in names)
+            {
+                var value = Environment.GetEnvironmentVariable(name);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
+            && Get("OPENAI_API_KEY", "OPENAI_KEY") is { } openAiKey)
+        {
+            config.OpenAI.ApiKey = openAiKey;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.OpenAI.Endpoint)
+            && Get("OPENAI_BASE_URL", "OPENAI_ENDPOINT", "OPENAI_API_BASE") is { } openAiEndpoint)
+        {
+            config.OpenAI.Endpoint = openAiEndpoint;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.OpenAI.Model)
+            && Get("OPENAI_MODEL") is { } openAiModel)
+        {
+            config.OpenAI.Model = openAiModel;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey)
+            && Get("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_KEY") is { } azureKey)
+        {
+            config.AzureOpenAI.ApiKey = azureKey;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
+            && Get("AZURE_OPENAI_ENDPOINT") is { } azureEndpoint)
+        {
+            config.AzureOpenAI.Endpoint = azureEndpoint;
+        }
+
+        if (string.IsNullOrWhiteSpace(config.AzureOpenAI.DeploymentName)
+            && Get("AZURE_OPENAI_DEPLOYMENT", "AZURE_OPENAI_DEPLOYMENT_NAME") is { } azureDeployment)
+        {
+            config.AzureOpenAI.DeploymentName = azureDeployment;
+        }
     }
 
     /// <inheritdoc />

@@ -161,6 +161,7 @@ All LLM settings can be set via environment variables (process env or `.env`):
 | Cost rates (USD/1M) | `AGENTWIKI_InputUsdPerMillionTokens`, `AGENTWIKI_OutputUsdPerMillionTokens` |
 | Azure endpoint / deployment / key | `AGENTWIKI_AzureOpenAI__Endpoint`, `__DeploymentName`, `__ApiKey` |
 | OpenAI endpoint / model / key | `AGENTWIKI_OpenAI__Endpoint`, `__Model`, `__ApiKey` |
+| OpenAI key (shorthand / industry) | `AGENTWIKI_ApiKey` or `OPENAI_API_KEY` (fill-if-empty) |
 
 See [`examples/agentwiki.config.json`](examples/agentwiki.config.json) and `.env.example` from `agent-wiki init`.
 
