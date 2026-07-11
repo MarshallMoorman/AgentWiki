@@ -207,7 +207,7 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             {{RepoSummary}}
 
             Respond with a single JSON object only: { "modules": [ { "id", "name", "summary", "rootPaths", "relatedFiles" } ] }.
-            Max 8 modules. Use only paths present in the inventory.
+            Prefer .sln/.csproj structure. Max {{MaxModules}} modules. Use only paths present in the inventory.
             """);
 
         yield return ("ModuleAnalysisPrompt.txt",

@@ -19,9 +19,12 @@ Respond with a single JSON object only (no markdown fences) matching:
 }
 
 Rules:
-- Prefer real project folders / .csproj areas from the inventory.
-- Limit to the most important modules (max 8).
+- Prefer real solution/project structure: .sln project entries, .csproj/.fsproj folders, then top-level areas.
+- Group by project type when useful (web API, class library, Azure Functions, worker, tests).
+- Prefer production/app libraries over test projects unless tests are a primary surface.
+- Limit to the most important modules (max {{MaxModules}}).
+- Prefer path-stable kebab-case ids (e.g. `src-api`, `agentwiki-core`) over generic names that collide.
 - Do not invent paths that are not present in the inventory.
 - Use only **repo-relative** paths (never absolute machine paths like `/Users/…`).
 - When Policies/ or CI pipeline files exist, include them in relatedFiles or a deployment-oriented module if material.
-- Use stable kebab-case ids.
+- Include representative relatedFiles under each root (entry points, controllers, Program.cs) when known.

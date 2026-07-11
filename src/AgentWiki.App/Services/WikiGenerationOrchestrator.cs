@@ -19,9 +19,10 @@ public sealed class WikiGenerationOrchestrator(
     IWikiPostProcessor postProcessor,
     ILogger<WikiGenerationOrchestrator> logger) : IWikiGenerationOrchestrator
 {
-    private const int MaxModulesForLlm = 8;
-
     private static readonly JsonSerializerOptions JsonOptions = LlmJson.CreateOptions();
+
+    private static int ResolveMaxModules(AgentWikiConfig config) =>
+        config.MaxModules > 0 ? config.MaxModules : 16;
 
     /// <inheritdoc />
     public async Task<WikiBundle> GenerateAsync(
@@ -81,7 +82,8 @@ public sealed class WikiGenerationOrchestrator(
 
         // Step 3: Module details (selective LLM)
         var modules = new List<ModuleDocument>();
-        var moduleDescriptors = modulePlan.Modules.Take(MaxModulesForLlm).ToList();
+        var maxModules = ResolveMaxModules(request.Config);
+        var moduleDescriptors = modulePlan.Modules.Take(maxModules).ToList();
         var moduleIndex = 0;
         foreach (var descriptor in moduleDescriptors)
         {
@@ -102,7 +104,7 @@ public sealed class WikiGenerationOrchestrator(
             }
             else
             {
-                module = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis);
+                module = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis, request.Config);
                 module.Gotchas.Insert(0, "Module not in incremental change scope; refreshed from inventory only.");
             }
 
@@ -300,17 +302,19 @@ public sealed class WikiGenerationOrchestrator(
         // Module inventory structure is cheap offline; only spend LLM tokens on full runs.
         if (!scope.IsFull || !llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
         {
-            return OfflineModulePlanner.Plan(analysis);
+            return OfflineModulePlanner.Plan(analysis, request.Config);
         }
 
         try
         {
+            var maxModules = ResolveMaxModules(request.Config);
             var prompts = ResolvePrompts(analysis.RepoPath);
             var system = prompts.GetPrompt("SystemPrompt");
             var user = prompts.Render("ModulePlanPrompt", new Dictionary<string, string>
             {
                 ["RepoName"] = analysis.RepoName,
-                ["RepoSummary"] = SummaryForLlm(analysis, request.Config)
+                ["RepoSummary"] = SummaryForLlm(analysis, request.Config),
+                ["MaxModules"] = maxModules.ToString()
             });
 
             var completion = await llm.CompleteAsync(
@@ -327,14 +331,19 @@ public sealed class WikiGenerationOrchestrator(
             plan.UsedOfflineFallback = false;
             plan.TokenUsage = completion.TokenUsage;
 
-            // Ensure related files exist when possible; fill from inventory if empty.
-            EnrichPlanFromInventory(plan, analysis);
+            // Cap + enrich related files from inventory.
+            if (plan.Modules.Count > maxModules)
+            {
+                plan.Modules = plan.Modules.Take(maxModules).ToList();
+            }
+
+            EnrichPlanFromInventory(plan, analysis, request.Config);
             return plan;
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Module planning via LLM failed; using offline planner");
-            return OfflineModulePlanner.Plan(analysis);
+            return OfflineModulePlanner.Plan(analysis, request.Config);
         }
     }
 
@@ -346,7 +355,7 @@ public sealed class WikiGenerationOrchestrator(
     {
         if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
         {
-            return OfflineModulePlanner.BuildModuleDocument(descriptor, analysis);
+            return OfflineModulePlanner.BuildModuleDocument(descriptor, analysis, request.Config);
         }
 
         try
@@ -394,7 +403,7 @@ public sealed class WikiGenerationOrchestrator(
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Module generation failed for {Module}; using offline content", descriptor.Id);
-            var offline = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis);
+            var offline = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis, request.Config);
             offline.Gotchas.Insert(0, $"LLM module generation failed: {ex.Message}");
             return offline;
         }
@@ -499,13 +508,17 @@ public sealed class WikiGenerationOrchestrator(
         return promptManager;
     }
 
-    private static void EnrichPlanFromInventory(ModulePlan plan, RepoAnalysisResult analysis)
+    private static void EnrichPlanFromInventory(
+        ModulePlan plan,
+        RepoAnalysisResult analysis,
+        AgentWikiConfig config)
     {
+        var maxFiles = config.MaxFilesPerModule > 0 ? config.MaxFilesPerModule : 40;
         foreach (var module in plan.Modules)
         {
             if (string.IsNullOrWhiteSpace(module.Id))
             {
-                module.Id = OfflineModulePlanner.Plan(analysis).Modules
+                module.Id = OfflineModulePlanner.Plan(analysis, config).Modules
                     .FirstOrDefault()?.Id ?? "module";
             }
 
@@ -513,6 +526,10 @@ public sealed class WikiGenerationOrchestrator(
 
             if (module.RelatedFiles.Count > 0)
             {
+                module.RelatedFiles = module.RelatedFiles
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(maxFiles)
+                    .ToList();
                 continue;
             }
 
@@ -523,13 +540,13 @@ public sealed class WikiGenerationOrchestrator(
                     .Where(f => f.RelativePath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
                                 || prefix == "./" || prefix == "/")
                     .Select(f => f.RelativePath)
-                    .Take(25);
+                    .Take(maxFiles);
                 module.RelatedFiles.AddRange(matches);
             }
 
             module.RelatedFiles = module.RelatedFiles
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(25)
+                .Take(maxFiles)
                 .ToList();
         }
     }

@@ -173,6 +173,9 @@ Useful knobs:
 - `enableApiEndpointDocs` (default **true**) — emit `api-endpoints.md` + per-module endpoint sections
 - `enableEndpointLlmEnrichment` — optional short LLM descriptions when credentials exist
 - `endpointIncludePatterns` / `endpointExcludePatterns` — filter routes/paths
+- `maxModules` (default **16**) / `maxFilesPerModule` (default **40**)
+- `moduleRoots` / `moduleGlobs` — pin or discover module roots (e.g. `src/*/`)
+- `includeTestProjectsAsModules` (default **false**) — keep tests out of the primary module set unless needed
 - `maxFilesToAnalyze`, `enableIncrementalUpdates`, `ignorePatterns`
 
 **Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`). A post-processor also rewrites accidental absolute paths in LLM output.

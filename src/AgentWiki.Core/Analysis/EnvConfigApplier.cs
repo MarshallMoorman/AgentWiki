@@ -234,6 +234,29 @@ public static class EnvConfigApplier
             && bool.TryParse(value, out var enableEndpointLlm))
         {
             config.EnableEndpointLlmEnrichment = enableEndpointLlm;
+            return;
+        }
+
+        if (name.Equals("MaxModules", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var maxModules)
+            && maxModules > 0)
+        {
+            config.MaxModules = maxModules;
+            return;
+        }
+
+        if (name.Equals("MaxFilesPerModule", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var maxFilesPerModule)
+            && maxFilesPerModule > 0)
+        {
+            config.MaxFilesPerModule = maxFilesPerModule;
+            return;
+        }
+
+        if (name.Equals("IncludeTestProjectsAsModules", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var includeTests))
+        {
+            config.IncludeTestProjectsAsModules = includeTests;
         }
     }
 

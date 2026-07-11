@@ -16,6 +16,11 @@
   "enableEndpointLlmEnrichment": true,
   "endpointIncludePatterns": [],
   "endpointExcludePatterns": [],
+  "maxModules": 16,
+  "maxFilesPerModule": 40,
+  "moduleRoots": [],
+  "moduleGlobs": [],
+  "includeTestProjectsAsModules": false,
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

@@ -78,6 +78,7 @@ agent-wiki-ui
 |-----|----------------|
 | Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson`, `WikiPostProcessor` |
 | Offline / Roslyn quality | `RoslynStaticAnalyzer`, `OfflineArchitectureGenerator`, `OfflineModulePlanner` |
+| Module discovery | `OfflineModulePlanner`, `moduleRoots` / `moduleGlobs`, `MaxModules` |
 | API endpoints | `EndpointCatalog`, `ApiEndpointsMarkdownRenderer`, orchestrator endpoint step |
 | CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
 | Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |

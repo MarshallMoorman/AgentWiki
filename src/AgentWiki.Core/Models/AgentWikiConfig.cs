@@ -87,6 +87,32 @@ public sealed class AgentWikiConfig
     /// </summary>
     public List<string> EndpointExcludePatterns { get; set; } = [];
 
+    /// <summary>
+    /// Maximum modules to plan/document (offline + LLM). Default 16 (was hard-coded 8).
+    /// </summary>
+    public int MaxModules { get; set; } = 16;
+
+    /// <summary>Maximum related files listed per module (default 40).</summary>
+    public int MaxFilesPerModule { get; set; } = 40;
+
+    /// <summary>
+    /// Explicit module root directories (repo-relative), e.g. <c>src/Api</c>, <c>src/Domain</c>.
+    /// When set, these are preferred over automatic discovery (still merged with projects).
+    /// </summary>
+    public List<string> ModuleRoots { get; set; } = [];
+
+    /// <summary>
+    /// Glob-like patterns for module roots (e.g. <c>src/*/</c>, <c>services/*/</c>).
+    /// Matched against inventory directories / project folders.
+    /// </summary>
+    public List<string> ModuleGlobs { get; set; } = [];
+
+    /// <summary>
+    /// When false (default), test projects are deprioritized and only included if under the module cap.
+    /// When true, test projects compete equally with app libraries.
+    /// </summary>
+    public bool IncludeTestProjectsAsModules { get; set; }
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [
