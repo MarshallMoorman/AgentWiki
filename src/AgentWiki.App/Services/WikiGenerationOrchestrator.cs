@@ -241,8 +241,18 @@ public sealed class WikiGenerationOrchestrator(
 
         if (anyOffline)
         {
-            warnings.Add(
-                "One or more pipeline steps used offline generation. Configure LLM credentials for full Semantic Kernel output.");
+            // Distinguish credential-less offline from partial LLM runs that fell back mid-pipeline.
+            if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+            {
+                warnings.Add(
+                    "One or more pipeline steps used offline generation because LLM credentials are not configured.");
+            }
+            else
+            {
+                warnings.Add(
+                    "One or more pipeline steps fell back to offline generation after LLM errors "
+                    + "(see logs for transport/timeout/parse failures). Other steps may still be LLM-assisted.");
+            }
         }
 
         var total = TokenUsageMath.Sum(usages.ToArray());

@@ -95,9 +95,23 @@ public sealed class ArchitectureGenerator(
         }
         catch (Exception ex) when (ShouldFallbackToOffline(ex, cancellationToken))
         {
-            logger.LogError(ex, "LLM architecture generation failed; falling back to offline generator");
+            // Transport failures should already have been retried by LlmResilience; log clearly so
+            // users can tell "credentials missing" from "network blip then offline architecture".
+            if (LlmResilience.IsRetryableFailure(ex))
+            {
+                logger.LogError(
+                    ex,
+                    "LLM architecture generation failed after retries (transient transport/HTTP); falling back to offline generator");
+            }
+            else
+            {
+                logger.LogError(ex, "LLM architecture generation failed; falling back to offline generator");
+            }
+
             var offline = OfflineArchitectureGenerator.Generate(analysis);
-            offline.Gotchas.Insert(0, $"LLM generation failed and offline fallback was used: {ex.Message}");
+            offline.Gotchas.Insert(
+                0,
+                $"LLM generation failed after retries and offline fallback was used: {ex.Message}");
             return offline;
         }
     }
