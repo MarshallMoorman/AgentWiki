@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** v1.2 Phase 1 committed; Phase 2 (Roslyn offline) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** Phases 1–2 committed; Phase 3 (API endpoints) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -135,7 +135,7 @@ Static analysis: syntax-only Roslyn (no compile); graceful skip for non-.NET / f
 **Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
 Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `maxFilesToAnalyze`, `ignorePatterns`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `enableApiEndpointDocs` (default true), `enableEndpointLlmEnrichment`, `endpointIncludePatterns` / `endpointExcludePatterns`, `maxFilesToAnalyze`, `ignorePatterns`.
 
 **Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only. Post-processor rewrites accidental absolute paths after generation.
 
@@ -159,28 +159,32 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
-### v1.2 Phase 2 — Richer Offline + Roslyn (ready to commit)
+### v1.2 Phase 3 — API Endpoint Documentation (ready to commit)
 
-- **`IStaticAnalyzer` / `RoslynStaticAnalyzer`** — syntax-only C# walk (public types, controllers, minimal APIs, Functions, DI hints, `[Obsolete]`, entry points)  
-- Attached on `RepoAnalysisResult.StaticAnalysis` from **`SemanticWikiGenerator`** when `enableRoslynAnalysis`  
-- Offline architecture + module pages prefer real symbols over path-only heuristics  
-- Endpoint facts collected for Phase 3 `api-endpoints.md`  
-- Config: `enableRoslynAnalysis`, `maxProjectsToAnalyze`, `maxSourceFilesForRoslyn`  
-- Package: `Microsoft.CodeAnalysis.CSharp` 4.14.0 on Core  
-- Tests: `RoslynStaticAnalyzerTests` (sample web + non-.NET skip); suite **114 CLI + 9 Desktop**
+- Top-level **`api-endpoints.md`** catalog (method, route, handler, kind, auth, params, purpose)  
+- Per-module **Endpoints / Public API** section + key-components public API table  
+- Index / getting-started navigation updated  
+- `EndpointCatalog` filters via include/exclude patterns; default heuristic descriptions  
+- Optional LLM description enrichment when credentials available (`enableEndpointLlmEnrichment`)  
+- Config: `enableApiEndpointDocs`, `enableEndpointLlmEnrichment`, `endpointIncludePatterns`, `endpointExcludePatterns`  
+- Tests: `ApiEndpointsMarkdownRendererTests` + orchestrator; suite **120 CLI + 9 Desktop**
 
 | Hotspot | Path |
 |---------|------|
-| Interface | `src/AgentWiki.Core/Abstractions/IStaticAnalyzer.cs` |
-| Implementation | `src/AgentWiki.Core/Analysis/RoslynStaticAnalyzer.cs` |
-| Models | `src/AgentWiki.Core/Models/StaticAnalysisModels.cs` |
-| Offline use | `OfflineArchitectureGenerator`, `OfflineModulePlanner` |
-| Wire-up | `SemanticWikiGenerator` → `AddAgentWikiServices()` |
+| Renderer | `ApiEndpointsMarkdownRenderer.cs` |
+| Filter/attach | `EndpointCatalog.cs` |
+| Orchestrator | step `api-endpoints:{n}` + optional `endpoint-llm-enrichment` |
+| Module model | `ModuleDocument.Endpoints` |
+
+### v1.2 Phase 2 — Richer Offline + Roslyn (committed `ab135d8`)
+
+- **`IStaticAnalyzer` / `RoslynStaticAnalyzer`** — syntax-only C# walk  
+- Offline architecture + modules enriched with symbols  
+- Package: `Microsoft.CodeAnalysis.CSharp` 4.14.0 on Core  
 
 ### v1.2 Phase 1 — Foundation & Guardrails (committed `e2f79ac`)
 
 - **`IWikiPostProcessor` / `WikiPostProcessor`** — paths, deps, deprecation, link hygiene  
-- Config: `enablePostProcessing`, `postProcessingMode`  
 - Plan: `docs/plans/docs-plan-single-repo-polish-v1.2.md`
 
 ### v1.1.0 — App extraction + Desktop
@@ -195,13 +199,13 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 | 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
 | 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish (after Phase 2)
+### Known remaining polish (after Phase 3)
 
-- Roslyn is syntax-only (no semantic model / full compile) — some symbols may be incomplete  
-- Endpoint page (`api-endpoints.md`) not yet emitted — data is collected for Phase 3  
-- Post-processor is heuristic; keep LLM parsers tolerant  
-- Desktop nupkg large; theme switching still Phase 6  
-- **Next plan phase:** Phase 3 — API endpoint documentation
+- Roslyn is syntax-only — route templates / minimal-api handlers may be incomplete  
+- Endpoint LLM enrichment is best-effort JSON; offline catalog always works  
+- Module discovery hard cap still 8 (Phase 4)  
+- Desktop theme switching still Phase 6  
+- **Next plan phase:** Phase 4 — Module discovery improvements
 
 ---
 
@@ -257,9 +261,9 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 **Follow `docs/plans/docs-plan-single-repo-polish-v1.2.md` phases (commit after each):**
 
 1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **committed**  
-2. ~~Phase 2 — Richer offline + Roslyn~~ → **done (awaiting commit)**  
-3. **Phase 3 — API endpoint documentation**
-4. Phase 4 — Module discovery improvements  
+2. ~~Phase 2 — Richer offline + Roslyn~~ → **committed**  
+3. ~~Phase 3 — API endpoint documentation~~ → **done (awaiting commit)**  
+4. **Phase 4 — Module discovery improvements**  
 5. Phase 5 — Cost, observability, dry-run  
 6. Phase 6 — Azure DevOps sample + Desktop theme + docs polish  
 

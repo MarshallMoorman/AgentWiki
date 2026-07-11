@@ -86,6 +86,12 @@ public sealed class ModuleDocument
     [JsonPropertyName("relatedFiles")]
     public List<string> RelatedFiles { get; set; } = [];
 
+    /// <summary>
+    /// Public HTTP / Function endpoints associated with this module (from static analysis).
+    /// </summary>
+    [JsonIgnore]
+    public List<EndpointInfo> Endpoints { get; set; } = [];
+
     [JsonIgnore]
     public string RelativePath => $"modules/{Id}.md";
 

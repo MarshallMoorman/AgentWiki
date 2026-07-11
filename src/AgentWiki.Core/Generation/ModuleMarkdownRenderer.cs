@@ -32,6 +32,36 @@ public static class ModuleMarkdownRenderer
         AppendList(sb, "Entry points", doc.EntryPoints, ordered: false, asCode: true);
         AppendList(sb, "Dependencies / roots", doc.Dependencies, ordered: false, asCode: true);
         AppendList(sb, "Key types / files", doc.KeyTypes, ordered: false, asCode: false);
+
+        sb.AppendLine("## Endpoints / Public API");
+        sb.AppendLine();
+        if (doc.Endpoints.Count == 0)
+        {
+            sb.AppendLine("_No HTTP or Function endpoints discovered for this module._");
+            sb.AppendLine();
+        }
+        else
+        {
+            ApiEndpointsMarkdownRenderer.AppendEndpointTable(sb, doc.Endpoints, maxRows: 25);
+            foreach (var ep in doc.Endpoints.Take(12))
+            {
+                if (string.IsNullOrWhiteSpace(ep.Description) && ep.Parameters.Count == 0)
+                {
+                    continue;
+                }
+
+                sb.AppendLine($"- `{ep.HttpMethod} {ep.Route}` — {ep.Description ?? ep.HandlerName}");
+                if (ep.Parameters.Count > 0)
+                {
+                    sb.AppendLine($"  - Params: {string.Join(", ", ep.Parameters.Select(p => $"`{p}`"))}");
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("See also [API Endpoints](../api-endpoints.md).");
+            sb.AppendLine();
+        }
+
         AppendList(sb, "How to extend", doc.HowToExtend, ordered: false, asCode: false);
         AppendList(sb, "Gotchas", doc.Gotchas, ordered: false, asCode: false);
         AppendList(sb, "Related files", doc.RelatedFiles, ordered: false, asCode: true);
@@ -40,6 +70,7 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
         sb.AppendLine("- [Wiki index](../index.md)");
         sb.AppendLine("- [Architecture](../architecture.md)");
+        sb.AppendLine("- [API Endpoints](../api-endpoints.md)");
         sb.AppendLine();
 
         return sb.ToString().TrimEnd() + "\n";
@@ -102,6 +133,7 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine("| Page | Description |");
         sb.AppendLine("|------|-------------|");
         sb.AppendLine("| [Architecture](architecture.md) | System design, layers, decisions |");
+        sb.AppendLine("| [API Endpoints](api-endpoints.md) | HTTP / Function route catalog |");
         sb.AppendLine("| [Key Components](key-components.md) | Component map |");
         sb.AppendLine("| [Data Flows](data-flows.md) | Important request/process flows |");
         sb.AppendLine("| [Repository Inventory](inventory.md) | File inventory summary |");
@@ -154,9 +186,10 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine("## How to use this wiki");
         sb.AppendLine();
         sb.AppendLine("1. Read [architecture.md](architecture.md) for the current system shape.");
-        sb.AppendLine("2. Open the relevant page under [modules/](modules/) or [cross-cutting/](cross-cutting/).");
-        sb.AppendLine("3. Use [inventory.md](inventory.md) when you need exact paths.");
-        sb.AppendLine("4. Treat this as a map of the live tree; confirm critical details in source when implementing.");
+        sb.AppendLine("2. Check [api-endpoints.md](api-endpoints.md) for HTTP / Function routes.");
+        sb.AppendLine("3. Open the relevant page under [modules/](modules/) or [cross-cutting/](cross-cutting/).");
+        sb.AppendLine("4. Use [inventory.md](inventory.md) when you need exact paths.");
+        sb.AppendLine("5. Treat this as a map of the live tree; confirm critical details in source when implementing.");
         sb.AppendLine();
 
         return sb.ToString().TrimEnd() + "\n";

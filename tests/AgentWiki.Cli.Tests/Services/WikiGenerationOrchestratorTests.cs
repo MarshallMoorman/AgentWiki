@@ -55,6 +55,89 @@ public sealed class WikiGenerationOrchestratorTests
         bundle.UsedOfflineFallback.ShouldBeTrue();
         bundle.StepsCompleted.ShouldContain("post-process-structured");
         bundle.StepsCompleted.ShouldContain("post-process-markdown");
+        bundle.Sections.Any(s => s.RelativePath == "api-endpoints.md").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GenerateAsync_WithStaticEndpoints_EmitsApiEndpointsPageAndModuleSections()
+    {
+        var analysis = CreateAnalysis();
+        analysis.StaticAnalysis = new StaticAnalysisResult
+        {
+            Enabled = true,
+            Succeeded = true,
+            UsedRoslyn = true,
+            Summary = "test endpoints",
+            Endpoints =
+            [
+                new EndpointInfo
+                {
+                    HttpMethod = "GET",
+                    Route = "/api/app",
+                    HandlerName = "AppController.Get",
+                    Kind = "controller",
+                    RelativePath = "src/App/AppController.cs",
+                    ProjectName = "App",
+                    AuthHints = ["Authorize"],
+                    Parameters = ["int id"]
+                },
+                new EndpointInfo
+                {
+                    HttpMethod = "GET",
+                    Route = "/health",
+                    HandlerName = "Program.MapGet",
+                    Kind = "minimal-api",
+                    RelativePath = "src/App/Program.cs",
+                    ProjectName = "App"
+                }
+            ]
+        };
+
+        var arch = new Mock<IArchitectureGenerator>();
+        arch.Setup(a => a.GenerateAsync(
+                It.IsAny<RepoAnalysisResult>(),
+                It.IsAny<AgentWikiConfig>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OfflineArchitectureGenerator.Generate(analysis));
+
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
+            .Returns(false);
+
+        var sut = new WikiGenerationOrchestrator(
+            arch.Object,
+            llm.Object,
+            new PromptManager(NullLogger<PromptManager>.Instance),
+            new WikiPostProcessor(),
+            NullLogger<WikiGenerationOrchestrator>.Instance);
+
+        var bundle = await sut.GenerateAsync(
+            analysis,
+            new WikiGenerationRequest
+            {
+                Config = new AgentWikiConfig { EnableApiEndpointDocs = true },
+                RepoPath = analysis.RepoPath,
+                OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
+            },
+            scope: IncrementalScope.Full());
+
+        var apiPage = bundle.Sections.Single(s => s.RelativePath == "api-endpoints.md");
+        apiPage.Content.ShouldContain("/api/app");
+        apiPage.Content.ShouldContain("/health");
+        apiPage.Content.ShouldContain("Authorize");
+
+        var keyComponents = bundle.Sections.Single(s => s.RelativePath == "key-components.md");
+        keyComponents.Content.ShouldContain("Public API endpoints");
+        keyComponents.Content.ShouldContain("api-endpoints.md");
+
+        bundle.Modules.ShouldContain(m => m.Endpoints.Count > 0);
+        var moduleWithEndpoints = bundle.Modules.First(m => m.Endpoints.Count > 0);
+        var moduleSection = bundle.Sections.Single(s => s.RelativePath == moduleWithEndpoints.RelativePath);
+        moduleSection.Content.ShouldContain("Endpoints / Public API");
+
+        bundle.StepsCompleted.ShouldContain(s => s.StartsWith("api-endpoints:", StringComparison.Ordinal));
     }
 
     [Fact]

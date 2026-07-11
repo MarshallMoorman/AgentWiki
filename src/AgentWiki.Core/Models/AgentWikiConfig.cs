@@ -64,6 +64,29 @@ public sealed class AgentWikiConfig
     /// <summary>Max C# source files to parse with Roslyn (default 200).</summary>
     public int MaxSourceFilesForRoslyn { get; set; } = 200;
 
+    /// <summary>
+    /// When true (default), emit <c>api-endpoints.md</c> and per-module endpoint sections
+    /// from static analysis (and optional LLM descriptions).
+    /// </summary>
+    public bool EnableApiEndpointDocs { get; set; } = true;
+
+    /// <summary>
+    /// When true (default) and LLM credentials are available, request short endpoint descriptions.
+    /// Offline catalog still ships without LLM.
+    /// </summary>
+    public bool EnableEndpointLlmEnrichment { get; set; } = true;
+
+    /// <summary>
+    /// Glob-like include filters for endpoint routes or source paths (empty = include all).
+    /// Matched against route, handler, and relative path (case-insensitive substring or <c>*</c> wildcard).
+    /// </summary>
+    public List<string> EndpointIncludePatterns { get; set; } = [];
+
+    /// <summary>
+    /// Glob-like exclude filters for endpoint routes or source paths (e.g. <c>*/swagger*</c>, <c>/health*</c>).
+    /// </summary>
+    public List<string> EndpointExcludePatterns { get; set; } = [];
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [

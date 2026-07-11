@@ -61,7 +61,6 @@ public sealed class TypeSymbolInfo
 
 /// <summary>
 /// HTTP / Function endpoint discovered from controllers, minimal APIs, or Azure Functions.
-/// Consumed by offline docs now; full <c>api-endpoints.md</c> page lands in Phase 3.
 /// </summary>
 public sealed class EndpointInfo
 {
@@ -71,5 +70,12 @@ public sealed class EndpointInfo
     public string RelativePath { get; init; } = "";
     public string Kind { get; init; } = "controller";
     public IReadOnlyList<string> AuthHints { get; init; } = [];
+    public IReadOnlyList<string> Parameters { get; init; } = [];
     public string? ProjectName { get; init; }
+
+    /// <summary>Optional human/LLM description of purpose.</summary>
+    public string? Description { get; set; }
+
+    /// <summary>Display key for dedupe / enrichment matching.</summary>
+    public string Key => $"{HttpMethod.ToUpperInvariant()} {Route} → {HandlerName}";
 }

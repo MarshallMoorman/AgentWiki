@@ -124,6 +124,48 @@ public sealed class WikiGenerationOrchestrator(
             anyOffline |= item.UsedOfflineFallback;
         }
 
+        // Step 4b: API endpoint catalog (static analysis → modules + api-endpoints.md)
+        IReadOnlyList<EndpointInfo> endpointCatalog = [];
+        var endpointsLlmEnriched = false;
+        if (request.Config.EnableApiEndpointDocs)
+        {
+            Report(request, "Cataloging API endpoints…");
+            var filtered = EndpointCatalog.Filter(
+                analysis.StaticAnalysis?.Endpoints,
+                request.Config).ToList();
+            EndpointCatalog.EnsureDefaultDescriptions(filtered);
+            EndpointCatalog.AttachToModules(modules, modulePlan.Modules, filtered);
+            endpointCatalog = filtered;
+
+            if (request.Config.EnableEndpointLlmEnrichment
+                && filtered.Count > 0
+                && llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+            {
+                try
+                {
+                    endpointsLlmEnriched = await EnrichEndpointDescriptionsAsync(
+                            filtered,
+                            analysis,
+                            request,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (endpointsLlmEnriched)
+                    {
+                        // Re-attach so modules see enriched descriptions
+                        EndpointCatalog.AttachToModules(modules, modulePlan.Modules, filtered);
+                        steps.Add("endpoint-llm-enrichment");
+                    }
+                }
+                catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
+                {
+                    logger.LogWarning(ex, "Endpoint LLM enrichment failed; keeping heuristic descriptions");
+                    warnings.Add("Endpoint LLM enrichment failed; using heuristic descriptions.");
+                }
+            }
+
+            steps.Add($"api-endpoints:{filtered.Count}");
+        }
+
         // Step 5: Cross-link / consistency pass (deterministic in v1; LLM optional later)
         Report(request, "Validating cross-links…");
         ValidateAndNormalizeLinks(modules, crossCutting, warnings);
@@ -158,7 +200,9 @@ public sealed class WikiGenerationOrchestrator(
             modules,
             crossCutting,
             request,
-            generatedAt);
+            generatedAt,
+            endpointCatalog,
+            endpointsLlmEnriched);
         steps.Add("index-and-support-pages");
 
         // Step 6b: Guardrails on rendered Markdown
@@ -337,6 +381,14 @@ public sealed class WikiGenerationOrchestrator(
                 document.RelatedFiles = descriptor.RelatedFiles.Take(25).ToList();
             }
 
+            // Endpoints always come from static analysis (LLM schemas rarely include them).
+            if (document.Endpoints.Count == 0 && analysis.StaticAnalysis is not null)
+            {
+                document.Endpoints = EndpointCatalog.ForModule(
+                    descriptor,
+                    EndpointCatalog.Filter(analysis.StaticAnalysis.Endpoints, request.Config)).ToList();
+            }
+
             return document;
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
@@ -510,13 +562,112 @@ public sealed class WikiGenerationOrchestrator(
         }
     }
 
+    private async Task<bool> EnrichEndpointDescriptionsAsync(
+        IReadOnlyList<EndpointInfo> endpoints,
+        RepoAnalysisResult analysis,
+        WikiGenerationRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Cap enrichment payload for cost/latency.
+        var batch = endpoints.Take(40).ToList();
+        if (batch.Count == 0)
+        {
+            return false;
+        }
+
+        var catalogJson = JsonSerializer.Serialize(
+            batch.Select(e => new
+            {
+                method = e.HttpMethod,
+                route = e.Route,
+                handler = e.HandlerName,
+                kind = e.Kind
+            }),
+            JsonOptions);
+
+        var system =
+            "You document HTTP APIs for coding agents. Reply with JSON only: " +
+            "{ \"items\": [ { \"method\": \"GET\", \"route\": \"/path\", \"description\": \"one sentence\" } ] }. " +
+            "Keep each description under 20 words. Do not invent routes that are not listed.";
+        var user =
+            $"Repository: {analysis.RepoName}\n" +
+            "Write a short purpose description for each endpoint:\n" +
+            catalogJson;
+
+        var completion = await llm.CompleteAsync(
+                request.Config,
+                system,
+                user,
+                request.ModelOverride,
+                request.ProviderOverride,
+                options: LlmRequestOptions.WikiGeneration,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        var json = LlmJson.ExtractPayload(completion.Content);
+        using var doc = JsonDocument.Parse(json);
+        JsonElement items = default;
+        if (doc.RootElement.ValueKind == JsonValueKind.Object
+            && doc.RootElement.TryGetProperty("items", out var itemsProp)
+            && itemsProp.ValueKind == JsonValueKind.Array)
+        {
+            items = itemsProp;
+        }
+        else if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            items = doc.RootElement;
+        }
+        else
+        {
+            return false;
+        }
+
+        var byKey = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var el in items.EnumerateArray())
+        {
+            var method = LlmJson.ReadStringish(el, "method", "httpMethod", "verb") ?? "";
+            var route = LlmJson.ReadStringish(el, "route", "path") ?? "";
+            var description = LlmJson.ReadStringish(el, "description", "purpose", "summary");
+            if (string.IsNullOrWhiteSpace(description))
+            {
+                continue;
+            }
+
+            byKey[$"{method.Trim().ToUpperInvariant()} {route.Trim()}"] = description.Trim();
+        }
+
+        if (byKey.Count == 0)
+        {
+            return false;
+        }
+
+        var applied = 0;
+        foreach (var ep in endpoints)
+        {
+            var key = $"{ep.HttpMethod.Trim().ToUpperInvariant()} {ep.Route.Trim()}";
+            if (byKey.TryGetValue(key, out var desc))
+            {
+                ep.Description = desc;
+                applied++;
+            }
+        }
+
+        logger.LogInformation(
+            "Endpoint LLM enrichment applied {Applied}/{Total} description(s)",
+            applied,
+            endpoints.Count);
+        return applied > 0;
+    }
+
     private static IReadOnlyList<WikiSection> BuildSections(
         RepoAnalysisResult analysis,
         ArchitectureDocument architecture,
         IReadOnlyList<ModuleDocument> modules,
         IReadOnlyList<CrossCuttingDocument> crossCutting,
         WikiGenerationRequest request,
-        DateTimeOffset generatedAt)
+        DateTimeOffset generatedAt,
+        IReadOnlyList<EndpointInfo> endpointCatalog,
+        bool endpointsLlmEnriched)
     {
         var sections = new List<WikiSection>
         {
@@ -542,7 +693,7 @@ public sealed class WikiGenerationOrchestrator(
                 "key-components",
                 "Key Components",
                 "key-components.md",
-                BuildKeyComponents(analysis, architecture, modules)),
+                BuildKeyComponents(analysis, architecture, modules, endpointCatalog)),
             new(
                 "data-flows",
                 "Data Flows",
@@ -566,6 +717,19 @@ public sealed class WikiGenerationOrchestrator(
                 "getting-started.md",
                 BuildGettingStarted(request, modules.Count, crossCutting.Count))
         };
+
+        if (request.Config.EnableApiEndpointDocs)
+        {
+            sections.Insert(2, new WikiSection(
+                "api-endpoints",
+                "API Endpoints",
+                "api-endpoints.md",
+                ApiEndpointsMarkdownRenderer.Render(
+                    analysis.RepoName,
+                    endpointCatalog,
+                    usedRoslyn: analysis.StaticAnalysis?.UsedRoslyn == true,
+                    llmEnriched: endpointsLlmEnriched)));
+        }
 
         foreach (var module in modules)
         {
@@ -593,12 +757,13 @@ public sealed class WikiGenerationOrchestrator(
     private static string BuildKeyComponents(
         RepoAnalysisResult analysis,
         ArchitectureDocument architecture,
-        IReadOnlyList<ModuleDocument> modules)
+        IReadOnlyList<ModuleDocument> modules,
+        IReadOnlyList<EndpointInfo> endpointCatalog)
     {
         var sb = new StringBuilder();
         sb.AppendLine("# Key Components");
         sb.AppendLine();
-        sb.AppendLine("> Combines architecture components, module map, and inventory.");
+        sb.AppendLine("> Combines architecture components, module map, public API endpoints, and inventory.");
         sb.AppendLine();
 
         if (architecture.KeyComponents.Count > 0)
@@ -625,6 +790,15 @@ public sealed class WikiGenerationOrchestrator(
             }
 
             sb.AppendLine();
+        }
+
+        if (endpointCatalog.Count > 0)
+        {
+            sb.AppendLine("## Public API endpoints");
+            sb.AppendLine();
+            sb.AppendLine($"See full catalog: [api-endpoints.md](api-endpoints.md) ({endpointCatalog.Count} endpoint(s)).");
+            sb.AppendLine();
+            ApiEndpointsMarkdownRenderer.AppendEndpointTable(sb, endpointCatalog, maxRows: 20);
         }
 
         sb.AppendLine("## Languages");
@@ -741,9 +915,10 @@ public sealed class WikiGenerationOrchestrator(
 
             1. Read `{{output}}index.md` for navigation.
             2. Read `{{output}}architecture.md` before structural changes.
-            3. Open the relevant page under `{{output}}modules/` ({{moduleCount}} modules documented).
-            4. Check `{{output}}cross-cutting/` ({{crossCuttingCount}} topics) for shared conventions.
-            5. Use `{{output}}inventory.md` when you need exact paths.
+            3. Check `{{output}}api-endpoints.md` for HTTP / Function routes.
+            4. Open the relevant page under `{{output}}modules/` ({{moduleCount}} modules documented).
+            5. Check `{{output}}cross-cutting/` ({{crossCuttingCount}} topics) for shared conventions.
+            6. Use `{{output}}inventory.md` when you need exact paths.
 
             ## Important
 

@@ -654,6 +654,7 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
                 RelativePath = relativePath,
                 Kind = "controller",
                 AuthHints = auth,
+                Parameters = ExtractParameters(method),
                 ProjectName = projectName
             });
         }
@@ -712,6 +713,7 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
                 RelativePath = relativePath,
                 Kind = "function",
                 AuthHints = auth,
+                Parameters = ExtractParameters(method),
                 ProjectName = projectName
             });
 
@@ -720,6 +722,26 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
 
         private string FormatTypeName(string name) =>
             string.IsNullOrWhiteSpace(_currentNamespace) ? name : $"{_currentNamespace}.{name}";
+
+        private static List<string> ExtractParameters(MethodDeclarationSyntax method)
+        {
+            var list = new List<string>();
+            foreach (var param in method.ParameterList.Parameters)
+            {
+                var type = param.Type?.ToString() ?? "?";
+                var name = param.Identifier.Text;
+                var attrs = param.AttributeLists
+                    .SelectMany(a => a.Attributes)
+                    .Select(GetAttributeName)
+                    .Where(a => a is "FromRoute" or "FromQuery" or "FromBody" or "FromHeader" or "FromServices"
+                        or "HttpTrigger" or "FromForm")
+                    .ToList();
+                var prefix = attrs.Count > 0 ? $"[{string.Join(",", attrs)}] " : "";
+                list.Add($"{prefix}{type} {name}");
+            }
+
+            return list;
+        }
 
         private static List<string> ExtractAttributeNames(SyntaxList<AttributeListSyntax> lists) =>
             lists.SelectMany(l => l.Attributes).Select(GetAttributeName).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

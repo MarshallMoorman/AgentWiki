@@ -244,6 +244,7 @@ public sealed class SemanticWikiGenerator(
         var support = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "index.md",
+            "api-endpoints.md",
             "key-components.md",
             "data-flows.md",
             "inventory.md",

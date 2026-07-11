@@ -155,19 +155,6 @@ public static partial class OfflineModulePlanner
                 .Take(15)
                 .ToList();
 
-        // Surface endpoints as key-type-like lines until dedicated Endpoints section (Phase 3).
-        if (moduleEndpoints.Count > 0)
-        {
-            foreach (var ep in moduleEndpoints.Take(8))
-            {
-                var line = $"{ep.HttpMethod} {ep.Route} → {ep.HandlerName} ({ep.Kind})";
-                if (!keyTypes.Contains(line, StringComparer.OrdinalIgnoreCase))
-                {
-                    keyTypes.Add(line);
-                }
-            }
-        }
-
         var howToExtend = new List<string>
         {
             $"Add new types under {string.Join(", ", descriptor.RootPaths.Select(p => $"`{p}`"))}.",
@@ -219,6 +206,7 @@ public static partial class OfflineModulePlanner
             HowToExtend = howToExtend,
             Gotchas = gotchas,
             RelatedFiles = descriptor.RelatedFiles.Take(MaxFilesPerModule).ToList(),
+            Endpoints = moduleEndpoints.ToList(),
             UsedOfflineFallback = true
         };
     }

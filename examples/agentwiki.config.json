@@ -12,6 +12,10 @@
   "enableRoslynAnalysis": true,
   "maxProjectsToAnalyze": 20,
   "maxSourceFilesForRoslyn": 200,
+  "enableApiEndpointDocs": true,
+  "enableEndpointLlmEnrichment": true,
+  "endpointIncludePatterns": [],
+  "endpointExcludePatterns": [],
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

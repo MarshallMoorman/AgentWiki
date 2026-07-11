@@ -170,6 +170,9 @@ Useful knobs:
 - `postProcessingMode` — `lenient` (default) or `strict` (drops unverified deprecation claims more aggressively)
 - `enableRoslynAnalysis` (default **true**) — optional C# syntax analysis for richer offline wikis
 - `maxProjectsToAnalyze` / `maxSourceFilesForRoslyn` — Roslyn performance caps
+- `enableApiEndpointDocs` (default **true**) — emit `api-endpoints.md` + per-module endpoint sections
+- `enableEndpointLlmEnrichment` — optional short LLM descriptions when credentials exist
+- `endpointIncludePatterns` / `endpointExcludePatterns` — filter routes/paths
 - `maxFilesToAnalyze`, `enableIncrementalUpdates`, `ignorePatterns`
 
 **Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`). A post-processor also rewrites accidental absolute paths in LLM output.
@@ -195,6 +198,7 @@ Default: `docs/wiki/`
 docs/wiki/
 ├── index.md
 ├── architecture.md
+├── api-endpoints.md
 ├── key-components.md
 ├── data-flows.md
 ├── inventory.md

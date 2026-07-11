@@ -220,6 +220,20 @@ public static class EnvConfigApplier
             && maxRoslynFiles > 0)
         {
             config.MaxSourceFilesForRoslyn = maxRoslynFiles;
+            return;
+        }
+
+        if (name.Equals("EnableApiEndpointDocs", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var enableEndpoints))
+        {
+            config.EnableApiEndpointDocs = enableEndpoints;
+            return;
+        }
+
+        if (name.Equals("EnableEndpointLlmEnrichment", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var enableEndpointLlm))
+        {
+            config.EnableEndpointLlmEnrichment = enableEndpointLlm;
         }
     }
 
