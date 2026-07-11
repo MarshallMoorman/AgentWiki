@@ -81,6 +81,7 @@ agent-wiki-ui
 | Module discovery | `OfflineModulePlanner`, `moduleRoots` / `moduleGlobs`, `MaxModules` |
 | API endpoints | `EndpointCatalog`, `ApiEndpointsMarkdownRenderer`, orchestrator endpoint step |
 | CLI UX / logging | `AgentWiki.App/Infrastructure/AgentWikiLogging.cs`, `AgentWiki.Cli/Commands`, `CliConsole` |
+| Cost / dry-run / telemetry | `CostEstimator`, `MarkdownOutputWriter`, `IRunTelemetry`, `GenerateCommand.RenderResult` |
 | Desktop UI | `src/AgentWiki.Desktop/` ViewModels + Views; plan `docs/plans/ui-companion-avalonia.md` |
 | Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer`, `IStaticAnalyzer` |
 | Incremental update | `GitChangeDetector`, `LastRunStore`, `SemanticWikiGenerator` |

@@ -257,6 +257,27 @@ public static class EnvConfigApplier
             && bool.TryParse(value, out var includeTests))
         {
             config.IncludeTestProjectsAsModules = includeTests;
+            return;
+        }
+
+        if (name.Equals("ApplicationInsightsConnectionString", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(value))
+        {
+            config.ApplicationInsightsConnectionString = value.Trim();
+            return;
+        }
+
+        if (name.Equals("InputUsdPerMillionTokens", StringComparison.OrdinalIgnoreCase)
+            && decimal.TryParse(value, out var inUsd))
+        {
+            config.InputUsdPerMillionTokens = inUsd;
+            return;
+        }
+
+        if (name.Equals("OutputUsdPerMillionTokens", StringComparison.OrdinalIgnoreCase)
+            && decimal.TryParse(value, out var outUsd))
+        {
+            config.OutputUsdPerMillionTokens = outUsd;
         }
     }
 

@@ -43,6 +43,30 @@ public sealed class GenerationResult
     /// <summary>Fatal error message when <see cref="Success"/> is false.</summary>
     public string? Error { get; init; }
 
+    /// <summary>Correlation id for this run (logs / support).</summary>
+    public string? CorrelationId { get; init; }
+
+    /// <summary>True when this was a dry-run (no files written).</summary>
+    public bool DryRun { get; init; }
+
+    /// <summary>Pipeline steps completed (from orchestrator).</summary>
+    public IReadOnlyList<string> StepsCompleted { get; init; } = [];
+
+    /// <summary>Dry-run: relative paths that would be newly created.</summary>
+    public IReadOnlyList<string> FilesWouldCreate { get; init; } = [];
+
+    /// <summary>Dry-run: relative paths that would be updated.</summary>
+    public IReadOnlyList<string> FilesWouldUpdate { get; init; } = [];
+
+    /// <summary>Dry-run: relative paths already matching planned content.</summary>
+    public IReadOnlyList<string> FilesUnchanged { get; init; } = [];
+
+    /// <summary>Module count from the wiki bundle (when available).</summary>
+    public int ModuleCount { get; init; }
+
+    /// <summary>Whether offline fallback was used for any pipeline step.</summary>
+    public bool UsedOfflineFallback { get; init; }
+
     /// <summary>Creates a successful result.</summary>
     public static GenerationResult Ok(
         string message,
@@ -54,7 +78,15 @@ public sealed class GenerationResult
         int inputTokens = 0,
         int outputTokens = 0,
         ChangeDetectionResult? changeDetection = null,
-        CostEstimate? costEstimate = null) =>
+        CostEstimate? costEstimate = null,
+        string? correlationId = null,
+        bool dryRun = false,
+        IReadOnlyList<string>? stepsCompleted = null,
+        IReadOnlyList<string>? filesWouldCreate = null,
+        IReadOnlyList<string>? filesWouldUpdate = null,
+        IReadOnlyList<string>? filesUnchanged = null,
+        int moduleCount = 0,
+        bool usedOfflineFallback = false) =>
         new()
         {
             Success = true,
@@ -67,16 +99,28 @@ public sealed class GenerationResult
             InputTokens = inputTokens,
             OutputTokens = outputTokens,
             ChangeDetection = changeDetection,
-            CostEstimate = costEstimate
+            CostEstimate = costEstimate,
+            CorrelationId = correlationId,
+            DryRun = dryRun,
+            StepsCompleted = stepsCompleted ?? [],
+            FilesWouldCreate = filesWouldCreate ?? [],
+            FilesWouldUpdate = filesWouldUpdate ?? [],
+            FilesUnchanged = filesUnchanged ?? [],
+            ModuleCount = moduleCount,
+            UsedOfflineFallback = usedOfflineFallback
         };
 
     /// <summary>Creates a failed result.</summary>
-    public static GenerationResult Fail(string error, TimeSpan? duration = null) =>
+    public static GenerationResult Fail(
+        string error,
+        TimeSpan? duration = null,
+        string? correlationId = null) =>
         new()
         {
             Success = false,
             Message = "Generation failed.",
             Error = error,
-            Duration = duration ?? TimeSpan.Zero
+            Duration = duration ?? TimeSpan.Zero,
+            CorrelationId = correlationId
         };
 }

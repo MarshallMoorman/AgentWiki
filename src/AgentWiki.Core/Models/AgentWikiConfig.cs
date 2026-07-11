@@ -113,6 +113,29 @@ public sealed class AgentWikiConfig
     /// </summary>
     public bool IncludeTestProjectsAsModules { get; set; }
 
+    /// <summary>
+    /// Optional Application Insights connection string. When set, run summaries are sent as custom events.
+    /// Off by default (null/empty).
+    /// </summary>
+    public string? ApplicationInsightsConnectionString { get; set; }
+
+    /// <summary>
+    /// Optional global input token price (USD per 1M tokens) overriding built-in tables.
+    /// Used with <see cref="OutputUsdPerMillionTokens"/> when both are set.
+    /// </summary>
+    public decimal? InputUsdPerMillionTokens { get; set; }
+
+    /// <summary>
+    /// Optional global output token price (USD per 1M tokens) overriding built-in tables.
+    /// </summary>
+    public decimal? OutputUsdPerMillionTokens { get; set; }
+
+    /// <summary>
+    /// Optional per-model pricing overrides (key = model / deployment name fragment).
+    /// </summary>
+    public Dictionary<string, ModelPricingEntry> ModelPricing { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Additional ignore patterns beyond <c>.gitignore</c>.</summary>
     public List<string> IgnorePatterns { get; set; } =
     [
@@ -161,4 +184,14 @@ public sealed class OpenAiOptions
 
     /// <summary>Model name.</summary>
     public string? Model { get; set; }
+}
+
+/// <summary>Per-model USD pricing for cost estimates (not billing-grade).</summary>
+public sealed class ModelPricingEntry
+{
+    /// <summary>USD per 1M input tokens.</summary>
+    public decimal InputUsdPerMillion { get; set; }
+
+    /// <summary>USD per 1M output tokens.</summary>
+    public decimal OutputUsdPerMillion { get; set; }
 }

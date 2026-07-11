@@ -21,6 +21,9 @@
   "moduleRoots": [],
   "moduleGlobs": [],
   "includeTestProjectsAsModules": false,
+  "applicationInsightsConnectionString": "",
+  "inputUsdPerMillionTokens": null,
+  "outputUsdPerMillionTokens": null,
   "ignorePatterns": [
     "**/bin/**",
     "**/obj/**",

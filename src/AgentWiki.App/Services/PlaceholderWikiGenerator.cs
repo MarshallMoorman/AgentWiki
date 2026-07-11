@@ -54,13 +54,13 @@ public sealed class PlaceholderWikiGenerator(
             var generatedAt = DateTimeOffset.UtcNow;
             var sections = BuildSections(analysis, request, generatedAt);
 
-            var filesWritten = await outputWriter
+            var writeResult = await outputWriter
                 .WriteAsync(request.OutputPath, sections, request.DryRun, cancellationToken)
                 .ConfigureAwait(false);
 
             if (!request.DryRun)
             {
-                await WriteMetaAsync(request, analysis, generatedAt, filesWritten, cancellationToken)
+                await WriteMetaAsync(request, analysis, generatedAt, writeResult.Files, cancellationToken)
                     .ConfigureAwait(false);
             }
 
@@ -77,10 +77,15 @@ public sealed class PlaceholderWikiGenerator(
                 $"Phase 2 {mode} complete for '{analysis.RepoName}': analyzed {analysis.Stats.TotalFiles} files " +
                 $"({analysis.Stats.SelectedFiles} selected, discovery={analysis.DiscoveryMethod}).",
                 outputPath: request.OutputPath,
-                filesWritten: filesWritten,
+                filesWritten: writeResult.Files,
                 duration: sw.Elapsed,
                 warnings: warnings,
-                analysis: analysis);
+                analysis: analysis,
+                correlationId: request.CorrelationId,
+                dryRun: request.DryRun,
+                filesWouldCreate: writeResult.WouldCreate,
+                filesWouldUpdate: writeResult.WouldUpdate,
+                filesUnchanged: writeResult.Unchanged);
         }
         catch (OperationCanceledException)
         {

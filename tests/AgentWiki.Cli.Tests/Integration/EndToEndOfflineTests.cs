@@ -1,3 +1,4 @@
+using AgentWiki.App.Infrastructure;
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
@@ -94,6 +95,7 @@ public sealed class EndToEndOfflineTests
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),
             changeDetector.Object,
             new LastRunStore(NullLogger<LastRunStore>.Instance),
+            new NullRunTelemetry(),
             NullLogger<SemanticWikiGenerator>.Instance);
     }
 

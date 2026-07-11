@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** Phases 1–3 committed; Phase 4 (module discovery) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** Phases 1–4 committed; Phase 5 (cost/observability/dry-run) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -135,7 +135,7 @@ Static analysis: syntax-only Roslyn (no compile); graceful skip for non-.NET / f
 **Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
 Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `enableApiEndpointDocs` (default true), `enableEndpointLlmEnrichment`, `endpointIncludePatterns` / `endpointExcludePatterns`, `maxModules` (16), `maxFilesPerModule` (40), `moduleRoots` / `moduleGlobs`, `includeTestProjectsAsModules`, `maxFilesToAnalyze`, `ignorePatterns`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `enableApiEndpointDocs` (default true), `enableEndpointLlmEnrichment`, `endpointIncludePatterns` / `endpointExcludePatterns`, `maxModules` (16), `maxFilesPerModule` (40), `moduleRoots` / `moduleGlobs`, `includeTestProjectsAsModules`, `applicationInsightsConnectionString`, cost rate overrides, `maxFilesToAnalyze`, `ignorePatterns`.
 
 **Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only. Post-processor rewrites accidental absolute paths after generation.
 
@@ -159,7 +159,25 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
-### v1.2 Phase 4 — Module Discovery Improvements (ready to commit)
+### v1.2 Phase 5 — Cost, Observability & Dry-Run (ready to commit)
+
+- **Dry-run plan:** create / update / unchanged classification (content-aware)  
+- **Run summary:** correlation ID, steps, modules, offline flag, tokens, est. cost (CLI + Desktop)  
+- **CostEstimator:** more models + config overrides (`inputUsdPerMillionTokens`, `modelPricing`)  
+- **Status:** post-processing / Roslyn / API docs / App Insights knobs; meta cost fields  
+- **Optional App Insights:** REST custom events when connection string set (off by default)  
+- Meta JSON includes `estimatedUsd`  
+- Tests: dry-run writer + cost overrides; suite **128 CLI + 9 Desktop**
+
+| Hotspot | Path |
+|---------|------|
+| Writer | `MarkdownOutputWriter` → `OutputWriteResult` |
+| Result | `GenerationResult` (dry-run + correlation + steps) |
+| Telemetry | `ApplicationInsightsRunTelemetry` / `IRunTelemetry` |
+| CLI | `GenerateCommand.RenderResult`, `StatusCommand` |
+| Desktop | `GenerationViewModelBase.ApplyResult` |
+
+### v1.2 Phase 4 — Module Discovery Improvements (committed `ee010ef`)
 
 - Configurable **`maxModules`** (default **16**, was hard-coded 8) and **`maxFilesPerModule`** (40)
 - Config **`moduleRoots`** / **`moduleGlobs`** + **`includeTestProjectsAsModules`**
@@ -216,13 +234,12 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 | 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
 | 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish (after Phase 4)
+### Known remaining polish (after Phase 5)
 
-- Roslyn is syntax-only — route templates / minimal-api handlers may be incomplete  
-- Endpoint LLM enrichment is best-effort JSON; offline catalog always works  
-- Nested solution-folder mapping is best-effort (project paths still work)  
+- Cost estimates are approximate (not billing-grade)  
+- App Insights uses lightweight REST ingestion (not full SDK)  
 - Desktop theme switching still Phase 6  
-- **Next plan phase:** Phase 5 — Cost, observability, dry-run
+- **Next plan phase:** Phase 6 — Azure DevOps sample + Desktop theme + docs polish
 
 ---
 
@@ -280,9 +297,9 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **committed**  
 2. ~~Phase 2 — Richer offline + Roslyn~~ → **committed**  
 3. ~~Phase 3 — API endpoint documentation~~ → **committed**  
-4. ~~Phase 4 — Module discovery improvements~~ → **done (awaiting commit)**  
-5. **Phase 5 — Cost, observability, dry-run**  
-6. Phase 6 — Azure DevOps sample + Desktop theme + docs polish  
+4. ~~Phase 4 — Module discovery improvements~~ → **committed**  
+5. ~~Phase 5 — Cost, observability, dry-run~~ → **done (awaiting commit)**  
+6. **Phase 6 — Azure DevOps sample + Desktop theme + docs polish**  
 
 Out of scope for this plan: multi-repo workspace, vector search, publishing.
 

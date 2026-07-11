@@ -177,14 +177,40 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
         StatusText = result.Success ? "Completed." : "Failed.";
 
         ResultRows.Add(new("Success", result.Success ? "yes" : "no"));
+        if (!string.IsNullOrWhiteSpace(result.CorrelationId))
+        {
+            ResultRows.Add(new("Correlation ID", result.CorrelationId));
+        }
+
         ResultRows.Add(new("Output", result.OutputPath ?? "—"));
-        ResultRows.Add(new("Files written", result.FilesWritten.Count.ToString()));
+        ResultRows.Add(new("Dry-run", result.DryRun ? "yes" : "no"));
+        ResultRows.Add(new("Offline fallback", result.UsedOfflineFallback ? "yes" : "no"));
+        ResultRows.Add(new("Modules", result.ModuleCount.ToString()));
+        ResultRows.Add(new(result.DryRun ? "Files planned" : "Files written", result.FilesWritten.Count.ToString()));
+        if (result.DryRun)
+        {
+            ResultRows.Add(new("Would create", result.FilesWouldCreate.Count.ToString()));
+            ResultRows.Add(new("Would update", result.FilesWouldUpdate.Count.ToString()));
+            ResultRows.Add(new("Unchanged", result.FilesUnchanged.Count.ToString()));
+        }
+
         ResultRows.Add(new("Duration", result.Duration.TotalSeconds.ToString("F2") + "s"));
         ResultRows.Add(new("Input tokens", result.InputTokens.ToString("N0")));
         ResultRows.Add(new("Output tokens", result.OutputTokens.ToString("N0")));
-        if (result.CostEstimate is { } cost && (result.InputTokens > 0 || result.OutputTokens > 0))
+        if (result.CostEstimate is { } cost)
         {
-            ResultRows.Add(new("Est. cost (USD)", $"~{cost.EstimatedUsd:F4} ({cost.Model})"));
+            ResultRows.Add(
+                new(
+                    "Est. cost (USD)",
+                    result.InputTokens > 0 || result.OutputTokens > 0
+                        ? $"{cost.FormatUsd()} ({cost.Model})"
+                        : "n/a (no LLM tokens)"));
+        }
+
+        if (result.StepsCompleted.Count > 0)
+        {
+            ResultRows.Add(new("Steps", string.Join(" → ", result.StepsCompleted.Take(10))
+                                        + (result.StepsCompleted.Count > 10 ? " …" : "")));
         }
 
         if (result.Analysis is { } analysis)
@@ -209,9 +235,24 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
             }
         }
 
-        foreach (var file in result.FilesWritten)
+        if (result.DryRun)
         {
-            FilesWritten.Add(file);
+            foreach (var file in result.FilesWouldCreate.Take(100))
+            {
+                FilesWritten.Add("+ " + file);
+            }
+
+            foreach (var file in result.FilesWouldUpdate.Take(100))
+            {
+                FilesWritten.Add("~ " + file);
+            }
+        }
+        else
+        {
+            foreach (var file in result.FilesWritten)
+            {
+                FilesWritten.Add(file);
+            }
         }
 
         foreach (var warning in result.Warnings)

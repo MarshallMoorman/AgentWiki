@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Text.Json;
+using AgentWiki.App.Infrastructure;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Constants;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
@@ -20,6 +22,7 @@ public sealed class SemanticWikiGenerator(
     IAgentBootstrapper agentBootstrapper,
     IChangeDetector changeDetector,
     ILastRunStore lastRunStore,
+    IRunTelemetry runTelemetry,
     ILogger<SemanticWikiGenerator> logger) : IWikiGenerator
 {
     private static readonly JsonSerializerOptions MetaJsonOptions = new()
@@ -42,7 +45,8 @@ public sealed class SemanticWikiGenerator(
             {
                 return GenerationResult.Fail(
                     $"Repository path does not exist: {request.RepoPath}",
-                    sw.Elapsed);
+                    sw.Elapsed,
+                    request.CorrelationId);
             }
 
             logger.LogInformation(
@@ -51,6 +55,11 @@ public sealed class SemanticWikiGenerator(
                 request.CorrelationId,
                 request.Incremental,
                 request.DryRun);
+
+            if (runTelemetry is ApplicationInsightsRunTelemetry ai)
+            {
+                ai.Configure(request.Config);
+            }
 
             request.Progress?.Report("Analyzing repository inventory…");
             var analysis = await repoAnalyzer
@@ -133,11 +142,22 @@ public sealed class SemanticWikiGenerator(
                     ? "Dry run — computing wiki pages without writing…"
                     : "Writing wiki Markdown files…");
             var sectionsToWrite = FilterSectionsForWrite(bundle.Sections, scope, request.OutputPath, request.Incremental);
-            var filesWritten = await outputWriter
+            var writeResult = await outputWriter
                 .WriteAsync(request.OutputPath, sectionsToWrite, request.DryRun, cancellationToken)
                 .ConfigureAwait(false);
+            var filesWritten = writeResult.Files;
 
             var warnings = new List<string>(bundle.Warnings);
+            if (analysis.StaticAnalysis is { } sa)
+            {
+                if (!string.IsNullOrWhiteSpace(sa.Summary))
+                {
+                    logger.LogInformation("Static analysis: {Summary}", sa.Summary);
+                }
+
+                warnings.AddRange(sa.Warnings.Take(5));
+            }
+
             if (changes is not null)
             {
                 warnings.AddRange(changes.Warnings);
@@ -180,6 +200,10 @@ public sealed class SemanticWikiGenerator(
             }
             else
             {
+                warnings.Add(
+                    $"[dry-run] Would create {writeResult.WouldCreate.Count}, " +
+                    $"update {writeResult.WouldUpdate.Count}, " +
+                    $"leave unchanged {writeResult.Unchanged.Count} wiki file(s).");
                 var bootstrap = await agentBootstrapper
                     .EnsureInstructionsAsync(
                         request.RepoPath,
@@ -198,17 +222,42 @@ public sealed class SemanticWikiGenerator(
             var mode = request.Incremental ? "update" : "generate";
             var source = bundle.UsedOfflineFallback ? "offline/multi-step" : "Semantic Kernel multi-step";
             var scopeLabel = scope.IsFull ? "full" : "selective";
-            var modelName = request.ModelOverride ?? request.Config.DefaultModel;
+            var modelName = request.ModelOverride
+                            ?? LlmSettings.ResolveModel(request.Config);
             var cost = CostEstimator.Estimate(
                 modelName,
                 bundle.TokenUsage.InputTokens,
-                bundle.TokenUsage.OutputTokens);
+                bundle.TokenUsage.OutputTokens,
+                request.Config);
 
-            return GenerationResult.Ok(
-                message:
+            var writeSummary = request.DryRun
+                ? $"dry-run plan: +{writeResult.WouldCreate.Count} create, ~{writeResult.WouldUpdate.Count} update, " +
+                  $"{writeResult.Unchanged.Count} unchanged"
+                : $"{filesWritten.Count} wiki files written";
+
+            var message =
                 $"{mode} ({scopeLabel}) complete for '{analysis.RepoName}' using {source}: " +
                 $"{analysis.Stats.TotalFiles} files analyzed, {bundle.Modules.Count} modules, " +
-                $"{filesWritten.Count} wiki files written.",
+                $"{writeSummary}. correlationId={request.CorrelationId}";
+
+            if (bundle.TokenUsage.TotalTokens > 0)
+            {
+                message += $"; tokens in/out={bundle.TokenUsage.InputTokens}/{bundle.TokenUsage.OutputTokens}"
+                           + $"; est. cost {cost.FormatUsd()} USD";
+            }
+
+            logger.LogInformation(
+                "Run complete correlationId={CorrelationId} mode={Mode} durationMs={Ms} tokens={Tokens} costUsd={Cost} dryRun={DryRun} files={Files}",
+                request.CorrelationId,
+                mode,
+                (int)sw.Elapsed.TotalMilliseconds,
+                bundle.TokenUsage.TotalTokens,
+                cost.EstimatedUsd,
+                request.DryRun,
+                filesWritten.Count);
+
+            var result = GenerationResult.Ok(
+                message: message,
                 outputPath: request.OutputPath,
                 filesWritten: filesWritten,
                 duration: sw.Elapsed,
@@ -217,7 +266,26 @@ public sealed class SemanticWikiGenerator(
                 inputTokens: bundle.TokenUsage.InputTokens,
                 outputTokens: bundle.TokenUsage.OutputTokens,
                 changeDetection: changes,
-                costEstimate: cost);
+                costEstimate: cost,
+                correlationId: request.CorrelationId,
+                dryRun: request.DryRun,
+                stepsCompleted: bundle.StepsCompleted,
+                filesWouldCreate: writeResult.WouldCreate,
+                filesWouldUpdate: writeResult.WouldUpdate,
+                filesUnchanged: writeResult.Unchanged,
+                moduleCount: bundle.Modules.Count,
+                usedOfflineFallback: bundle.UsedOfflineFallback);
+
+            try
+            {
+                runTelemetry.TrackRun(request, result);
+            }
+            catch (Exception telemetryEx)
+            {
+                logger.LogDebug(telemetryEx, "Telemetry track failed");
+            }
+
+            return result;
         }
         catch (OperationCanceledException)
         {
@@ -226,7 +294,17 @@ public sealed class SemanticWikiGenerator(
         catch (Exception ex)
         {
             logger.LogError(ex, "Wiki generation failed (correlationId={CorrelationId})", request.CorrelationId);
-            return GenerationResult.Fail(ex.Message, sw.Elapsed);
+            var fail = GenerationResult.Fail(ex.Message, sw.Elapsed, request.CorrelationId);
+            try
+            {
+                runTelemetry.TrackRun(request, fail);
+            }
+            catch
+            {
+                // ignore telemetry failures
+            }
+
+            return fail;
         }
     }
 
@@ -341,6 +419,10 @@ public sealed class SemanticWikiGenerator(
             totalLines = analysis.Stats.TotalLines,
             inputTokens = bundle.TokenUsage.InputTokens,
             outputTokens = bundle.TokenUsage.OutputTokens,
+            estimatedUsd = CostEstimator.Estimate(
+                request.ModelOverride ?? LlmSettings.ResolveModel(request.Config),
+                bundle.TokenUsage,
+                request.Config).EstimatedUsd,
             usedOfflineFallback = bundle.UsedOfflineFallback,
             languages = analysis.Stats.DetectedLanguages,
             changeDetection = changes is null

@@ -9,9 +9,9 @@ public interface IOutputWriter
 {
     /// <summary>
     /// Writes the provided sections under <paramref name="outputPath"/>.
+    /// When <paramref name="dryRun"/> is true, classifies create/update/unchanged without writing.
     /// </summary>
-    /// <returns>Relative paths of files written.</returns>
-    Task<IReadOnlyList<string>> WriteAsync(
+    Task<OutputWriteResult> WriteAsync(
         string outputPath,
         IReadOnlyList<WikiSection> sections,
         bool dryRun = false,

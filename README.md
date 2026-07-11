@@ -157,6 +157,8 @@ All LLM settings can be set via environment variables (process env or `.env`):
 | Post-processing mode | `AGENTWIKI_PostProcessingMode` (`lenient` \| `strict`) |
 | Roslyn analysis on/off | `AGENTWIKI_EnableRoslynAnalysis` |
 | Roslyn caps | `AGENTWIKI_MaxProjectsToAnalyze`, `AGENTWIKI_MaxSourceFilesForRoslyn` |
+| App Insights | `AGENTWIKI_ApplicationInsightsConnectionString` |
+| Cost rates (USD/1M) | `AGENTWIKI_InputUsdPerMillionTokens`, `AGENTWIKI_OutputUsdPerMillionTokens` |
 | Azure endpoint / deployment / key | `AGENTWIKI_AzureOpenAI__Endpoint`, `__DeploymentName`, `__ApiKey` |
 | OpenAI endpoint / model / key | `AGENTWIKI_OpenAI__Endpoint`, `__Model`, `__ApiKey` |
 
@@ -176,6 +178,8 @@ Useful knobs:
 - `maxModules` (default **16**) / `maxFilesPerModule` (default **40**)
 - `moduleRoots` / `moduleGlobs` — pin or discover module roots (e.g. `src/*/`)
 - `includeTestProjectsAsModules` (default **false**) — keep tests out of the primary module set unless needed
+- `applicationInsightsConnectionString` — optional run telemetry (off when empty)
+- `inputUsdPerMillionTokens` / `outputUsdPerMillionTokens` — override cost estimate rates
 - `maxFilesToAnalyze`, `enableIncrementalUpdates`, `ignorePatterns`
 
 **Paths:** `--repo-path` and related paths expand `~` to your home directory (e.g. `~/dev/my-repo`). Generated wiki content always uses **repo-relative** paths (never `/Users/…`). A post-processor also rewrites accidental absolute paths in LLM output.

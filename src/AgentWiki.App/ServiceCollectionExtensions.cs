@@ -1,3 +1,4 @@
+using AgentWiki.App.Infrastructure;
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
         services.AddSingleton<ILastRunStore, LastRunStore>();
         services.AddSingleton<IChangeDetector, GitChangeDetector>();
+        services.AddSingleton<IRunTelemetry, ApplicationInsightsRunTelemetry>();
         services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
         return services;

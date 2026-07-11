@@ -1,3 +1,4 @@
+using AgentWiki.App.Infrastructure;
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
@@ -141,6 +142,7 @@ public sealed class SemanticWikiGeneratorTests
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),
             changeDetector,
             new LastRunStore(NullLogger<LastRunStore>.Instance),
+            new NullRunTelemetry(),
             NullLogger<SemanticWikiGenerator>.Instance);
     }
 

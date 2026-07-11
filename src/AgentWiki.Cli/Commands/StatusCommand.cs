@@ -77,6 +77,17 @@ public sealed class StatusCommand(
         table.AddRow("Agent MD", File.Exists(agentMd) ? $"[green]{Markup.Escape(agentMd)}[/]" : Markup.Escape(agentMd) + " [grey](missing)[/]");
         table.AddRow("Incremental", config.EnableIncrementalUpdates ? "enabled" : "disabled");
         table.AddRow("Max files", config.MaxFilesToAnalyze.ToString());
+        table.AddRow("Max modules", config.MaxModules.ToString());
+        table.AddRow("Post-processing", config.EnablePostProcessing
+            ? $"on ({Markup.Escape(config.PostProcessingMode)})"
+            : "off");
+        table.AddRow("Roslyn analysis", config.EnableRoslynAnalysis ? "on" : "off");
+        table.AddRow("API endpoint docs", config.EnableApiEndpointDocs ? "on" : "off");
+        table.AddRow(
+            "App Insights",
+            string.IsNullOrWhiteSpace(config.ApplicationInsightsConnectionString)
+                ? "[grey]off[/]"
+                : "[green]configured[/]");
         table.AddRow("Ignore patterns", config.IgnorePatterns.Count.ToString());
         table.AddRow("Repo .env", hasDotEnv ? $"[green]{Markup.Escape(envPath)}[/]" : "[grey](not present)[/]");
         table.AddRow("Azure endpoint", string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
@@ -183,6 +194,14 @@ public sealed class StatusCommand(
                                 ? "(object)"
                                 : prop.Value.ToString();
                         metaTable.AddRow(prop.Name, Markup.Escape(text));
+                        continue;
+                    }
+
+                    // Highlight cost / token fields
+                    if (prop.NameEquals("estimatedUsd") || prop.NameEquals("inputTokens")
+                        || prop.NameEquals("outputTokens") || prop.NameEquals("correlationId"))
+                    {
+                        metaTable.AddRow($"[cyan]{prop.Name}[/]", Markup.Escape(prop.Value.ToString()));
                         continue;
                     }
 
