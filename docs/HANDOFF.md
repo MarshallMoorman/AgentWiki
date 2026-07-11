@@ -1,18 +1,25 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-10  
-**Current version:** 1.0.10  
-**Repo:** this repository root (CLI command: `agent-wiki`)
+**Current version:** **1.1.0**  
+**Repo:** this repository root  
+
+| Surface | Package | Command |
+|---------|---------|---------|
+| CLI (CI/agents primary) | `AgentWiki.Cli` | `agent-wiki` |
+| Desktop companion | `AgentWiki.Desktop` | `agent-wiki-ui` |
 
 This document is the single best place for a new coding agent or human to continue work without re-deriving session history.
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit.
 
+**Git (as of this handoff):** `main` clean; recent commits include App extraction + Desktop UI (`29d2842`) and separate Desktop tool packaging (`05aee50`). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+
 ---
 
 ## 1. What this project is
 
-**AgentWiki** is a native **.NET 10** CLI tool that:
+**AgentWiki** is a native **.NET 10** product that:
 
 1. Analyzes a repository (gitignore-aware inventory)
 2. Optionally calls an LLM (Semantic Kernel + OpenAI / Azure OpenAI / GitHub Models)
@@ -22,6 +29,13 @@ This document is the single best place for a new coding agent or human to contin
 
 It is intentionally file-based Markdown (not a RAG vector DB). Spec source of truth: `AgentWiki-Project-Specification.md`.
 
+**Two hosts, one engine:**
+
+- **CLI** — automation, CI, scripts  
+- **Desktop** — Avalonia 12 interactive UI with full command parity  
+
+Both call **`AgentWiki.App`** services (never put Spectre or Avalonia in App).
+
 ---
 
 ## 2. How to run (day-to-day)
@@ -29,13 +43,21 @@ It is intentionally file-based Markdown (not a RAG vector DB). Spec source of tr
 ```bash
 # From repo root
 dotnet build AgentWiki.slnx
-dotnet test AgentWiki.slnx
+dotnet test AgentWiki.slnx          # ~99 CLI tests + ~9 Desktop ViewModel tests
 
-# Install/update global tool
-./scripts/pack-and-install-tool.sh
-agent-wiki --version
+# Pack + install both global tools (local artifacts only)
+./scripts/pack-and-install-tool.sh              # CLI + Desktop
+./scripts/pack-and-install-tool.sh --cli-only
+./scripts/pack-and-install-tool.sh --desktop-only
 
-# On a target repo (example: LMS LoanView)
+agent-wiki --version                # 1.1.0
+agent-wiki-ui                       # launches Desktop GUI
+
+# From source without tool install
+dotnet run --project src/AgentWiki.Cli -- generate --repo-path . --force
+./scripts/run-desktop.sh
+
+# Target-repo workflow
 agent-wiki init --repo-path /path/to/repo
 agent-wiki test-provider --repo-path /path/to/repo
 agent-wiki generate --repo-path /path/to/repo --force
@@ -44,30 +66,39 @@ agent-wiki status --repo-path /path/to/repo --analyze
 ```
 
 **Logs (always):** `~/.agentwiki/logs/agent-wiki-YYYYMMDD.log`  
-Shown on `status`, start of `generate`/`update`, and on errors. Console is Spectre-only by default; use `--verbose` to also stream diagnostics.
+CLI: Spectre owns the terminal; file logging always on; `--verbose` streams diagnostics.  
+Desktop: same log directory; no Spectre console sink by default.
+
+**Desktop nupkg size:** ~195 MB (Avalonia natives) — intentional reason for a **separate** tool package from the lean CLI.
 
 ---
 
 ## 3. Architecture (code map)
 
+```
+AgentWiki.slnx
+├── src/AgentWiki.Core      # models, analysis, generation helpers, abstractions
+├── src/AgentWiki.App       # services (SK, git, orchestrator, config) + AddAgentWikiServices()
+├── src/AgentWiki.Cli       # thin Spectre host → PackAsTool agent-wiki
+├── src/AgentWiki.Desktop   # Avalonia 12 MVVM → PackAsTool agent-wiki-ui
+└── tests/
+    ├── AgentWiki.Cli.Tests
+    └── AgentWiki.Desktop.Tests
+```
+
 | Layer | Path | Role |
 |-------|------|------|
 | Core models | `src/AgentWiki.Core/Models/` | Config, wiki docs, generation results |
-| Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, prompt truncation |
+| Core analysis | `src/AgentWiki.Core/Analysis/` | Gitignore, categorization, summary, prompt truncation, `LlmSettings` |
 | Core generation | `src/AgentWiki.Core/Generation/` | Markdown renderers, offline planners, flexible LLM JSON |
-| **App services** | `src/AgentWiki.App/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap (shared) |
+| **App services** | `src/AgentWiki.App/Services/` | Analyzer, SK LLM, orchestrator, git, bootstrap |
 | App DI | `src/AgentWiki.App/ServiceCollectionExtensions.cs` | `AddAgentWikiServices()` |
-| Prompts | `src/AgentWiki.App/Prompts/` | Embedded defaults; repo can override via `.agentwiki/prompts/` |
-| Logging | `src/AgentWiki.App/Infrastructure/AgentWikiLogging.cs` | File logs under `~/.agentwiki/logs` |
-| CLI entry | `src/AgentWiki.Cli/Program.cs` | Thin Spectre host → App DI |
-| Commands | `src/AgentWiki.Cli/Commands/` | `init`, `generate`, `update`, `status`, `test-provider` |
-| Desktop | `src/AgentWiki.Desktop/` | Avalonia 12 MVVM companion (full CLI parity) |
-| Tests | `tests/AgentWiki.Cli.Tests/`, `tests/AgentWiki.Desktop.Tests/` | xUnit + Shouldly + Moq |
-| Skills | `.grok/skills/bump-version/` | Version bump skill + script |
-| Pack script | `scripts/pack-and-install-tool.sh` | Pack/install `agent-wiki` + `agent-wiki-ui` (`--cli-only` / `--desktop-only`) |
-| Desktop run | `scripts/run-desktop.sh` or `agent-wiki-ui` | Avalonia companion (source or global tool) |
-
-**Hosts:** CLI (CI/automation) and Desktop (interactive) both call **AgentWiki.App**. Do not put Spectre or Avalonia in App.
+| Prompts | `src/AgentWiki.App/Prompts/` | Embedded defaults; override via `.agentwiki/prompts/` |
+| Logging | `src/AgentWiki.App/Infrastructure/AgentWikiLogging.cs` | Shared file logs |
+| CLI | `src/AgentWiki.Cli/` | Commands + `CliConsole` (Spectre UX only) |
+| Desktop | `src/AgentWiki.Desktop/` | Views, ViewModels, theme, markdown preview fixes |
+| Pack | `scripts/pack-and-install-tool.sh` | Both tools; `--cli-only` / `--desktop-only` |
+| Plan | `docs/plans/ui-companion-avalonia.md` | UI design plan (v1 **implemented**) |
 
 ### Generation pipeline
 
@@ -79,27 +110,28 @@ RepoAnalyzer
        2. Module plan (LLM full runs / offline)
        3. Module pages (per module, LLM or offline)
        4. Cross-cutting pages
-       5. Index + support pages (key-components, data-flows, inventory, glossary, getting-started)
+       5. Index + support pages
   → MarkdownOutputWriter
   → AgentBootstrapper (AGENTS.md)
   → LastRunStore (.agentwiki/last-run.json)
 ```
 
+Progress: `WikiGenerationRequest.Progress` (`IProgress<string>`). Cancellation token threaded through generator/orchestrator/LLM.
+
 ### Config priority (highest wins)
 
-1. CLI flags  
+1. CLI / UI overrides  
 2. Repo-root `.env`  
 3. `.agentwiki/config.json`  
-4. Process env vars `AGENTWIKI_*` (and nested `__` keys)  
+4. Process env `AGENTWIKI_*` (nested `__`)  
 5. Tool `appsettings.json`  
 
-**Secrets** → `.env` or CI secrets. **Non-secrets** → `config.json` (or env when convenient).
+**Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
+Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-All LLM settings support env vars, e.g. `AGENTWIKI_OpenAI__Endpoint`, `AGENTWIKI_OpenAI__ApiKey`, `AGENTWIKI_OpenAI__Model`, `AGENTWIKI_AzureOpenAI__Endpoint`, `AGENTWIKI_AzureOpenAI__DeploymentName`, `AGENTWIKI_AzureOpenAI__ApiKey`, `AGENTWIKI_LlmTimeoutSeconds`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `maxFilesToAnalyze`, `ignorePatterns`.
 
-Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (default 16000), `maxFilesToAnalyze`, `ignorePatterns`.
-
-**Paths:** CLI expands `~` to the user home directory. Generated wiki Markdown uses **repo-relative** paths only.
+**Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only.
 
 ---
 
@@ -107,55 +139,77 @@ Key settings: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeo
 
 | Decision | Rationale |
 |----------|-----------|
-| Spectre owns the terminal | Serilog **file-only** by default so spinners stay clean |
-| Offline fallback always available | Enterprise repos must still get a wiki without LLM |
-| Structured JSON from LLM | Reliability; parsers must tolerate free-form shapes |
+| CLI primary for CI | Desktop is human companion only |
+| Two tool packages | Keep CLI nupkg small; Desktop ~195 MB Avalonia |
+| Spectre owns terminal | Serilog file-only by default |
+| Offline fallback always | Wiki without LLM credentials |
+| Flexible LLM JSON | Models ignore strict schemas |
 | No temperature by default | Many modern models reject sampling params |
-| JSON prompts must include the word `json` | OpenAI `response_format=json_object` requirement |
-| Incremental updates via git | CI-friendly; filters wiki/agent noise |
+| JSON prompts include word `json` | OpenAI `json_object` format requirement |
+| Incremental updates via git | CI-friendly |
+| **No NuGet.org publish** | Local pack + GH artifacts; Azure Artifacts later |
 
 ---
 
-## 5. Recent bugs fixed (context for “why is the code like this?”)
+## 5. What landed in 1.1.0 (this conversation arc)
+
+### Architecture
+- Extracted **`AgentWiki.App`** from Cli services (feature-preserving; 99 CLI tests green)
+- CLI is thin Spectre host using `AddAgentWikiServices()`
+- Desktop is Avalonia 12.1 + CommunityToolkit.Mvvm, full parity matrix from plan
+
+### Desktop product
+- Pages: Dashboard, Generate, Update, Setup, Settings, Provider, Wiki, Logs  
+- Dark theme design system (`Themes/AppTheme.axaml`, `Styles/AppStyles.axaml`)  
+- Markdown preview via Markdown.Avalonia; **single-click** tree open  
+- **Hyperlinks:** `WikiHyperlinkCommand` — http(s) external, relative `.md` in-app  
+- **Fonts:** platform mono only (Menlo / Consolas / monospace) — composite Inter/Consolas stacks crash Avalonia on macOS  
+- UI prefs: `~/.agentwiki/ui-settings.json`  
+- Packaging: `PackAsTool` → **`agent-wiki-ui`**
+
+### CI / docs
+- Packs both nupkgs; smoke-installs both tools (no GUI launch on runners)  
+- README / AGENTS / plan updated  
+
+### Commits (main)
+| SHA | Summary |
+|-----|---------|
+| `29d2842` | App extraction + Desktop UI companion (v1.1.0) |
+| `05aee50` | Separate Desktop global tool `agent-wiki-ui` |
+
+### Historical CLI fixes (1.0.x) still relevant
 
 | Version | Fix |
 |---------|-----|
-| 1.0.1 | OpenAI scaffold empty `{}` on init; temperature omitted; `test-provider` command |
-| 1.0.2 | HttpClient timeout 100s → configurable 300s; truncate LLM summaries; don’t retry timeouts |
-| 1.0.3 | Logs → `~/.agentwiki/logs`; no Info on console |
-| 1.0.4 | Auto-append “JSON” to messages for `json_object` format |
-| 1.0.5 | Flexible LLM JSON (`purpose` object, `dependencies` object → strings) |
-| 1.0.6 | Accept `{ "architecture_overview": "# markdown..." }` as full architecture page |
-| 1.0.7 | Handoff docs; anti-deprecation prompt rules; cleaner index/disclaimer language |
-| 1.0.8 | Fix config.json `llmTimeoutSeconds` merge; `.env` > config > process env priority; full LLM env vars; `~` path expansion; portable wiki paths; no index truncation; step progress console UX; Policies/pipeline analysis boost |
-| 1.0.9 | Effective model uses `defaultModel` when nested model empty; status shows sources/timeout default tip; empty nested models in appsettings |
-| 1.0.10 | config.json merge only applies present JSON properties (no longer resets process-env timeout to class default 300) |
+| 1.0.8–1.0.10 | Config merge layers, defaultModel precedence, timeout env not clobbered by missing JSON keys |
+| 1.0.5–1.0.6 | Flexible LLM JSON / architecture_overview markdown blob |
 
-### Known remaining polish (as of 1.0.8)
+### Known remaining polish
 
-- Module `dependencies` can still look noisy when models return deep objects (flattening improved but not perfect).
-- `gpt-chat-latest` often ignores our strict JSON schema and returns free-form fields — parsers must stay tolerant.
-- Target repos with old `.agentwiki/prompts/` may need `init --force` to pick up newer sample prompts.
-- LLM-authored prose may still invent absolute paths occasionally; prompts instruct relative paths.
+- Module `dependencies` can still look noisy from free-form LLM JSON  
+- `gpt-chat-latest` often ignores strict schemas — keep parsers tolerant  
+- Stale `.agentwiki/prompts/` need `init --force` for newer samples  
+- LLM may invent absolute paths; prompts say relative  
+- Desktop nupkg large; no notarization/signing  
+- Wiki browser: same-page `#anchors` not scrolled yet  
+- Tree selection does not auto-highlight after in-app link navigation  
 
 ---
 
 ## 6. Versioning
 
-Always keep these in sync:
+Keep in sync:
 
 - `Directory.Build.props` (`Version`, `AssemblyVersion`, `FileVersion`, `InformationalVersion`)
 - `src/AgentWiki.Core/Constants/AgentWikiConstants.cs` (`Version` const)
 
 ```bash
-# Skill script
 ./.grok/skills/bump-version/scripts/bump-version.sh patch   # or minor|major|X.Y.Z
-
-# Then pack/install
 ./scripts/pack-and-install-tool.sh
+agent-wiki --version
 ```
 
-Slash skill: `/bump-version` (project skill under `.grok/skills/bump-version/`).
+Slash skill: `/bump-version`.
 
 ---
 
@@ -165,9 +219,10 @@ Slash skill: `/bump-version` (project skill under `.grok/skills/bump-version/`).
 dotnet test AgentWiki.slnx
 ```
 
-Prefer offline unit tests (no live LLM in CI). Mock `ILlmCompletionService` for parse/orchestrator tests. Integration test: `tests/.../Integration/EndToEndOfflineTests.cs`.
-
-When changing LLM parsing, add fixtures under `tests/AgentWiki.Cli.Tests/Generation/`.
+- Offline unit tests only in CI (no live LLM)  
+- Mock `ILlmCompletionService` for orchestrator/parse tests  
+- Integration: `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`  
+- Desktop: ViewModel/config-editor tests (no full UI E2E required)
 
 ---
 
@@ -176,67 +231,60 @@ When changing LLM parsing, add fixtures under `tests/AgentWiki.Cli.Tests/Generat
 ```
 .agentwiki/
   config.json
-  prompts/          # optional overrides of embedded prompts
+  prompts/          # optional overrides
   .gitignore        # ignores last-run.json
-  last-run.json     # after first successful generate/update (local)
-.env.example        # copy to .env for secrets
-docs/wiki/          # generated output
-AGENTS.md           # bootstrap block (or CLAUDE.md if present)
+  last-run.json     # after first successful run (local)
+.env.example
+docs/wiki/
+AGENTS.md           # bootstrap block
 ```
+
+Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 
 ---
 
-## 9. Suggested next work (if continuing product)
+## 9. Suggested next work
 
-1. Desktop polish: richer Markdown render, multi-repo job queue, dry-run diff view  
-2. Optional structured-output schemas / stricter tool-calling if models support it  
-3. Richer cost/token usage when provider returns usage (already partially shown)  
-4. Azure DevOps pipeline sample parity with GitHub Actions  
-5. Post-process LLM output to strip accidental absolute paths  
-6. When ready: push nupkg to Azure Artifacts (not NuGet.org) from CI; desktop remains side-car publish  
-
-### Desktop companion (implemented 2026-07-10)
-
-Plan: `docs/plans/ui-companion-avalonia.md` (status: implemented for v1 parity).
-
-- `AgentWiki.App` extracted from Cli services; CLI thin host; tests green.
-- Avalonia **12.1** desktop: Dashboard, Generate, Update, Setup, Settings, Provider, Wiki, Logs.
-- Progress via `WikiGenerationRequest.Progress`; cancel via `CancellationToken`.
-- UI prefs: `~/.agentwiki/ui-settings.json` (recent repos, last path).
-- Secrets: Settings saves keys to `.env` only; non-secrets to `config.json`.
-- **Tool packaging:** separate nupkg `AgentWiki.Desktop` → global command **`agent-wiki-ui`** (not in the CLI package).
-
-```bash
-./scripts/pack-and-install-tool.sh --desktop-only
-agent-wiki-ui
-# or from source
-./scripts/run-desktop.sh
-```
+1. Azure Artifacts publish for **CLI** nupkg first (not NuGet.org); Desktop second or keep GH artifact  
+2. Desktop: tree highlight after link nav; in-page `#` anchors; optional compact density  
+3. Optional structured-output / tool-calling when models support it  
+4. Post-process LLM output to strip accidental absolute paths  
+5. Azure DevOps pipeline sample parity with GitHub Actions  
+6. Shrink Desktop nupkg if possible (RID-specific packs)  
 
 ### CI (this repo)
 
 | Workflow | Role |
 |----------|------|
-| `.github/workflows/ci.yml` | Build, test, pack CLI + Desktop nupkgs as artifacts; smoke-install both tools (no GUI launch) |
-| `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR (weekly / manual) |
-| `examples/github-actions/agent-wiki-update.yml` | **Consumer template** — copy into other repos |
+| `.github/workflows/ci.yml` | Build, test, pack CLI + Desktop, smoke-install tools |
+| `.github/workflows/wiki-refresh.yml` | Offline dogfood wiki PR |
+| `examples/github-actions/agent-wiki-update.yml` | **Consumer template** |
 
 ---
 
 ## 10. Files a new agent should read first
 
 1. **This file** — `docs/HANDOFF.md`  
-2. `README.md` — user-facing product docs  
-3. `AGENTS.md` — agent bootstrap for *this* repo  
-4. `CONTRIBUTING.md` — how to extend  
-5. `AgentWiki-Project-Specification.md` — original product spec  
-6. `src/AgentWiki.App/ServiceCollectionExtensions.cs` + `WikiGenerationOrchestrator.cs` — shared control flow  
-7. `src/AgentWiki.Cli/Program.cs` / `src/AgentWiki.Desktop/` — hosts  
-8. Latest log: `~/.agentwiki/logs/` if debugging a run  
-9. **UI companion plan:** `docs/plans/ui-companion-avalonia.md` (v1 implemented)
+2. `README.md` — user-facing commands and tools  
+3. `AGENTS.md` — coding rules for this repo  
+4. `docs/plans/ui-companion-avalonia.md` — UI plan (implemented)  
+5. `src/AgentWiki.App/ServiceCollectionExtensions.cs` + `Services/WikiGenerationOrchestrator.cs`  
+6. `src/AgentWiki.Cli/Program.cs` / `src/AgentWiki.Desktop/` hosts  
+7. Logs: `~/.agentwiki/logs/` when debugging runs  
+8. Spec only if changing product scope: `AgentWiki-Project-Specification.md`  
+
+### Desktop hotspots (if continuing UI)
+
+| Concern | Where |
+|---------|--------|
+| Shell / nav | `Views/MainWindow.axaml`, `ViewModels/MainViewModel.cs` |
+| Theme | `Themes/AppTheme.axaml`, `Styles/AppStyles.axaml` |
+| Markdown fonts | `Services/MarkdownFontFix.cs`, `Services/AppFonts.cs` |
+| Link clicks | `Services/WikiHyperlinkCommand.cs`, `Views/WikiBrowserView.axaml.cs` |
+| Tool pack | `AgentWiki.Desktop.csproj` (`PackAsTool`, `ToolCommandName=agent-wiki-ui`) |
 
 ---
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki (.NET 10, v1.1.0): Core + App services + thin Spectre CLI (`agent-wiki`) + Avalonia 12 Desktop tool (`agent-wiki-ui`); generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. CLI stays primary for CI. Read `docs/HANDOFF.md`, then fix product issues without re-scaffolding the solution.
+> Continue AgentWiki **v1.1.0** (.NET 10): shared `AgentWiki.App` engine; global tools **`agent-wiki`** (CLI/CI) and **`agent-wiki-ui`** (Avalonia 12 Desktop companion). Generates agent-optimized Markdown wikis via RepoAnalyzer + Semantic Kernel multi-step pipeline, offline fallback, git incremental updates, logs at `~/.agentwiki/logs`. Do not publish to NuGet.org. Read **`docs/HANDOFF.md`** first; do not re-scaffold.
