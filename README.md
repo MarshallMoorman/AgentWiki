@@ -4,7 +4,7 @@
 
 It analyzes a repository, optionally calls an LLM through **Microsoft.SemanticKernel** (OpenAI / Azure OpenAI / GitHub Models), and writes structured Markdown under `docs/wiki/` plus an `AGENTS.md` bootstrap block so coding agents start with durable context.
 
-> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.1.0**).  
+> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.2.0**).  
 > **Handoff for new agents:** **[`docs/HANDOFF.md`](docs/HANDOFF.md)** — read this first in a new conversation.
 
 ## Why AgentWiki?

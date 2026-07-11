@@ -1,7 +1,7 @@
 # AgentWiki — session handoff (for new conversations)
 
 **Last updated:** 2026-07-11  
-**Current version:** **1.1.0** (working toward **1.2.x** per single-repo polish plan)  
+**Current version:** **1.2.0**  
 **Repo:** this repository root  
 **Active plan:** [`docs/plans/docs-plan-single-repo-polish-v1.2.md`](plans/docs-plan-single-repo-polish-v1.2.md)
 
@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** v1.2 single-repo polish **Phases 1–6 committed** on `main`. Version still **1.1.0** until release bump. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** v1.2.0 released on `main` (single-repo polish Phases 1–6). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -51,7 +51,7 @@ dotnet test AgentWiki.slnx          # ~99 CLI tests + ~9 Desktop ViewModel tests
 ./scripts/pack-and-install-tool.sh --cli-only
 ./scripts/pack-and-install-tool.sh --desktop-only
 
-agent-wiki --version                # 1.1.0
+agent-wiki --version                # 1.2.0
 agent-wiki-ui                       # launches Desktop GUI
 
 # From source without tool install
@@ -165,7 +165,7 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 - **Desktop theme:** Settings → Appearance — `system` / `dark` / `light` via `ThemeService`, persisted in `~/.agentwiki/ui-settings.json`
 - App default theme follows OS (`RequestedThemeVariant=Default`); Fluent dark+light palettes already present
 - README / CONTRIBUTING / AGENTS / HANDOFF updated for full v1.2 plan
-- **Version:** still **1.1.0** on main — when ready for release: `/bump-version` → `1.2.0` then pack (do not NuGet.org publish)
+- **Version:** **1.2.0** — pack with `./scripts/pack-and-install-tool.sh` (do not NuGet.org publish)
 - Tests: theme unit tests; full suite green
 
 | Hotspot | Path |
@@ -255,7 +255,7 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 - App Insights uses lightweight REST ingestion (not full SDK)  
 - Wiki browser: same-page `#anchors` / tree highlight after in-app nav (optional UX)  
 - Desktop nupkg large (Avalonia natives); no notarization  
-- **Release:** bump to **1.2.0** when ready (`/bump-version` + pack); do not publish NuGet.org  
+- **Pack/install:** `./scripts/pack-and-install-tool.sh`; do not publish NuGet.org  
 - Multi-repo / vector / Azure Artifacts publishing remain out of plan scope  
 
 ---
@@ -358,4 +358,4 @@ Out of scope for this plan: multi-repo workspace, vector search, publishing.
 
 ## 11. One-liner for a new conversation
 
-> Continue AgentWiki **v1.1.0** working toward **1.2.0** (.NET 10): shared `AgentWiki.App`; tools **`agent-wiki`** + **`agent-wiki-ui`**. v1.2 single-repo polish plan implemented (post-processor, Roslyn offline, api-endpoints, module discovery, cost/dry-run, AzDO sample, Desktop theme). Read **`docs/HANDOFF.md`** + `docs/plans/docs-plan-single-repo-polish-v1.2.md`. Do not publish to NuGet.org; do not re-scaffold. Bump to 1.2.0 when releasing.
+> Continue AgentWiki **v1.2.0** (.NET 10): shared `AgentWiki.App`; tools **`agent-wiki`** + **`agent-wiki-ui`**. Single-repo polish plan complete (post-processor, Roslyn offline, api-endpoints, module discovery, cost/dry-run, AzDO sample, Desktop theme). Read **`docs/HANDOFF.md`**. Do not publish to NuGet.org; do not re-scaffold.
