@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed turn (product fix + tests + docs) so history stays reviewable; do not batch many unrelated changes into one commit. **v1.2 plan:** hard commit point after each phase.
 
-**Git (as of this handoff):** Phases 1–5 committed; Phase 6 (AzDO sample + theme + docs) ready to commit. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
+**Git (as of this handoff):** v1.2 single-repo polish **Phases 1–6 committed** on `main`. Version still **1.1.0** until release bump. Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
 ---
 
@@ -159,7 +159,7 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
-### v1.2 Phase 6 — Azure DevOps + Desktop theme + docs (ready to commit)
+### v1.2 Phase 6 — Azure DevOps + Desktop theme + docs (committed `19399f6`)
 
 - **Azure Pipelines sample:** `examples/azure-pipelines/agent-wiki-update.yml` (schedule, secrets, dry-run, optional PR)
 - **Desktop theme:** Settings → Appearance — `system` / `dark` / `light` via `ThemeService`, persisted in `~/.agentwiki/ui-settings.json`
@@ -316,7 +316,7 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 3. ~~Phase 3 — API endpoint documentation~~ → **committed**  
 4. ~~Phase 4 — Module discovery improvements~~ → **committed**  
 5. ~~Phase 5 — Cost, observability, dry-run~~ → **committed**  
-6. ~~Phase 6 — Azure DevOps sample + Desktop theme + docs polish~~ → **done (awaiting commit)**  
+6. ~~Phase 6 — Azure DevOps sample + Desktop theme + docs polish~~ → **committed**  
 
 **v1.2 single-repo polish plan: implementation complete.** Tag **1.2.0** when you want a release.
 
