@@ -69,6 +69,15 @@ public static class ReadmeHeuristics
             }
         }
 
+        // Prior AgentWiki offline stub — safe to regenerate with a richer template.
+        if (trimmed.Contains("AgentWiki config (if used)", StringComparison.OrdinalIgnoreCase)
+            && trimmed.Contains("Default model/provider (AgentWiki)", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Contains("AgentWiki default model/provider", StringComparison.OrdinalIgnoreCase)
+               && trimmed.Contains("software project with approximately", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         // Very few headings and almost no path/code-ish tokens → likely empty template.
         var headingCount = trimmed.Split('\n').Count(l => l.TrimStart().StartsWith('#'));
         var hasCodeFence = trimmed.Contains("```", StringComparison.Ordinal);

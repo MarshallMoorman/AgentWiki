@@ -236,6 +236,80 @@ public sealed class ApiEndpointsMarkdownRendererTests
     }
 
     [Fact]
+    public void EndpointCatalog_HostModuleListingAllControllers_DoesNotStealFeatureEndpoints()
+    {
+        var catalog = new List<EndpointInfo>
+        {
+            new()
+            {
+                HttpMethod = "GET",
+                Route = "/api/Loans/{id}",
+                HandlerName = "LoansController.Get",
+                RelativePath = "Api/Controllers/LoansController.cs",
+                Kind = "controller"
+            },
+            new()
+            {
+                HttpMethod = "GET",
+                Route = "/api/Customers/{id}",
+                HandlerName = "CustomersController.Get",
+                RelativePath = "Api/Controllers/CustomersController.cs",
+                Kind = "controller"
+            },
+            new()
+            {
+                HttpMethod = "GET",
+                Route = "/api/healthCheck",
+                HandlerName = "HealthCheckController.Get",
+                RelativePath = "Api/Controllers/HealthCheckController.cs",
+                Kind = "controller"
+            }
+        };
+
+        var modules = new List<ModuleDocument>
+        {
+            new()
+            {
+                Id = "api-host",
+                Title = "API Host & HTTP Surface",
+                RelatedFiles =
+                [
+                    "Api/Program.cs",
+                    "Api/Startup.cs",
+                    "Api/Controllers/LoansController.cs",
+                    "Api/Controllers/CustomersController.cs",
+                    "Api/Controllers/RewardsController.cs"
+                ]
+            },
+            new()
+            {
+                Id = "loan-management",
+                Title = "Loan Management",
+                RelatedFiles = ["Api/Controllers/LoansController.cs"]
+            },
+            new()
+            {
+                Id = "customer-management",
+                Title = "Customer Management",
+                RelatedFiles = ["Api/Controllers/CustomersController.cs"]
+            }
+        };
+
+        var descriptors = modules.Select(m => new ModuleDescriptor
+        {
+            Id = m.Id,
+            Name = m.Title,
+            RootPaths = ["Api/"],
+            RelatedFiles = m.RelatedFiles
+        }).ToList();
+
+        EndpointCatalog.AttachToModules(modules, descriptors, catalog);
+        modules[0].Endpoints.Select(e => e.HandlerName).ShouldBe(["HealthCheckController.Get"]);
+        modules[1].Endpoints.Select(e => e.HandlerName).ShouldBe(["LoansController.Get"]);
+        modules[2].Endpoints.Select(e => e.HandlerName).ShouldBe(["CustomersController.Get"]);
+    }
+
+    [Fact]
     public void EndpointCatalog_Normalize_ExpandsControllerToken()
     {
         var ep = EndpointCatalog.NormalizeEndpoint(new EndpointInfo

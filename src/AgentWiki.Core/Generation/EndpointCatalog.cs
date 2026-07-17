@@ -284,33 +284,46 @@ public static partial class EndpointCatalog
             .Select(p => NormalizePath(p!))
             .ToList();
 
-        // Exact related-file match (strongest)
+        var tokens = ModuleTokens(descriptor);
+        var hostLike = LooksLikeHostOrPlatformModule(descriptor);
+        var relatedControllerCount = related.Count(f =>
+            f.EndsWith("Controller.cs", StringComparison.OrdinalIgnoreCase));
+
+        // Exact related-file match — strong, but host modules that list every controller
+        // must not monopolize feature endpoints.
         if (related.Any(f => f.Equals(path, StringComparison.OrdinalIgnoreCase)))
         {
             score += 100;
+            if (hostLike && relatedControllerCount > 2
+                && path.EndsWith("Controller.cs", StringComparison.OrdinalIgnoreCase))
+            {
+                score -= 75;
+            }
         }
 
-        // Related file is the same controller type
+        // Related file is the same controller type (partial path / filename)
         if (!string.IsNullOrEmpty(controller)
             && related.Any(f =>
                 Path.GetFileNameWithoutExtension(f)
                     .Equals(controller, StringComparison.OrdinalIgnoreCase)
                 || Path.GetFileNameWithoutExtension(f)
-                    .Equals(controller + "Controller", StringComparison.OrdinalIgnoreCase)
-                || f.Contains(controller, StringComparison.OrdinalIgnoreCase)))
+                    .Equals(controller + "Controller", StringComparison.OrdinalIgnoreCase)))
         {
             score += 80;
+            if (hostLike && relatedControllerCount > 2)
+            {
+                score -= 50;
+            }
         }
 
-        // Module id / name tokens in handler (e.g. loans → LoansController)
-        var tokens = ModuleTokens(descriptor);
+        // Module id / name tokens in handler (e.g. loan → LoansController)
         if (tokens.Count > 0)
         {
             if (tokens.Any(t =>
                     handler.Contains(t, StringComparison.OrdinalIgnoreCase)
                     || (controller?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)))
             {
-                score += 60;
+                score += 90; // prefer feature modules named after the controller
             }
 
             // Route segment match is weaker than handler/related-file (nested routes like
@@ -321,6 +334,19 @@ public static partial class EndpointCatalog
                     segments.Any(s => s.Equals(t, StringComparison.OrdinalIgnoreCase))))
             {
                 score += 25;
+            }
+        }
+
+        // Health endpoints → host/platform/observability modules
+        if (path.Contains("Health", StringComparison.OrdinalIgnoreCase)
+            || handler.Contains("Health", StringComparison.OrdinalIgnoreCase)
+            || (endpoint.Route?.Contains("health", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            if (hostLike
+                || (descriptor.Id + descriptor.Name).Contains("health", StringComparison.OrdinalIgnoreCase)
+                || (descriptor.Id + descriptor.Name).Contains("observ", StringComparison.OrdinalIgnoreCase))
+            {
+                score += 70;
             }
         }
 
@@ -384,6 +410,18 @@ public static partial class EndpointCatalog
         return counts.Where(kv => kv.Value > 1).Select(kv => kv.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
+    private static bool LooksLikeHostOrPlatformModule(ModuleDescriptor descriptor)
+    {
+        var blob = $"{descriptor.Id} {descriptor.Name}".ToLowerInvariant();
+        return blob.Contains("host", StringComparison.Ordinal)
+               || blob.Contains("composition", StringComparison.Ordinal)
+               || blob.Contains("platform", StringComparison.Ordinal)
+               || blob.Contains("bootstrap", StringComparison.Ordinal)
+               || blob.Contains("http surface", StringComparison.Ordinal)
+               || blob.Contains("cross-cutting", StringComparison.Ordinal)
+               || blob.Contains("cross cutting", StringComparison.Ordinal);
+    }
+
     private static List<string> ModuleTokens(ModuleDescriptor descriptor)
     {
         var raw = new[] { descriptor.Id, descriptor.Name }
@@ -393,7 +431,9 @@ public static partial class EndpointCatalog
             .Where(t => t is not ("module" or "api" or "host" or "app" or "core" or "common" or "shared"
                 or "service" or "services" or "view" or "lms" or "elevate" or "and" or "the"
                 or "management" or "configuration" or "application" or "integration" or "contracts"
-                or "error" or "handling" or "observability" or "health" or "branding" or "customization"))
+                or "error" or "handling" or "observability" or "health" or "branding" or "customization"
+                or "surface" or "http" or "platform" or "cross" or "cutting" or "loyalty" or "external"
+                or "clients" or "concerns"))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return raw;
