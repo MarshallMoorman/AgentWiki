@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using AgentWiki.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -37,7 +37,7 @@ public partial class WikiBrowserViewModel : ViewModelBase
     {
         RepoPath = repoPath;
         WikiRoot = config is null
-            ? Path.Combine(repoPath, AgentWikiConstants.DefaultOutputPath)
+            ? Path.Combine(repoPath, Constants.Paths.DefaultOutputPath)
             : PathResolver.ResolveOutput(config, repoPath);
         Refresh();
         RefreshCommandStates();
@@ -76,7 +76,7 @@ public partial class WikiBrowserViewModel : ViewModelBase
     {
         var node = new WikiTreeNode
         {
-            Name = isRoot ? "docs/wiki" : dir.Name,
+            Name = isRoot ? Constants.Paths.DefaultOutputPath : dir.Name,
             FullPath = dir.FullName,
             IsDirectory = true
         };

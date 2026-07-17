@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AgentWiki.Core;
 using AgentWiki.Desktop.Models;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +19,7 @@ public sealed class UiSettingsStore(ILogger<UiSettingsStore> logger)
     public static string SettingsPath =>
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".agentwiki",
+            Constants.Paths.ConfigDirectoryName,
             "ui-settings.json");
 
     public async Task<UiSettings> LoadAsync(CancellationToken cancellationToken = default)

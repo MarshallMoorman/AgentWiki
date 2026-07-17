@@ -1,6 +1,6 @@
 using AgentWiki.App.Services;
 using AgentWiki.Core.Abstractions;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AgentWiki.Cli.Tests.Services;
@@ -21,9 +21,9 @@ public sealed class AgentBootstrapperTests
             var path = Path.Combine(root, "AGENTS.md");
             File.Exists(path).ShouldBeTrue();
             var text = await File.ReadAllTextAsync(path);
-            text.ShouldContain(AgentWikiConstants.AgentsMdMarkerBegin);
+            text.ShouldContain(Constants.AgentsMd.MarkerBegin);
             text.ShouldContain("docs/wiki/index.md");
-            text.ShouldContain(AgentWikiConstants.AgentsMdMarkerEnd);
+            text.ShouldContain(Constants.AgentsMd.MarkerEnd);
         }
         finally
         {
@@ -45,7 +45,7 @@ public sealed class AgentBootstrapperTests
             second.Action.ShouldBe(BootstrapAction.Unchanged);
 
             var text = await File.ReadAllTextAsync(Path.Combine(root, "AGENTS.md"));
-            var beginCount = CountOccurrences(text, AgentWikiConstants.AgentsMdMarkerBegin);
+            var beginCount = CountOccurrences(text, Constants.AgentsMd.MarkerBegin);
             beginCount.ShouldBe(1);
         }
         finally
@@ -81,7 +81,7 @@ public sealed class AgentBootstrapperTests
             text.ShouldContain("Some notes.");
             text.ShouldContain("docs/wiki/architecture.md");
             text.ShouldNotContain("old content");
-            CountOccurrences(text, AgentWikiConstants.AgentsMdMarkerBegin).ShouldBe(1);
+            CountOccurrences(text, Constants.AgentsMd.MarkerBegin).ShouldBe(1);
         }
         finally
         {

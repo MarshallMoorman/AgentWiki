@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.Retry;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -12,14 +13,14 @@ namespace AgentWiki.App.Services;
 public static class LlmResilience
 {
     /// <summary>Max retry attempts after the first try (total attempts = MaxRetryAttempts + 1).</summary>
-    public const int MaxRetryAttempts = 3;
+    public const int MaxRetryAttempts = Constants.Llm.MaxRetryAttempts;
 
     public static ResiliencePipeline CreatePipeline(ILogger logger) =>
         new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
             {
                 MaxRetryAttempts = MaxRetryAttempts,
-                Delay = TimeSpan.FromSeconds(2),
+                Delay = TimeSpan.FromSeconds(Constants.Llm.RetryBaseDelaySeconds),
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
                 // Do NOT retry pure timeouts — they already burned the HttpClient budget.

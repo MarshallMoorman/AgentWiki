@@ -2,7 +2,7 @@ using AgentWiki.App;
 using AgentWiki.App.Infrastructure;
 using AgentWiki.Cli.Commands;
 using AgentWiki.Cli.Infrastructure;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -27,8 +27,8 @@ try
 
     app.Configure(config =>
     {
-        config.SetApplicationName(AgentWikiConstants.ToolName);
-        config.SetApplicationVersion(AgentWikiConstants.Version);
+        config.SetApplicationName(Constants.Product.ToolName);
+        config.SetApplicationVersion(Constants.Product.Version);
         config.ValidateExamples();
         config.SetExceptionHandler((ex, _) =>
         {

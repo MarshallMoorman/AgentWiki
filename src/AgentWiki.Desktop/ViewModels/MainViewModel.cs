@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using AgentWiki.App.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using AgentWiki.Desktop.Models;
 using AgentWiki.Desktop.Services;
@@ -60,7 +60,7 @@ public partial class MainViewModel : ViewModelBase
     public LogsViewModel Logs { get; }
 
     public string AppTitle => "AgentWiki Desktop";
-    public string Version => AgentWikiConstants.Version;
+    public string Version => Constants.Product.Version;
     public string LogDirectory => AgentWikiLogging.LogDirectory;
     public string TodayLogPath => AgentWikiLogging.TodayLogFilePath;
 

@@ -1,5 +1,6 @@
 using System.Text;
 using AgentWiki.Core.Models;
+using AgentWiki.Core;
 
 namespace AgentWiki.Core.Generation;
 
@@ -117,7 +118,10 @@ public static class ApiEndpointsMarkdownRenderer
     }
 
     /// <summary>Compact markdown table for embedding in key-components or modules.</summary>
-    public static void AppendEndpointTable(StringBuilder sb, IReadOnlyList<EndpointInfo> endpoints, int maxRows = 40)
+    public static void AppendEndpointTable(
+        StringBuilder sb,
+        IReadOnlyList<EndpointInfo> endpoints,
+        int maxRows = Constants.Analysis.EndpointTableMaxRows)
     {
         if (endpoints.Count == 0)
         {

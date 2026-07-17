@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
+using AgentWiki.Core;
 
 namespace AgentWiki.Core.Generation;
 
@@ -181,7 +182,7 @@ public sealed partial class WikiPostProcessor : IWikiPostProcessor
     public static bool DetectObsoleteMarkers(
         string repoRoot,
         IReadOnlyList<RepoFile> files,
-        int maxFiles = 40)
+        int maxFiles = Constants.Analysis.ObsoleteScanMaxFiles)
     {
         if (files.Count == 0)
         {

@@ -1,6 +1,6 @@
 using System.Text;
 using AgentWiki.Core.Abstractions;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using Microsoft.Extensions.Logging;
 
 namespace AgentWiki.App.Services;
@@ -97,7 +97,7 @@ public sealed class AgentBootstrapper(ILogger<AgentBootstrapper> logger) : IAgen
     {
         var wiki = wikiRelativePath.Replace('\\', '/').TrimEnd('/') + "/";
         var sb = new StringBuilder();
-        sb.AppendLine(AgentWikiConstants.AgentsMdMarkerBegin);
+        sb.AppendLine(Constants.AgentsMd.MarkerBegin);
         sb.AppendLine("## AgentWiki Documentation");
         sb.AppendLine($"This repository maintains an **agent-optimized wiki** at `{wiki}`.");
         sb.AppendLine();
@@ -107,24 +107,24 @@ public sealed class AgentBootstrapper(ILogger<AgentBootstrapper> logger) : IAgen
         sb.AppendLine($"3. Review cross-cutting concerns under `{wiki}cross-cutting/` when relevant");
         sb.AppendLine("4. The wiki is kept up-to-date via `agent-wiki generate` / `update` (and CI when configured). Do not ignore it.");
         sb.AppendLine("5. Prefer wiki paths as a starting map, but always verify against source before making changes.");
-        sb.AppendLine(AgentWikiConstants.AgentsMdMarkerEnd);
+        sb.AppendLine(Constants.AgentsMd.MarkerEnd);
         return sb.ToString().TrimEnd() + Environment.NewLine;
     }
 
     internal static bool ContainsAgentWikiBlock(string content) =>
-        content.Contains(AgentWikiConstants.AgentsMdMarkerBegin, StringComparison.Ordinal)
-        && content.Contains(AgentWikiConstants.AgentsMdMarkerEnd, StringComparison.Ordinal);
+        content.Contains(Constants.AgentsMd.MarkerBegin, StringComparison.Ordinal)
+        && content.Contains(Constants.AgentsMd.MarkerEnd, StringComparison.Ordinal);
 
     internal static string ReplaceAgentWikiBlock(string content, string newBlock)
     {
-        var start = content.IndexOf(AgentWikiConstants.AgentsMdMarkerBegin, StringComparison.Ordinal);
-        var end = content.IndexOf(AgentWikiConstants.AgentsMdMarkerEnd, StringComparison.Ordinal);
+        var start = content.IndexOf(Constants.AgentsMd.MarkerBegin, StringComparison.Ordinal);
+        var end = content.IndexOf(Constants.AgentsMd.MarkerEnd, StringComparison.Ordinal);
         if (start < 0 || end < start)
         {
             return content.TrimEnd() + Environment.NewLine + Environment.NewLine + newBlock;
         }
 
-        end += AgentWikiConstants.AgentsMdMarkerEnd.Length;
+        end += Constants.AgentsMd.MarkerEnd.Length;
         // Consume a single trailing newline after the end marker if present.
         if (end < content.Length && content[end] == '\r')
         {
@@ -140,7 +140,7 @@ public sealed class AgentBootstrapper(ILogger<AgentBootstrapper> logger) : IAgen
     }
 
     private static bool IsDefaultAgentPath(string agentMdPath) =>
-        string.Equals(Path.GetFileName(agentMdPath), AgentWikiConstants.DefaultAgentMdPath, StringComparison.OrdinalIgnoreCase);
+        string.Equals(Path.GetFileName(agentMdPath), Constants.Paths.DefaultAgentMdPath, StringComparison.OrdinalIgnoreCase);
 
     private static string EnsureTrailingNewline(string text) =>
         text.EndsWith('\n') ? text : text + Environment.NewLine;

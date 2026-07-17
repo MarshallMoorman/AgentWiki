@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentWiki.Core.Abstractions;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -55,5 +55,5 @@ public sealed class LastRunStore(ILogger<LastRunStore> logger) : ILastRunStore
     }
 
     public static string GetPath(string repoPath) =>
-        Path.Combine(Path.GetFullPath(repoPath), AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.LastRunFileName);
+        Path.Combine(Path.GetFullPath(repoPath), Constants.Paths.ConfigDirectoryName, Constants.Paths.LastRunFileName);
 }

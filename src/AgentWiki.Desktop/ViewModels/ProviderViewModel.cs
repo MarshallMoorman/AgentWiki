@@ -6,6 +6,7 @@ using AgentWiki.Core.Models;
 using AgentWiki.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using AgentWiki.Core;
 
 namespace AgentWiki.Desktop.ViewModels;
 
@@ -36,8 +37,7 @@ public partial class ProviderViewModel(
     public ObservableCollection<KeyValueItem> ConnectionRows { get; } = [];
     public ObservableCollection<KeyValueItem> ResultRows { get; } = [];
 
-    public string[] ProviderChoices { get; } =
-        ["azure-openai", "openai", "github-models"];
+    public string[] ProviderChoices { get; } = Constants.Providers.Live.ToArray();
 
     public void BindRepo(string repoPath, AgentWikiConfig? config)
     {

@@ -1,3 +1,4 @@
+using AgentWiki.Core;
 namespace AgentWiki.Desktop.Models;
 
 /// <summary>
@@ -6,7 +7,7 @@ namespace AgentWiki.Desktop.Models;
 /// </summary>
 public sealed class UiSettings
 {
-    public const int MaxRecentRepos = 10;
+    public const int MaxRecentRepos = Constants.Ui.MaxRecentRepos;
 
     /// <summary>Most recently used repository paths (newest first).</summary>
     public List<string> RecentRepos { get; set; } = [];

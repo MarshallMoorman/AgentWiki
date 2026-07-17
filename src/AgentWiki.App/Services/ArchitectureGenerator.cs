@@ -4,6 +4,7 @@ using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -46,7 +47,9 @@ public sealed class ArchitectureGenerator(
                 analysis.RepoPath,
                 analysis.Stats,
                 analysis.Files,
-                maxChars: config.MaxLlmSummaryChars > 0 ? config.MaxLlmSummaryChars : 16_000);
+                maxChars: config.MaxLlmSummaryChars > 0
+                    ? config.MaxLlmSummaryChars
+                    : Constants.Config.MaxLlmSummaryChars);
             var userPrompt = activePrompts.Render("ArchitectureOverviewPrompt", new Dictionary<string, string>
             {
                 ["RepoName"] = analysis.RepoName,
@@ -125,7 +128,10 @@ public sealed class ArchitectureGenerator(
 
     private IPromptManager ResolvePromptManager(string repoPath)
     {
-        var overrideDir = Path.Combine(repoPath, ".agentwiki", "prompts");
+        var overrideDir = Path.Combine(
+            repoPath,
+            Constants.Paths.ConfigDirectoryName,
+            Constants.Paths.PromptsDirectoryName);
         if (Directory.Exists(overrideDir) && promptManager is PromptManager)
         {
             // Rebuild with repo overrides; embedded resources remain fallback.

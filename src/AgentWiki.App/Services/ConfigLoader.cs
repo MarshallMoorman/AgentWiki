@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -80,7 +80,7 @@ public sealed class ConfigLoader(ILogger<ConfigLoader> logger) : IConfigLoader
         }
 
         candidatePaths.Add(
-            Path.Combine(resolvedRepo, AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.ConfigFileName));
+            Path.Combine(resolvedRepo, Constants.Paths.ConfigDirectoryName, Constants.Paths.ConfigFileName));
 
         foreach (var path in candidatePaths.Distinct(StringComparer.OrdinalIgnoreCase))
         {

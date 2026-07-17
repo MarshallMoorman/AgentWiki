@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using AgentWiki.Core.Models;
+using AgentWiki.Core;
 
 namespace AgentWiki.Core.Generation;
 
@@ -9,9 +10,6 @@ namespace AgentWiki.Core.Generation;
 /// </summary>
 public static partial class OfflineModulePlanner
 {
-    private const int DefaultMaxModules = 16;
-    private const int DefaultMaxFilesPerModule = 40;
-
     /// <summary>Plan modules using default config limits.</summary>
     public static ModulePlan Plan(RepoAnalysisResult analysis) =>
         Plan(analysis, new AgentWikiConfig());
@@ -22,8 +20,10 @@ public static partial class OfflineModulePlanner
         ArgumentNullException.ThrowIfNull(analysis);
         ArgumentNullException.ThrowIfNull(config);
 
-        var maxModules = config.MaxModules > 0 ? config.MaxModules : DefaultMaxModules;
-        var maxFiles = config.MaxFilesPerModule > 0 ? config.MaxFilesPerModule : DefaultMaxFilesPerModule;
+        var maxModules = config.MaxModules > 0 ? config.MaxModules : Constants.Config.MaxModules;
+        var maxFiles = config.MaxFilesPerModule > 0
+            ? config.MaxFilesPerModule
+            : Constants.Config.MaxFilesPerModule;
 
         var candidates = new List<ModuleCandidate>();
 
@@ -208,7 +208,7 @@ public static partial class OfflineModulePlanner
         RepoAnalysisResult analysis,
         AgentWikiConfig config)
     {
-        var maxFiles = config.MaxFilesPerModule > 0 ? config.MaxFilesPerModule : DefaultMaxFilesPerModule;
+        var maxFiles = config.MaxFilesPerModule > 0 ? config.MaxFilesPerModule : Constants.Config.MaxFilesPerModule;
 
         var sourceFiles = descriptor.RelatedFiles
             .Where(p => analysis.Files.Any(f =>
@@ -418,7 +418,7 @@ public static partial class OfflineModulePlanner
             Priority = priority,
             ProjectFile = normalized,
             Summary = $"{KindLabel(kind)} project `{name}` (`{normalized}`).",
-            RelatedFiles = CollectRelatedFiles(analysis, [NormalizeRoot(root)], DefaultMaxFilesPerModule)
+            RelatedFiles = CollectRelatedFiles(analysis, [NormalizeRoot(root)], Constants.Config.MaxFilesPerModule)
         };
     }
 
@@ -450,7 +450,7 @@ public static partial class OfflineModulePlanner
             Source = source,
             Priority = priority,
             Summary = $"Module root `{NormalizeRoot(normalized)}` ({source}).",
-            RelatedFiles = CollectRelatedFiles(analysis, [NormalizeRoot(normalized)], DefaultMaxFilesPerModule)
+            RelatedFiles = CollectRelatedFiles(analysis, [NormalizeRoot(normalized)], Constants.Config.MaxFilesPerModule)
         };
     }
 

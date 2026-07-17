@@ -16,7 +16,8 @@ Instructions for coding agents working **on AgentWiki itself** (not on a target 
 - **Runtime:** .NET 10 / C# latest
 - **Projects:** `AgentWiki.Core` (models/helpers), `AgentWiki.App` (services/SK/git), `AgentWiki.Cli` (thin Spectre host / `agent-wiki`), `AgentWiki.Desktop` (Avalonia / `agent-wiki-ui`), tests
 - **AI:** Microsoft.SemanticKernel → OpenAI / Azure OpenAI / GitHub Models
-- **Version:** keep `Directory.Build.props` and `AgentWikiConstants.Version` in sync (`/bump-version` skill)
+- **Version:** keep `Directory.Build.props` and `Constants.Product.Version` in sync (`/bump-version` skill)
+- **Shared constants:** use `Constants.[Group].[Name]` from `src/AgentWiki.Core/Constants/Constants.cs` (no magic config defaults in call sites)
 - **Do not publish to NuGet.org** (local pack / Azure Artifacts later)
 
 ## Generated wiki for *this* repo
@@ -68,7 +69,8 @@ agent-wiki-ui
 ## Do not
 
 - Re-scaffold the solution from the spec unless explicitly asked.
-- Bump version in only one of props/constants.
+- Bump version in only one of props/`Constants.Product.Version`.
+- Introduce new config/default magic numbers outside `Constants.cs`.
 - Force-push or change git config.
 - Commit secrets, `.env`, or `last-run.json` with keys.
 

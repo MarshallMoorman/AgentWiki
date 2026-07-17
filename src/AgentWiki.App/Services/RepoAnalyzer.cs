@@ -3,6 +3,7 @@ using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -12,11 +13,9 @@ namespace AgentWiki.App.Services;
 /// </summary>
 public sealed class RepoAnalyzer(ILogger<RepoAnalyzer> logger) : IRepoAnalyzer
 {
-    /// <summary>Hard safety cap so pathological trees cannot exhaust memory.</summary>
-    private const int AbsoluteFileCap = 50_000;
+    private static int AbsoluteFileCap => Constants.Analysis.AbsoluteFileCap;
 
-    /// <summary>Default max size for line counting (files larger are still inventoried).</summary>
-    private const long DefaultMaxLineCountBytes = 512 * 1024;
+    private static long DefaultMaxLineCountBytes => Constants.Analysis.DefaultMaxLineCountBytes;
 
     /// <inheritdoc />
     public async Task<RepoAnalysisResult> AnalyzeAsync(
@@ -36,7 +35,9 @@ public sealed class RepoAnalyzer(ILogger<RepoAnalyzer> logger) : IRepoAnalyzer
 
         var repoName = new DirectoryInfo(root).Name;
         var warnings = new List<string>();
-        var maxFiles = config.MaxFilesToAnalyze > 0 ? config.MaxFilesToAnalyze : 500;
+        var maxFiles = config.MaxFilesToAnalyze > 0
+            ? config.MaxFilesToAnalyze
+            : Constants.Config.MaxFilesToAnalyze;
         var maxLineCountBytes = DefaultMaxLineCountBytes;
 
         logger.LogInformation("Analyzing repository {RepoPath} (maxFiles={MaxFiles})", root, maxFiles);

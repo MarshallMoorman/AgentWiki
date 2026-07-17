@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using AgentWiki.Core.Abstractions;
 using Microsoft.Extensions.Logging;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -52,7 +53,10 @@ public sealed partial class PromptManager : IPromptManager
     /// </summary>
     public static PromptManager ForRepository(string repoPath, ILogger<PromptManager> logger)
     {
-        var dir = Path.Combine(Path.GetFullPath(repoPath), ".agentwiki", "prompts");
+        var dir = Path.Combine(
+            Path.GetFullPath(repoPath),
+            Constants.Paths.ConfigDirectoryName,
+            Constants.Paths.PromptsDirectoryName);
         return new PromptManager(logger, Directory.Exists(dir) ? dir : null);
     }
 

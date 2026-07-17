@@ -181,7 +181,7 @@ AgentWiki.Cli  → AddAgentWikiCore + logging console policy + Spectre commands
 AgentWiki.Desktop → AddAgentWikiCore + Avalonia DI + ViewModels
 ```
 
-Single version constant remains `AgentWikiConstants.Version` (+ `Directory.Build.props`).
+Single version constant remains `Constants.Product.Version` (+ `Directory.Build.props`).
 
 ### 4.5 Progress & cancellation
 

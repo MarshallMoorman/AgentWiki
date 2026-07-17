@@ -1,4 +1,4 @@
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using Serilog;
 using Serilog.Events;
 
@@ -37,10 +37,10 @@ public static class AgentWikiLogging
         // (on macOS that is "Library/Application Support", which is easy to miss).
         LogDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            ".agentwiki",
+            Constants.Paths.ConfigDirectoryName,
             "logs");
         Directory.CreateDirectory(LogDirectory);
-        LogFilePathPattern = Path.Combine(LogDirectory, "agent-wiki-.log");
+        LogFilePathPattern = Path.Combine(LogDirectory, $"{Constants.Product.ToolName}-.log");
 
         var fileLevel = verbose ? LogEventLevel.Debug : LogEventLevel.Information;
 
@@ -50,8 +50,8 @@ public static class AgentWikiLogging
             .MinimumLevel.Override("System", LogEventLevel.Warning)
             .MinimumLevel.Override("Microsoft.SemanticKernel", LogEventLevel.Warning)
             .Enrich.FromLogContext()
-            .Enrich.WithProperty("Application", AgentWikiConstants.ProductName)
-            .Enrich.WithProperty("Version", AgentWikiConstants.Version)
+            .Enrich.WithProperty("Application", Constants.Product.ProductName)
+            .Enrich.WithProperty("Version", Constants.Product.Version)
             .Enrich.WithMachineName()
             .Enrich.WithThreadId()
             .WriteTo.File(
@@ -74,7 +74,7 @@ public static class AgentWikiLogging
         Log.Logger = config.CreateLogger();
         Log.Information(
             "AgentWiki {Version} starting. Verbose={Verbose}. ConsoleSink={ConsoleSink}. LogFile={LogFile}",
-            AgentWikiConstants.Version,
+            Constants.Product.Version,
             verbose,
             enableConsoleSink && verbose,
             TodayLogFilePath);

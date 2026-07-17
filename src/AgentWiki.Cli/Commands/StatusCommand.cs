@@ -2,7 +2,7 @@ using System.Text.Json;
 using AgentWiki.App.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -29,7 +29,7 @@ public sealed class StatusCommand(
     /// <inheritdoc />
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings)
     {
-        AnsiConsole.MarkupLine($"[bold blue]AgentWiki[/] v{AgentWikiConstants.Version} — status");
+        AnsiConsole.MarkupLine($"[bold blue]AgentWiki[/] v{Constants.Product.Version} — status");
 
         var config = await configLoader
             .LoadAsync(settings.RepoPath, settings.ConfigPath)
@@ -38,11 +38,11 @@ public sealed class StatusCommand(
         config = configLoader.ApplyCliOverrides(config, repoPath: settings.RepoPath);
 
         var repoPath = PathUtility.ExpandAndResolve(config.RepoPath);
-        var configFile = Path.Combine(repoPath, AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.ConfigFileName);
+        var configFile = Path.Combine(repoPath, Constants.Paths.ConfigDirectoryName, Constants.Paths.ConfigFileName);
         var outputPath = Path.IsPathRooted(PathUtility.ExpandHome(config.OutputPath))
             ? PathUtility.ExpandAndResolve(config.OutputPath)
             : PathUtility.ExpandAndResolve(Path.Combine(repoPath, config.OutputPath));
-        var metaPath = Path.Combine(outputPath, AgentWikiConstants.MetaFileName);
+        var metaPath = Path.Combine(outputPath, Constants.Paths.MetaFileName);
         var agentMd = Path.Combine(repoPath, config.AgentMdPath);
         var lastRun = await lastRunStore.LoadAsync(repoPath).ConfigureAwait(false);
 
@@ -52,7 +52,7 @@ public sealed class StatusCommand(
             .AddColumn("Key")
             .AddColumn("Value");
 
-        table.AddRow("Tool version", AgentWikiConstants.Version);
+        table.AddRow("Tool version", Constants.Product.Version);
         table.AddRow("Repo path", Markup.Escape(repoPath));
         table.AddRow("Config file", File.Exists(configFile) ? $"[green]{Markup.Escape(configFile)}[/]" : "[yellow](not found — run init)[/]");
         table.AddRow("Output path", Markup.Escape(outputPath));
@@ -70,8 +70,8 @@ public sealed class StatusCommand(
             $"[cyan]{Markup.Escape(effectiveModel)}[/] [grey](what generate will call)[/]");
         table.AddRow(
             "LLM timeout",
-            config.LlmTimeoutSeconds == 300
-                ? "300s [grey](built-in default — set llmTimeoutSeconds or AGENTWIKI_LlmTimeoutSeconds to change)[/]"
+            config.LlmTimeoutSeconds == Constants.Config.LlmTimeoutSeconds
+                ? $"{Constants.Config.LlmTimeoutSeconds}s [grey](built-in default — set llmTimeoutSeconds or AGENTWIKI_LlmTimeoutSeconds to change)[/]"
                 : $"{config.LlmTimeoutSeconds}s");
         table.AddRow("Max summary chars", config.MaxLlmSummaryChars.ToString("N0"));
         table.AddRow("Agent MD", File.Exists(agentMd) ? $"[green]{Markup.Escape(agentMd)}[/]" : Markup.Escape(agentMd) + " [grey](missing)[/]");
@@ -119,8 +119,8 @@ public sealed class StatusCommand(
         AnsiConsole.MarkupLine(
             "[grey]Config priority (highest wins):[/] CLI → repo [cyan].env[/] → [cyan].agentwiki/config.json[/] → process [cyan]AGENTWIKI_*[/] → tool defaults.");
         AnsiConsole.MarkupLine(
-            "[grey]Commented-out keys in config.json are ignored (JSONC). Built-in timeout default is 300s.[/]");
-        if (provider is "openai" or "github-models"
+            $"[grey]Commented-out keys in config.json are ignored (JSONC). Built-in timeout default is {Constants.Config.LlmTimeoutSeconds}s.[/]");
+        if (provider is Constants.Providers.OpenAi or Constants.Providers.GitHubModels
             && string.IsNullOrWhiteSpace(config.OpenAI.ApiKey))
         {
             AnsiConsole.MarkupLine(

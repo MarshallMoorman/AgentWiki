@@ -2,7 +2,7 @@
 name: bump-version
 description: >
   Bump the AgentWiki package/CLI version in Directory.Build.props and
-  AgentWikiConstants.Version, then optionally commit. Use when the user asks to
+  Constants.Product.Version, then optionally commit. Use when the user asks to
   bump version, release a patch/minor/major, set version X.Y.Z, or runs /bump-version.
 ---
 
@@ -13,7 +13,7 @@ description: >
 Keep version numbers in sync across:
 
 1. `Directory.Build.props` (`Version`, `AssemblyVersion`, `FileVersion`, `InformationalVersion`)
-2. `src/AgentWiki.Core/Constants/AgentWikiConstants.cs` (`public const string Version`)
+2. `src/AgentWiki.Core/Constants/Constants.cs` (`Constants.Product.Version`)
 
 ## Steps
 
@@ -34,14 +34,14 @@ Keep version numbers in sync across:
 
 ```bash
 grep -E 'Version|AssemblyVersion|InformationalVersion' Directory.Build.props
-grep 'Version =' src/AgentWiki.Core/Constants/AgentWikiConstants.cs
+grep 'Version =' src/AgentWiki.Core/Constants/Constants.cs
 dotnet run --project src/AgentWiki.Cli -- --version
 ```
 
 4. Unless the user says not to, create a git commit:
 
 ```bash
-git add Directory.Build.props src/AgentWiki.Core/Constants/AgentWikiConstants.cs
+git add Directory.Build.props src/AgentWiki.Core/Constants/Constants.cs
 git commit -m "chore: bump version to <NEW>"
 ```
 

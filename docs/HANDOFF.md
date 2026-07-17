@@ -159,6 +159,14 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
+### Shared `Constants` hierarchy (in progress / with CanExecute 1.2.4+)
+
+Single source of truth: `src/AgentWiki.Core/Constants/Constants.cs` as nested static groups:
+
+`Constants.Product` · `Paths` · `Config` · `Providers` · `AgentsMd` · `Env` · `Llm` · `Analysis` · `Ui`
+
+`AgentWikiConfig` property defaults and App/Cli/Desktop call sites use these instead of magic numbers. Version: `Constants.Product.Version` (kept in sync via `/bump-version`). `appsettings.json` / docs may still show literal values.
+
 ### Desktop — command CanExecute refresh on tab load (1.2.4)
 
 **Bug:** On an already-configured repo, Generate’s **Run generate** stayed disabled until leaving the tab (e.g. Provider test) and returning. Checking Force alone did not help.
@@ -279,7 +287,7 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 Keep in sync:
 
 - `Directory.Build.props` (`Version`, `AssemblyVersion`, `FileVersion`, `InformationalVersion`)
-- `src/AgentWiki.Core/Constants/AgentWikiConstants.cs` (`Version` const)
+- `src/AgentWiki.Core/Constants/Constants.cs` (`Constants.Product.Version`)
 
 ```bash
 ./.grok/skills/bump-version/scripts/bump-version.sh patch   # or minor|major|X.Y.Z

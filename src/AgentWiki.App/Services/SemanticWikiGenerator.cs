@@ -3,7 +3,7 @@ using System.Text.Json;
 using AgentWiki.App.Infrastructure;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -383,7 +383,7 @@ public sealed class SemanticWikiGenerator(
             FilesWritten = filesWritten.ToList(),
             ModuleIds = bundle.Modules.Select(m => m.Id).ToList(),
             TotalFiles = analysis.Stats.TotalFiles,
-            ToolVersion = AgentWikiConstants.Version
+            ToolVersion = Constants.Product.Version
         };
 
         await lastRunStore.SaveAsync(request.RepoPath, state, cancellationToken).ConfigureAwait(false);
@@ -397,11 +397,11 @@ public sealed class SemanticWikiGenerator(
         ChangeDetectionResult? changes,
         CancellationToken cancellationToken)
     {
-        var metaPath = Path.Combine(request.OutputPath, AgentWikiConstants.MetaFileName);
+        var metaPath = Path.Combine(request.OutputPath, Constants.Paths.MetaFileName);
         var meta = new
         {
-            tool = AgentWikiConstants.ToolName,
-            version = AgentWikiConstants.Version,
+            tool = Constants.Product.ToolName,
+            version = Constants.Product.Version,
             phase = 6,
             mode = request.Incremental ? "update" : "generate",
             generatedAtUtc = DateTimeOffset.UtcNow,

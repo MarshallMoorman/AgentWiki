@@ -1,6 +1,7 @@
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -11,7 +12,7 @@ public sealed class GitChangeDetector(
     ILastRunStore lastRunStore,
     ILogger<GitChangeDetector> logger) : IChangeDetector
 {
-    private const int FullRegenerationFileThreshold = 40;
+    private static int FullRegenerationFileThreshold => Constants.Analysis.FullRegenerationFileThreshold;
 
     /// <inheritdoc />
     public async Task<ChangeDetectionResult> DetectAsync(
@@ -246,7 +247,7 @@ public sealed class GitChangeDetector(
                     return false;
                 }
 
-                if (path.Equals("AGENTS.md", StringComparison.OrdinalIgnoreCase)
+                if (path.Equals(Constants.Paths.DefaultAgentMdPath, StringComparison.OrdinalIgnoreCase)
                     || path.Equals("CLAUDE.md", StringComparison.OrdinalIgnoreCase))
                 {
                     return false;

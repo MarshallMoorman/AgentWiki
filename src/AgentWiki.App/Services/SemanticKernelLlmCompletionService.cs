@@ -11,6 +11,7 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using OpenAI;
 using Polly;
+using AgentWiki.Core;
 
 namespace AgentWiki.App.Services;
 
@@ -44,9 +45,9 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         var provider = LlmSettings.NormalizeProvider(providerOverride ?? config.Provider);
         return provider switch
         {
-            "azure-openai" => HasAzureCredentials(config),
-            "openai" or "github-models" => HasOpenAiCredentials(config),
-            "mock" or "offline" => false,
+            Constants.Providers.AzureOpenAi => HasAzureCredentials(config),
+            Constants.Providers.OpenAi or Constants.Providers.GitHubModels => HasOpenAiCredentials(config),
+            Constants.Providers.Mock or Constants.Providers.Offline => false,
             _ => HasAzureCredentials(config) || HasOpenAiCredentials(config)
         };
     }
@@ -228,7 +229,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
 
         switch (provider)
         {
-            case "openai":
+            case Constants.Providers.OpenAi:
             {
                 var apiKey = config.OpenAI.ApiKey
                     ?? throw new InvalidOperationException(
@@ -242,10 +243,10 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 builder.AddOpenAIChatCompletion(modelId: modelId, openAIClient: client);
                 break;
             }
-            case "github-models":
+            case Constants.Providers.GitHubModels:
             {
                 var apiKey = config.OpenAI.ApiKey
-                    ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN")
+                    ?? Environment.GetEnvironmentVariable(Constants.Env.GitHubToken)
                     ?? throw new InvalidOperationException(
                         "GitHub Models requires OpenAI:ApiKey, AGENTWIKI_OpenAI__ApiKey, or GITHUB_TOKEN.");
                 var modelId = model ?? LlmSettings.ResolveModel(config);
@@ -338,7 +339,9 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
                 // so the ClientPipeline network timeout is the controlling budget.
                 _httpClient = new HttpClient
                 {
-                    Timeout = TimeSpan.FromSeconds(Math.Min(timeoutSeconds + 30, 930))
+                    Timeout = TimeSpan.FromSeconds(Math.Min(
+                        timeoutSeconds + Constants.Llm.HttpClientTimeoutSlackSeconds,
+                        Constants.Llm.AbsoluteMaxHttpClientTimeoutSeconds))
                 };
                 _httpTimeoutSeconds = timeoutSeconds;
                 _logger.LogDebug(
@@ -352,16 +355,19 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
     }
 
     private static int NormalizeTimeoutSeconds(int configured) =>
-        configured <= 0 ? 300 : Math.Clamp(configured, 30, 900);
+        configured <= 0
+            ? Constants.Config.LlmTimeoutSeconds
+            : Math.Clamp(configured, Constants.Llm.MinTimeoutSeconds, Constants.Llm.MaxTimeoutSeconds);
 
     private static bool HasAzureCredentials(AgentWikiConfig config) =>
         !string.IsNullOrWhiteSpace(config.AzureOpenAI.Endpoint)
-        && !string.IsNullOrWhiteSpace(LlmSettings.ResolveModel(config, providerOverride: "azure-openai"))
+        && !string.IsNullOrWhiteSpace(
+            LlmSettings.ResolveModel(config, providerOverride: Constants.Providers.AzureOpenAi))
         && (!string.IsNullOrWhiteSpace(config.AzureOpenAI.ApiKey) || config.AzureOpenAI.UseManagedIdentity);
 
     private static bool HasOpenAiCredentials(AgentWikiConfig config) =>
         !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
-        || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+        || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(Constants.Env.GitHubToken));
 
     private static TokenUsage? TryReadUsage(ChatMessageContent message)
     {

@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using AgentWiki.Core.Abstractions;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -352,11 +352,11 @@ public sealed class PlaceholderWikiGenerator(
         IReadOnlyList<string> filesWritten,
         CancellationToken cancellationToken)
     {
-        var metaPath = Path.Combine(request.OutputPath, AgentWikiConstants.MetaFileName);
+        var metaPath = Path.Combine(request.OutputPath, Constants.Paths.MetaFileName);
         var meta = new
         {
-            tool = AgentWikiConstants.ToolName,
-            version = AgentWikiConstants.Version,
+            tool = Constants.Product.ToolName,
+            version = Constants.Product.Version,
             phase = 2,
             mode = request.Incremental ? "update" : "generate",
             generatedAtUtc = generatedAt,

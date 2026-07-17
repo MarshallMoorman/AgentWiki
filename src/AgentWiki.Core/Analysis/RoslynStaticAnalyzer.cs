@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
+using AgentWiki.Core;
 
 namespace AgentWiki.Core.Analysis;
 
@@ -107,8 +108,12 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
         AgentWikiConfig config,
         CancellationToken cancellationToken)
     {
-        var maxFiles = config.MaxSourceFilesForRoslyn > 0 ? config.MaxSourceFilesForRoslyn : 500;
-        var maxProjects = config.MaxProjectsToAnalyze > 0 ? config.MaxProjectsToAnalyze : 20;
+        var maxFiles = config.MaxSourceFilesForRoslyn > 0
+            ? config.MaxSourceFilesForRoslyn
+            : Constants.Config.MaxSourceFilesForRoslyn;
+        var maxProjects = config.MaxProjectsToAnalyze > 0
+            ? config.MaxProjectsToAnalyze
+            : Constants.Config.MaxProjectsToAnalyze;
 
         var projectFiles = analysis.Files
             .Where(f => f.RelativePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)

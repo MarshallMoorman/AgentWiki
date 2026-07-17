@@ -1,4 +1,4 @@
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 
 namespace AgentWiki.Core.Analysis;
@@ -36,7 +36,7 @@ public static class EnvConfigApplier
     }
 
     /// <summary>
-    /// Reads process environment variables that start with <see cref="AgentWikiConstants.EnvironmentVariablePrefix"/>.
+    /// Reads process environment variables that start with <see cref="Constants.Env.Prefix"/>.
     /// </summary>
     public static Dictionary<string, string> CaptureProcessAgentWikiVars()
     {
@@ -50,7 +50,7 @@ public static class EnvConfigApplier
                 continue;
             }
 
-            if (!key.StartsWith(AgentWikiConstants.EnvironmentVariablePrefix, StringComparison.OrdinalIgnoreCase))
+            if (!key.StartsWith(Constants.Env.Prefix, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -64,13 +64,13 @@ public static class EnvConfigApplier
     private static string? NormalizeKey(string rawKey)
     {
         var key = rawKey.Trim();
-        if (!key.StartsWith(AgentWikiConstants.EnvironmentVariablePrefix, StringComparison.OrdinalIgnoreCase))
+        if (!key.StartsWith(Constants.Env.Prefix, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
         // AGENTWIKI_AzureOpenAI__Endpoint → AzureOpenAI:Endpoint (logical path after prefix)
-        return key[AgentWikiConstants.EnvironmentVariablePrefix.Length..]
+        return key[Constants.Env.Prefix.Length..]
             .Replace("__", ":", StringComparison.Ordinal);
     }
 

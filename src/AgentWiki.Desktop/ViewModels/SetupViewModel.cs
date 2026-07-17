@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using AgentWiki.Core.Abstractions;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -49,13 +49,17 @@ public partial class SetupViewModel(IInitService initService) : ViewModelBase
             return;
         }
 
-        var agentDir = Path.Combine(RepoPath, AgentWikiConstants.ConfigDirectoryName);
-        var promptsDir = Path.Combine(agentDir, "prompts");
+        var agentDir = Path.Combine(RepoPath, Constants.Paths.ConfigDirectoryName);
+        var promptsDir = Path.Combine(agentDir, Constants.Paths.PromptsDirectoryName);
         AddPreview(
-            Path.Combine(agentDir, AgentWikiConstants.ConfigFileName),
-            ".agentwiki/config.json");
-        AddPreview(Path.Combine(RepoPath, ".env.example"), ".env.example");
-        AddPreview(Path.Combine(agentDir, ".gitignore"), ".agentwiki/.gitignore");
+            Path.Combine(agentDir, Constants.Paths.ConfigFileName),
+            $"{Constants.Paths.ConfigDirectoryName}/{Constants.Paths.ConfigFileName}");
+        AddPreview(
+            Path.Combine(RepoPath, Constants.Paths.EnvExampleFileName),
+            Constants.Paths.EnvExampleFileName);
+        AddPreview(
+            Path.Combine(agentDir, ".gitignore"),
+            $"{Constants.Paths.ConfigDirectoryName}/.gitignore");
 
         foreach (var name in new[]
                  {
@@ -67,7 +71,9 @@ public partial class SetupViewModel(IInitService initService) : ViewModelBase
                      "CrossLinkValidationPrompt.txt"
                  })
         {
-            AddPreview(Path.Combine(promptsDir, name), $".agentwiki/prompts/{name}");
+            AddPreview(
+                Path.Combine(promptsDir, name),
+                $"{Constants.Paths.ConfigDirectoryName}/{Constants.Paths.PromptsDirectoryName}/{name}");
         }
 
         Message = Force

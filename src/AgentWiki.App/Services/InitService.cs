@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -36,11 +36,11 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             }
 
             var created = new List<string>();
-            var agentWikiDir = Path.Combine(resolvedRepo, AgentWikiConstants.ConfigDirectoryName);
-            var promptsDir = Path.Combine(agentWikiDir, "prompts");
+            var agentWikiDir = Path.Combine(resolvedRepo, Constants.Paths.ConfigDirectoryName);
+            var promptsDir = Path.Combine(agentWikiDir, Constants.Paths.PromptsDirectoryName);
             Directory.CreateDirectory(promptsDir);
 
-            var configPath = Path.Combine(agentWikiDir, AgentWikiConstants.ConfigFileName);
+            var configPath = Path.Combine(agentWikiDir, Constants.Paths.ConfigFileName);
             if (File.Exists(configPath) && !force)
             {
                 logger.LogInformation("Config already exists at {Path} (use --force to overwrite)", configPath);
@@ -107,19 +107,18 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
     {
         // RepoPath is resolved at runtime; omit a real path from scaffold.
         RepoPath = ".",
-        OutputPath = AgentWikiConstants.DefaultOutputPath,
-        DefaultModel = AgentWikiConstants.DefaultModel,
-        Provider = AgentWikiConstants.DefaultProvider,
-        AgentMdPath = AgentWikiConstants.DefaultAgentMdPath,
-        MaxFilesToAnalyze = 500,
-        EnableIncrementalUpdates = true,
-        LlmTimeoutSeconds = 300,
-        MaxLlmSummaryChars = 16_000,
-        // Defaults already include bin/obj/node_modules/docs/wiki/.agentwiki.
+        OutputPath = Constants.Paths.DefaultOutputPath,
+        DefaultModel = Constants.Config.DefaultModel,
+        Provider = Constants.Config.DefaultProvider,
+        AgentMdPath = Constants.Paths.DefaultAgentMdPath,
+        MaxFilesToAnalyze = Constants.Config.MaxFilesToAnalyze,
+        EnableIncrementalUpdates = Constants.Config.EnableIncrementalUpdates,
+        LlmTimeoutSeconds = Constants.Config.LlmTimeoutSeconds,
+        MaxLlmSummaryChars = Constants.Config.MaxLlmSummaryChars,
         AzureOpenAI = new AzureOpenAiOptions
         {
             Endpoint = "https://YOUR_RESOURCE.openai.azure.com/",
-            DeploymentName = "gpt-4o",
+            DeploymentName = Constants.Config.DefaultModel,
             ApiKey = "",
             UseManagedIdentity = false
         },
@@ -127,12 +126,12 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         {
             Endpoint = "",
             ApiKey = "",
-            Model = "gpt-4o"
+            Model = Constants.Config.DefaultModel
         }
     };
 
     private static string BuildEnvExample() =>
-        """
+        $"""
         # AgentWiki environment variables
         # --------------------------------
         # Prefer non-secrets in .agentwiki/config.json and secrets (API keys) here or in CI.
@@ -143,27 +142,27 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         #   3. Or export the same keys in your shell / CI pipeline
         #
         # Config priority (highest wins):
-        #   CLI flags > .env > .agentwiki/config.json > process env (AGENTWIKI_*) > appsettings
+        #   CLI flags > .env > .agentwiki/config.json > process env ({Constants.Env.Prefix}*) > appsettings
         #
-        # Prefix: AGENTWIKI_   Nested keys use double underscore (__)
+        # Prefix: {Constants.Env.Prefix}   Nested keys use double underscore (__)
 
-        AGENTWIKI_Provider=openai
-        AGENTWIKI_DefaultModel=gpt-4o
-        AGENTWIKI_OutputPath=docs/wiki
-        AGENTWIKI_LlmTimeoutSeconds=300
-        AGENTWIKI_MaxLlmSummaryChars=16000
+        {Constants.Env.Prefix}Provider={Constants.Providers.OpenAi}
+        {Constants.Env.Prefix}DefaultModel={Constants.Config.DefaultModel}
+        {Constants.Env.Prefix}OutputPath={Constants.Paths.DefaultOutputPath}
+        {Constants.Env.Prefix}LlmTimeoutSeconds={Constants.Config.LlmTimeoutSeconds}
+        {Constants.Env.Prefix}MaxLlmSummaryChars={Constants.Config.MaxLlmSummaryChars}
 
         # Azure OpenAI
-        AGENTWIKI_AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
-        AGENTWIKI_AzureOpenAI__DeploymentName=gpt-4o
-        AGENTWIKI_AzureOpenAI__ApiKey=
-        AGENTWIKI_AzureOpenAI__UseManagedIdentity=false
+        {Constants.Env.Prefix}AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
+        {Constants.Env.Prefix}AzureOpenAI__DeploymentName={Constants.Config.DefaultModel}
+        {Constants.Env.Prefix}AzureOpenAI__ApiKey=
+        {Constants.Env.Prefix}AzureOpenAI__UseManagedIdentity=false
 
         # OpenAI (public API) or OpenAI-compatible endpoint
         # Leave Endpoint empty for https://api.openai.com
-        AGENTWIKI_OpenAI__Endpoint=
-        AGENTWIKI_OpenAI__ApiKey=
-        AGENTWIKI_OpenAI__Model=gpt-4o
+        {Constants.Env.Prefix}OpenAI__Endpoint=
+        {Constants.Env.Prefix}OpenAI__ApiKey=
+        {Constants.Env.Prefix}OpenAI__Model={Constants.Config.DefaultModel}
         """;
 
     private static IEnumerable<(string Name, string Content)> SamplePrompts()

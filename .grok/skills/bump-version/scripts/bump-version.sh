@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bump AgentWiki version across Directory.Build.props and AgentWikiConstants.cs
+# Bump AgentWiki version across Directory.Build.props and Constants.Product.Version
 # Usage:
 #   bump-version.sh              # patch +0.0.1
 #   bump-version.sh patch|minor|major
@@ -14,7 +14,7 @@ while [[ "$ROOT" != "/" && ! -f "$ROOT/Directory.Build.props" ]]; do
 done
 
 PROPS="$ROOT/Directory.Build.props"
-CONSTANTS="$ROOT/src/AgentWiki.Core/Constants/AgentWikiConstants.cs"
+CONSTANTS="$ROOT/src/AgentWiki.Core/Constants/Constants.cs"
 
 if [[ ! -f "$PROPS" ]]; then
   echo "error: Directory.Build.props not found (run inside AgentWiki repo)" >&2

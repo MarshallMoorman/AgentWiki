@@ -5,6 +5,7 @@ using AgentWiki.Core.Models;
 using AgentWiki.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using AgentWiki.Core;
 
 namespace AgentWiki.Desktop.ViewModels;
 
@@ -19,28 +20,28 @@ public partial class SettingsViewModel(
     private bool _suppressThemeSave;
 
     [ObservableProperty]
-    private string _outputPath = "docs/wiki";
+    private string _outputPath = Constants.Paths.DefaultOutputPath;
 
     [ObservableProperty]
-    private string _defaultModel = "gpt-4o";
+    private string _defaultModel = Constants.Config.DefaultModel;
 
     [ObservableProperty]
-    private string _provider = "azure-openai";
+    private string _provider = Constants.Config.DefaultProvider;
 
     [ObservableProperty]
-    private string _agentMdPath = "AGENTS.md";
+    private string _agentMdPath = Constants.Paths.DefaultAgentMdPath;
 
     [ObservableProperty]
-    private int _maxFilesToAnalyze = 500;
+    private int _maxFilesToAnalyze = Constants.Config.MaxFilesToAnalyze;
 
     [ObservableProperty]
-    private bool _enableIncrementalUpdates = true;
+    private bool _enableIncrementalUpdates = Constants.Config.EnableIncrementalUpdates;
 
     [ObservableProperty]
-    private int _llmTimeoutSeconds = 300;
+    private int _llmTimeoutSeconds = Constants.Config.LlmTimeoutSeconds;
 
     [ObservableProperty]
-    private int _maxLlmSummaryChars = 16_000;
+    private int _maxLlmSummaryChars = Constants.Config.MaxLlmSummaryChars;
 
     [ObservableProperty]
     private string _ignorePatternsText = "";
@@ -86,8 +87,7 @@ public partial class SettingsViewModel(
 
     public ObservableCollection<KeyValueItem> EffectiveRows { get; } = [];
 
-    public string[] ProviderChoices { get; } =
-        ["azure-openai", "openai", "github-models", "offline"];
+    public string[] ProviderChoices { get; } = Constants.Providers.All.ToArray();
 
     public string[] ThemeChoices { get; } = ThemeService.Choices;
 

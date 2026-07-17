@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -21,7 +21,7 @@ public sealed class ConfigEditorService(ILogger<ConfigEditorService> logger)
     };
 
     public string GetConfigPath(string repoPath) =>
-        Path.Combine(repoPath, AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.ConfigFileName);
+        Path.Combine(repoPath, Constants.Paths.ConfigDirectoryName, Constants.Paths.ConfigFileName);
 
     public string GetEnvPath(string repoPath) => Path.Combine(repoPath, ".env");
 

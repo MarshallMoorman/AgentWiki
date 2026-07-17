@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Text.Json;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
-using AgentWiki.Core.Constants;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using AgentWiki.Desktop.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -47,13 +47,13 @@ public partial class DashboardViewModel(
 
         var resolvedRepo = PathResolver.ResolveRepo(config.RepoPath);
         var outputPath = PathResolver.ResolveOutput(config, resolvedRepo);
-        var configFile = Path.Combine(resolvedRepo, AgentWikiConstants.ConfigDirectoryName, AgentWikiConstants.ConfigFileName);
+        var configFile = Path.Combine(resolvedRepo, Constants.Paths.ConfigDirectoryName, Constants.Paths.ConfigFileName);
         var envPath = Path.Combine(resolvedRepo, ".env");
         var agentMd = Path.Combine(resolvedRepo, config.AgentMdPath);
         var notReady = LlmSettings.DescribeNotReadyReason(config);
         var effectiveModel = LlmSettings.ResolveModel(config);
 
-        ConfigRows.Add(new("Tool version", AgentWikiConstants.Version));
+        ConfigRows.Add(new("Tool version", Constants.Product.Version));
         ConfigRows.Add(new("Repo path", resolvedRepo));
         ConfigRows.Add(new("Config file", File.Exists(configFile) ? configFile : "(not found — run Setup)"));
         ConfigRows.Add(new("Output path", outputPath));
@@ -63,8 +63,8 @@ public partial class DashboardViewModel(
         ConfigRows.Add(new("Effective model", effectiveModel));
         ConfigRows.Add(new(
             "LLM timeout",
-            config.LlmTimeoutSeconds == 300
-                ? "300s (built-in default)"
+            config.LlmTimeoutSeconds == Constants.Config.LlmTimeoutSeconds
+                ? $"{Constants.Config.LlmTimeoutSeconds}s (built-in default)"
                 : $"{config.LlmTimeoutSeconds}s"));
         ConfigRows.Add(new("Max summary chars", config.MaxLlmSummaryChars.ToString("N0")));
         ConfigRows.Add(new("Agent MD", File.Exists(agentMd) ? agentMd : agentMd + " (missing)"));
@@ -101,7 +101,7 @@ public partial class DashboardViewModel(
             LastRunRows.Add(new("Status", "No last-run.json yet. Run Generate to create a baseline."));
         }
 
-        var metaPath = Path.Combine(outputPath, AgentWikiConstants.MetaFileName);
+        var metaPath = Path.Combine(outputPath, Constants.Paths.MetaFileName);
         if (File.Exists(metaPath))
         {
             try
@@ -209,10 +209,10 @@ public partial class DashboardViewModel(
             return;
         }
 
-        var path = Path.Combine(RepoPath, "AGENTS.md");
+        var path = Path.Combine(RepoPath, Constants.Paths.DefaultAgentMdPath);
         if (!File.Exists(path))
         {
-            path = Path.Combine(RepoPath, "CLAUDE.md");
+            path = Path.Combine(RepoPath, Constants.Paths.DefaultClaudeMdPath);
         }
 
         if (File.Exists(path))

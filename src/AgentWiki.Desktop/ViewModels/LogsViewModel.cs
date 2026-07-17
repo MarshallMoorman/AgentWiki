@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using AgentWiki.App.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using AgentWiki.Core;
 
 namespace AgentWiki.Desktop.ViewModels;
 
@@ -113,7 +114,9 @@ public partial class LogsViewModel : ViewModelBase
             using var reader = new StreamReader(stream);
             var content = await reader.ReadToEndAsync().ConfigureAwait(true);
             var lines = content.Split('\n');
-            var tail = lines.Length <= 200 ? lines : lines.TakeLast(200).ToArray();
+            var tail = lines.Length <= Constants.Ui.LogTailLines
+                ? lines
+                : lines.TakeLast(Constants.Ui.LogTailLines).ToArray();
             TailText = string.Join('\n', tail);
             Status = $"{SelectedFile} · showing last {tail.Length} lines";
         }

@@ -1,5 +1,6 @@
 using System.Text;
 using AgentWiki.Core.Models;
+using AgentWiki.Core;
 
 namespace AgentWiki.Core.Analysis;
 
@@ -10,7 +11,13 @@ public static class RepoSummaryBuilder
 {
     /// <summary>Full inventory summary for wiki inventory pages.</summary>
     public static string Build(string repoName, string repoPath, RepoStats stats, IReadOnlyList<RepoFile> files) =>
-        Build(repoName, repoPath, stats, files, maxSelectedFiles: 80, maxChars: null);
+        Build(
+            repoName,
+            repoPath,
+            stats,
+            files,
+            maxSelectedFiles: Constants.Analysis.FullSummaryMaxSelectedFiles,
+            maxChars: null);
 
     /// <summary>Compact summary suitable for LLM prompts (bounded size).</summary>
     public static string BuildForLlm(
@@ -18,8 +25,14 @@ public static class RepoSummaryBuilder
         string repoPath,
         RepoStats stats,
         IReadOnlyList<RepoFile> files,
-        int maxChars = 16_000) =>
-        Build(repoName, repoPath, stats, files, maxSelectedFiles: 40, maxChars: maxChars);
+        int maxChars = Constants.Config.MaxLlmSummaryChars) =>
+        Build(
+            repoName,
+            repoPath,
+            stats,
+            files,
+            maxSelectedFiles: Constants.Analysis.LlmSummaryMaxSelectedFiles,
+            maxChars: maxChars);
 
     public static string Build(
         string repoName,

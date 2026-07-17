@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
@@ -22,7 +23,7 @@ public sealed class WikiGenerationOrchestrator(
     private static readonly JsonSerializerOptions JsonOptions = LlmJson.CreateOptions();
 
     private static int ResolveMaxModules(AgentWikiConfig config) =>
-        config.MaxModules > 0 ? config.MaxModules : 16;
+        config.MaxModules > 0 ? config.MaxModules : Constants.Config.MaxModules;
 
     /// <inheritdoc />
     public async Task<WikiBundle> GenerateAsync(
@@ -503,11 +504,16 @@ public sealed class WikiGenerationOrchestrator(
             analysis.RepoPath,
             analysis.Stats,
             analysis.Files,
-            maxChars: config.MaxLlmSummaryChars > 0 ? config.MaxLlmSummaryChars : 16_000);
+            maxChars: config.MaxLlmSummaryChars > 0
+                ? config.MaxLlmSummaryChars
+                : Constants.Config.MaxLlmSummaryChars);
 
     private IPromptManager ResolvePrompts(string repoPath)
     {
-        var overrideDir = Path.Combine(repoPath, ".agentwiki", "prompts");
+        var overrideDir = Path.Combine(
+            repoPath,
+            Constants.Paths.ConfigDirectoryName,
+            Constants.Paths.PromptsDirectoryName);
         if (Directory.Exists(overrideDir))
         {
             return PromptManager.ForRepository(
