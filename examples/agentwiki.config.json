@@ -11,7 +11,7 @@
   "postProcessingMode": "lenient",
   "enableRoslynAnalysis": true,
   "maxProjectsToAnalyze": 20,
-  "maxSourceFilesForRoslyn": 200,
+  "maxSourceFilesForRoslyn": 500,
   "enableApiEndpointDocs": true,
   "enableEndpointLlmEnrichment": true,
   "endpointIncludePatterns": [],

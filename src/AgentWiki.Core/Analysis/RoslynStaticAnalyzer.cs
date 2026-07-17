@@ -107,7 +107,7 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
         AgentWikiConfig config,
         CancellationToken cancellationToken)
     {
-        var maxFiles = config.MaxSourceFilesForRoslyn > 0 ? config.MaxSourceFilesForRoslyn : 200;
+        var maxFiles = config.MaxSourceFilesForRoslyn > 0 ? config.MaxSourceFilesForRoslyn : 500;
         var maxProjects = config.MaxProjectsToAnalyze > 0 ? config.MaxProjectsToAnalyze : 20;
 
         var projectFiles = analysis.Files

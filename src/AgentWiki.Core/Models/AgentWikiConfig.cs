@@ -62,7 +62,7 @@ public sealed class AgentWikiConfig
     public int MaxProjectsToAnalyze { get; set; } = 20;
 
     /// <summary>Max C# source files to parse with Roslyn (default 200).</summary>
-    public int MaxSourceFilesForRoslyn { get; set; } = 200;
+    public int MaxSourceFilesForRoslyn { get; set; } = 500;
 
     /// <summary>
     /// When true (default), emit <c>api-endpoints.md</c> and per-module endpoint sections

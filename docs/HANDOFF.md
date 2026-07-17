@@ -1,8 +1,8 @@
 # AgentWiki — session handoff (for new conversations)
 
-**Last updated:** 2026-07-11  
-**Current version:** **1.2.0**  
-**Repo:** this repository root  
+**Last updated:** 2026-07-11
+**Current version:** **1.2.0**
+**Repo:** this repository root
 **Active plan:** [`docs/plans/docs-plan-single-repo-polish-v1.2.md`](plans/docs-plan-single-repo-polish-v1.2.md)
 
 | Surface | Package | Command |
@@ -32,8 +32,8 @@ It is intentionally file-based Markdown (not a RAG vector DB). Spec source of tr
 
 **Two hosts, one engine:**
 
-- **CLI** — automation, CI, scripts  
-- **Desktop** — Avalonia 12 interactive UI with full command parity  
+- **CLI** — automation, CI, scripts
+- **Desktop** — Avalonia 12 interactive UI with full command parity
 
 Both call **`AgentWiki.App`** services (never put Spectre or Avalonia in App).
 
@@ -66,8 +66,8 @@ agent-wiki update --repo-path /path/to/repo
 agent-wiki status --repo-path /path/to/repo --analyze
 ```
 
-**Logs (always):** `~/.agentwiki/logs/agent-wiki-YYYYMMDD.log`  
-CLI: Spectre owns the terminal; file logging always on; `--verbose` streams diagnostics.  
+**Logs (always):** `~/.agentwiki/logs/agent-wiki-YYYYMMDD.log`
+CLI: Spectre owns the terminal; file logging always on; `--verbose` streams diagnostics.
 Desktop: same log directory; no Spectre console sink by default.
 
 **Desktop nupkg size:** ~195 MB (Avalonia natives) — intentional reason for a **separate** tool package from the lean CLI.
@@ -121,21 +121,21 @@ RepoAnalyzer
 
 Progress: `WikiGenerationRequest.Progress` (`IProgress<string>`). Cancellation token threaded through generator/orchestrator/LLM.
 
-Post-process: after structured docs + after section render, `IWikiPostProcessor` cleans paths/deps/deprecation/links (configurable).  
+Post-process: after structured docs + after section render, `IWikiPostProcessor` cleans paths/deps/deprecation/links (configurable).
 Static analysis: syntax-only Roslyn (no compile); graceful skip for non-.NET / failures.
 
 ### Config priority (highest wins)
 
-1. CLI / UI overrides  
-2. Repo-root `.env`  
-3. `.agentwiki/config.json`  
-4. Process env `AGENTWIKI_*` (nested `__`)  
-5. Tool `appsettings.json`  
+1. CLI / UI overrides
+2. Repo-root `.env`
+3. `.agentwiki/config.json`
+4. Process env `AGENTWIKI_*` (nested `__`)
+5. Tool `appsettings.json`
 
-**Secrets** → `.env` / CI. **Non-secrets** → `config.json`.  
+**Secrets** → `.env` / CI. **Non-secrets** → `config.json`.
 Desktop Settings: non-secrets → config.json; API keys → `.env` only.
 
-Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (200), `enableApiEndpointDocs` (default true), `enableEndpointLlmEnrichment`, `endpointIncludePatterns` / `endpointExcludePatterns`, `maxModules` (16), `maxFilesPerModule` (40), `moduleRoots` / `moduleGlobs`, `includeTestProjectsAsModules`, `applicationInsightsConnectionString`, cost rate overrides, `maxFilesToAnalyze`, `ignorePatterns`.
+Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutSeconds` (default 300), `maxLlmSummaryChars` (16000), `enablePostProcessing` (default true), `postProcessingMode` (`lenient` \| `strict`), `enableRoslynAnalysis` (default true), `maxProjectsToAnalyze` (20), `maxSourceFilesForRoslyn` (500), `enableApiEndpointDocs` (default true), `enableEndpointLlmEnrichment`, `endpointIncludePatterns` / `endpointExcludePatterns`, `maxModules` (16), `maxFilesPerModule` (40), `moduleRoots` / `moduleGlobs`, `includeTestProjectsAsModules`, `applicationInsightsConnectionString`, cost rate overrides, `maxFilesToAnalyze`, `ignorePatterns`.
 
 **Paths:** `~` expansion; wiki Markdown uses **repo-relative** paths only. Post-processor rewrites accidental absolute paths after generation.
 
@@ -190,12 +190,12 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ### v1.2 Phase 5 — Cost, Observability & Dry-Run (committed `58f472b`)
 
-- **Dry-run plan:** create / update / unchanged classification (content-aware)  
-- **Run summary:** correlation ID, steps, modules, offline flag, tokens, est. cost (CLI + Desktop)  
-- **CostEstimator:** more models + config overrides (`inputUsdPerMillionTokens`, `modelPricing`)  
-- **Status:** post-processing / Roslyn / API docs / App Insights knobs; meta cost fields  
-- **Optional App Insights:** REST custom events when connection string set (off by default)  
-- Meta JSON includes `estimatedUsd`  
+- **Dry-run plan:** create / update / unchanged classification (content-aware)
+- **Run summary:** correlation ID, steps, modules, offline flag, tokens, est. cost (CLI + Desktop)
+- **CostEstimator:** more models + config overrides (`inputUsdPerMillionTokens`, `modelPricing`)
+- **Status:** post-processing / Roslyn / API docs / App Insights knobs; meta cost fields
+- **Optional App Insights:** REST custom events when connection string set (off by default)
+- Meta JSON includes `estimatedUsd`
 - Tests: dry-run writer + cost overrides; suite **128 CLI + 9 Desktop**
 
 | Hotspot | Path |
@@ -225,12 +225,12 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ### v1.2 Phase 3 — API Endpoint Documentation (committed `e49dd0b`)
 
-- Top-level **`api-endpoints.md`** catalog (method, route, handler, kind, auth, params, purpose)  
-- Per-module **Endpoints / Public API** section + key-components public API table  
-- Index / getting-started navigation updated  
-- `EndpointCatalog` filters via include/exclude patterns; default heuristic descriptions  
-- Optional LLM description enrichment when credentials available (`enableEndpointLlmEnrichment`)  
-- Config: `enableApiEndpointDocs`, `enableEndpointLlmEnrichment`, `endpointIncludePatterns`, `endpointExcludePatterns`  
+- Top-level **`api-endpoints.md`** catalog (method, route, handler, kind, auth, params, purpose)
+- Per-module **Endpoints / Public API** section + key-components public API table
+- Index / getting-started navigation updated
+- `EndpointCatalog` filters via include/exclude patterns; default heuristic descriptions
+- Optional LLM description enrichment when credentials available (`enableEndpointLlmEnrichment`)
+- Config: `enableApiEndpointDocs`, `enableEndpointLlmEnrichment`, `endpointIncludePatterns`, `endpointExcludePatterns`
 - Tests: `ApiEndpointsMarkdownRendererTests` + orchestrator; suite **120 CLI + 9 Desktop**
 
 | Hotspot | Path |
@@ -242,18 +242,18 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ### v1.2 Phase 2 — Richer Offline + Roslyn (committed `ab135d8`)
 
-- **`IStaticAnalyzer` / `RoslynStaticAnalyzer`** — syntax-only C# walk  
-- Offline architecture + modules enriched with symbols  
-- Package: `Microsoft.CodeAnalysis.CSharp` 4.14.0 on Core  
+- **`IStaticAnalyzer` / `RoslynStaticAnalyzer`** — syntax-only C# walk
+- Offline architecture + modules enriched with symbols
+- Package: `Microsoft.CodeAnalysis.CSharp` 4.14.0 on Core
 
 ### v1.2 Phase 1 — Foundation & Guardrails (committed `e2f79ac`)
 
-- **`IWikiPostProcessor` / `WikiPostProcessor`** — paths, deps, deprecation, link hygiene  
+- **`IWikiPostProcessor` / `WikiPostProcessor`** — paths, deps, deprecation, link hygiene
 - Plan: `docs/plans/docs-plan-single-repo-polish-v1.2.md`
 
 ### v1.1.0 — App extraction + Desktop
 
-- Extracted **`AgentWiki.App`**; CLI thin Spectre host; Desktop Avalonia 12 → `agent-wiki-ui`  
+- Extracted **`AgentWiki.App`**; CLI thin Spectre host; Desktop Avalonia 12 → `agent-wiki-ui`
 - Commits: `29d2842`, `05aee50`, HANDOFF refresh `8655b74`
 
 ### Historical CLI fixes (1.0.x) still relevant
@@ -265,12 +265,12 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ### Known remaining polish (after Phase 6 / plan complete)
 
-- Cost estimates are approximate (not billing-grade)  
-- App Insights uses lightweight REST ingestion (not full SDK)  
-- Wiki browser: same-page `#anchors` / tree highlight after in-app nav (optional UX)  
-- Desktop nupkg large (Avalonia natives); no notarization  
-- **Pack/install:** `./scripts/pack-and-install-tool.sh`; do not publish NuGet.org  
-- Multi-repo / vector / Azure Artifacts publishing remain out of plan scope  
+- Cost estimates are approximate (not billing-grade)
+- App Insights uses lightweight REST ingestion (not full SDK)
+- Wiki browser: same-page `#anchors` / tree highlight after in-app nav (optional UX)
+- Desktop nupkg large (Avalonia natives); no notarization
+- **Pack/install:** `./scripts/pack-and-install-tool.sh`; do not publish NuGet.org
+- Multi-repo / vector / Azure Artifacts publishing remain out of plan scope
 
 ---
 
@@ -297,9 +297,9 @@ Slash skill: `/bump-version`.
 dotnet test AgentWiki.slnx
 ```
 
-- Offline unit tests only in CI (no live LLM)  
-- Mock `ILlmCompletionService` for orchestrator/parse tests  
-- Integration: `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`  
+- Offline unit tests only in CI (no live LLM)
+- Mock `ILlmCompletionService` for orchestrator/parse tests
+- Integration: `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`
 - Desktop: ViewModel/config-editor tests (no full UI E2E required)
 
 ---
@@ -325,12 +325,12 @@ Desktop-only: `~/.agentwiki/ui-settings.json` (recent repos).
 
 **Follow `docs/plans/docs-plan-single-repo-polish-v1.2.md` phases (commit after each):**
 
-1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **committed**  
-2. ~~Phase 2 — Richer offline + Roslyn~~ → **committed**  
-3. ~~Phase 3 — API endpoint documentation~~ → **committed**  
-4. ~~Phase 4 — Module discovery improvements~~ → **committed**  
-5. ~~Phase 5 — Cost, observability, dry-run~~ → **committed**  
-6. ~~Phase 6 — Azure DevOps sample + Desktop theme + docs polish~~ → **committed**  
+1. ~~Phase 1 — WikiPostProcessor / guardrails~~ → **committed**
+2. ~~Phase 2 — Richer offline + Roslyn~~ → **committed**
+3. ~~Phase 3 — API endpoint documentation~~ → **committed**
+4. ~~Phase 4 — Module discovery improvements~~ → **committed**
+5. ~~Phase 5 — Cost, observability, dry-run~~ → **committed**
+6. ~~Phase 6 — Azure DevOps sample + Desktop theme + docs polish~~ → **committed**
 
 **v1.2 single-repo polish plan: implementation complete.** Tag **1.2.0** when you want a release.
 
@@ -349,14 +349,14 @@ Out of scope for this plan: multi-repo workspace, vector search, publishing.
 
 ## 10. Files a new agent should read first
 
-1. **This file** — `docs/HANDOFF.md`  
-2. `README.md` — user-facing commands and tools  
-3. `AGENTS.md` — coding rules for this repo  
-4. `docs/plans/ui-companion-avalonia.md` — UI plan (implemented)  
-5. `src/AgentWiki.App/ServiceCollectionExtensions.cs` + `Services/WikiGenerationOrchestrator.cs`  
-6. `src/AgentWiki.Cli/Program.cs` / `src/AgentWiki.Desktop/` hosts  
-7. Logs: `~/.agentwiki/logs/` when debugging runs  
-8. Spec only if changing product scope: `AgentWiki-Project-Specification.md`  
+1. **This file** — `docs/HANDOFF.md`
+2. `README.md` — user-facing commands and tools
+3. `AGENTS.md` — coding rules for this repo
+4. `docs/plans/ui-companion-avalonia.md` — UI plan (implemented)
+5. `src/AgentWiki.App/ServiceCollectionExtensions.cs` + `Services/WikiGenerationOrchestrator.cs`
+6. `src/AgentWiki.Cli/Program.cs` / `src/AgentWiki.Desktop/` hosts
+7. Logs: `~/.agentwiki/logs/` when debugging runs
+8. Spec only if changing product scope: `AgentWiki-Project-Specification.md`
 
 ### Desktop hotspots (if continuing UI)
 
