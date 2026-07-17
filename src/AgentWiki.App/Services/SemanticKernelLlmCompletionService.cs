@@ -221,7 +221,7 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
 
         // System.ClientModel default NetworkTimeout is 100s. With the OpenAI SDK's built-in
         // ClientRetryPolicy (≈3 tries) that surfaces as ~5 minute failures even when
-        // HttpClient.Timeout / AGENTWIKI_LlmTimeoutSeconds is 600.
+        // HttpClient.Timeout / AGENTWIKI_LlmTimeoutSeconds (default 1200s).
         _logger.LogInformation(
             "LLM client timeouts: networkTimeout={NetworkTimeout}s httpClientTimeout={HttpTimeout}s (SDK default network timeout is 100s)",
             timeoutSeconds,

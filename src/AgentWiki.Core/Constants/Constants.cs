@@ -47,11 +47,11 @@ public static class Constants
         public const int MaxFilesToAnalyze = 500;
         public const bool EnableIncrementalUpdates = true;
 
-        /// <summary>Per-request LLM HTTP timeout (seconds). Large repos often need more than HttpClient's 100s default.</summary>
-        public const int LlmTimeoutSeconds = 600;
+        /// <summary>Per-request LLM HTTP timeout (seconds). Large repos need well beyond HttpClient's 100s default.</summary>
+        public const int LlmTimeoutSeconds = 1_200; // 20 minutes
 
         /// <summary>Max characters of repository summary included in LLM prompts.</summary>
-        public const int MaxLlmSummaryChars = 24_000;
+        public const int MaxLlmSummaryChars = 32_000;
 
         /// <summary>
         /// When true (default), transport/parse failures fall back to offline generators.
@@ -154,13 +154,13 @@ public static class Constants
     public static class Llm
     {
         public const int MinTimeoutSeconds = 30;
-        public const int MaxTimeoutSeconds = 900;
+        public const int MaxTimeoutSeconds = 1_800; // allow up to 30 minutes when configured
 
         /// <summary>Extra seconds allowed on the outer HttpClient beyond the per-request network timeout.</summary>
         public const int HttpClientTimeoutSlackSeconds = 30;
 
         /// <summary>Absolute cap for HttpClient.Timeout when applying slack.</summary>
-        public const int AbsoluteMaxHttpClientTimeoutSeconds = 930;
+        public const int AbsoluteMaxHttpClientTimeoutSeconds = 1_830;
 
         /// <summary>Retry attempts after the first try (total attempts = MaxRetryAttempts + 1).</summary>
         public const int MaxRetryAttempts = 4;

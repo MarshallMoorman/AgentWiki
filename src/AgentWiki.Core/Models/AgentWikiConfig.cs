@@ -59,13 +59,13 @@ public sealed class AgentWikiConfig
     public bool EnableIncrementalUpdates { get; set; } = Constants.Config.EnableIncrementalUpdates;
 
     /// <summary>
-    /// Per-request HTTP timeout for LLM calls (seconds). Default 300 (5 minutes).
+    /// Per-request HTTP timeout for LLM calls (seconds). Default 1200 (20 minutes).
     /// Large repos can exceed the .NET HttpClient default of 100s.
     /// </summary>
     public int LlmTimeoutSeconds { get; set; } = Constants.Config.LlmTimeoutSeconds;
 
     /// <summary>
-    /// Max characters of repository summary included in LLM prompts (default 24_000).
+    /// Max characters of repository summary included in LLM prompts (default 32_000).
     /// Keeps prompts bounded so requests finish within the timeout.
     /// </summary>
     public int MaxLlmSummaryChars { get; set; } = Constants.Config.MaxLlmSummaryChars;
