@@ -47,12 +47,16 @@ install_or_update_tool() {
   local package_id="$1"
   local tool_command="$2"
 
+  # Prefer local artifacts; ignore failing private feeds (e.g. Azure Artifacts auth)
+  # so offline pack/install keeps working without interactive NuGet login.
+  local nuget_flags=(--global --add-source "$ARTIFACTS_DIR" --ignore-failed-sources)
+
   if dotnet tool list -g | awk '{print $1}' | grep -qx "$package_id"; then
     echo "==> Updating global tool $package_id"
-    dotnet tool update --global --add-source "$ARTIFACTS_DIR" "$package_id"
+    dotnet tool update "${nuget_flags[@]}" "$package_id"
   else
     echo "==> Installing global tool $package_id"
-    dotnet tool install --global --add-source "$ARTIFACTS_DIR" "$package_id"
+    dotnet tool install "${nuget_flags[@]}" "$package_id"
   fi
 
   if command -v "$tool_command" >/dev/null 2>&1; then
