@@ -144,12 +144,46 @@ public sealed class SemanticWikiGenerator(
                     ? "Dry run — computing wiki pages without writing…"
                     : "Writing wiki Markdown files…");
             var sectionsToWrite = FilterSectionsForWrite(bundle.Sections, scope, request.OutputPath, request.Incremental);
+            var warnings = new List<string>(bundle.Warnings);
+
+            // Full generate: clear modules/ + cross-cutting/ first so renamed LLM module ids
+            // cannot leave orphan pages from a previous run (force or not).
+            // Incremental update keeps existing area pages and only overwrites the scoped set.
+            if (scope.IsFull && !request.Incremental)
+            {
+                var cleared = WikiOrphanCleaner.ClearModuleAreas(request.OutputPath, dryRun: request.DryRun);
+                if (cleared.Count > 0)
+                {
+                    var verb = request.DryRun ? "Would clear" : "Cleared";
+                    warnings.Add(
+                        $"{verb} {cleared.Count} prior module/cross-cutting page(s) before full write.");
+                    logger.LogInformation(
+                        "{Verb} {Count} module/cross-cutting page(s) under {Output}",
+                        verb,
+                        cleared.Count,
+                        request.OutputPath);
+                }
+            }
+
             var writeResult = await outputWriter
                 .WriteAsync(request.OutputPath, sectionsToWrite, request.DryRun, cancellationToken)
                 .ConfigureAwait(false);
             var filesWritten = writeResult.Files;
 
-            var warnings = new List<string>(bundle.Warnings);
+            // Safety net: remove any area pages not in this write set after a full run.
+            if (scope.IsFull && !request.Incremental)
+            {
+                var orphans = WikiOrphanCleaner.RemoveOrphans(
+                    request.OutputPath,
+                    filesWritten,
+                    dryRun: request.DryRun);
+                if (orphans.Count > 0)
+                {
+                    var verb = request.DryRun ? "Would remove" : "Removed";
+                    warnings.Add($"{verb} {orphans.Count} orphan wiki page(s): {string.Join(", ", orphans.Take(8))}"
+                                 + (orphans.Count > 8 ? "…" : ""));
+                }
+            }
             if (analysis.StaticAnalysis is { } sa)
             {
                 if (!string.IsNullOrWhiteSpace(sa.Summary))

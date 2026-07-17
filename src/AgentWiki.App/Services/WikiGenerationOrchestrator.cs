@@ -118,8 +118,22 @@ public sealed class WikiGenerationOrchestrator(
 
         // Step 4: Cross-cutting concerns (selective LLM enrichment)
         Report(request, "Documenting cross-cutting concerns…");
-        var crossCutting = await GenerateCrossCuttingAsync(analysis, request, scope, cancellationToken)
-            .ConfigureAwait(false);
+        var crossCutting = (await GenerateCrossCuttingAsync(analysis, request, scope, cancellationToken)
+            .ConfigureAwait(false)).ToList();
+        // Prefer existing cross-cutting/*.md ids unless this is a full clear/regenerate.
+        if (request.Incremental || !scope.IsFull)
+        {
+            ModuleIdStabilizer.StabilizeCrossCuttingIds(crossCutting, request.OutputPath, warnings);
+        }
+        else
+        {
+            foreach (var item in crossCutting)
+            {
+                item.Id = ModuleIdStabilizer.Slug(
+                    string.IsNullOrWhiteSpace(item.Id) ? item.Title : item.Id);
+            }
+        }
+
         steps.Add($"cross-cutting:{crossCutting.Count}");
         foreach (var item in crossCutting)
         {
@@ -319,7 +333,9 @@ public sealed class WikiGenerationOrchestrator(
         // Module inventory structure is cheap offline; only spend LLM tokens on full runs.
         if (!scope.IsFull || !llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
         {
-            return OfflineModulePlanner.Plan(analysis, request.Config);
+            var offlineOnly = OfflineModulePlanner.Plan(analysis, request.Config);
+            StabilizeModulePlanIds(offlineOnly, request);
+            return offlineOnly;
         }
 
         try
@@ -355,6 +371,7 @@ public sealed class WikiGenerationOrchestrator(
             }
 
             EnrichPlanFromInventory(plan, analysis, request.Config);
+            StabilizeModulePlanIds(plan, request);
             return plan;
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
@@ -366,7 +383,9 @@ public sealed class WikiGenerationOrchestrator(
             }
 
             logger.LogWarning(ex, "Module planning via LLM failed; using offline planner");
-            return OfflineModulePlanner.Plan(analysis, request.Config);
+            var offlinePlan = OfflineModulePlanner.Plan(analysis, request.Config);
+            StabilizeModulePlanIds(offlinePlan, request);
+            return offlinePlan;
         }
     }
 
@@ -565,7 +584,7 @@ public sealed class WikiGenerationOrchestrator(
                     .FirstOrDefault()?.Id ?? "module";
             }
 
-            module.Id = module.Id.Trim().ToLowerInvariant().Replace(' ', '-');
+            module.Id = ModuleIdStabilizer.Slug(module.Id);
 
             if (module.RelatedFiles.Count > 0)
             {
@@ -591,6 +610,32 @@ public sealed class WikiGenerationOrchestrator(
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .Take(maxFiles)
                 .ToList();
+        }
+    }
+
+    /// <summary>
+    /// On incremental / non-cleared runs, reuse existing module filenames.
+    /// Full generate clears modules/ first, so new LLM slugs are fine.
+    /// </summary>
+    private void StabilizeModulePlanIds(ModulePlan plan, WikiGenerationRequest request)
+    {
+        // Full generate clears area folders before write — no need to force old ids.
+        if (!request.Incremental)
+        {
+            return;
+        }
+
+        try
+        {
+            ModuleIdStabilizer.StabilizeModuleIds(
+                plan,
+                request.OutputPath,
+                lastRunModuleIds: null,
+                warnings: null);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "Module id stabilization skipped");
         }
     }
 
