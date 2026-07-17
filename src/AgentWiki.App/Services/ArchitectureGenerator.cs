@@ -98,6 +98,14 @@ public sealed class ArchitectureGenerator(
         }
         catch (Exception ex) when (ShouldFallbackToOffline(ex, cancellationToken))
         {
+            if (!config.AllowOfflineFallback)
+            {
+                logger.LogError(
+                    ex,
+                    "LLM architecture generation failed and AllowOfflineFallback=false; not using offline generator");
+                throw;
+            }
+
             // Transport failures should already have been retried by LlmResilience; log clearly so
             // users can tell "credentials missing" from "network blip then offline architecture".
             if (LlmResilience.IsRetryableFailure(ex))
@@ -108,7 +116,10 @@ public sealed class ArchitectureGenerator(
             }
             else
             {
-                logger.LogError(ex, "LLM architecture generation failed; falling back to offline generator");
+                logger.LogError(
+                    ex,
+                    "LLM architecture generation failed (often JSON shape mismatch); falling back to offline generator. "
+                    + "Set allowOfflineFallback=false to fail the run instead.");
             }
 
             var offline = OfflineArchitectureGenerator.Generate(analysis);
@@ -196,6 +207,7 @@ public sealed class ArchitectureGenerator(
 
         // Many models ignore our schema and return a single markdown document field, e.g.:
         // { "repository": "...", "architecture_overview": "# Title\n\n## System Context\n..." }
+        // or ChatGPT-style: { "output": "# Title\n..." } / { "text": "..." }
         var markdownBody = FirstNonEmpty(
             document.FullMarkdown,
             LlmJson.ReadStringish(
@@ -209,7 +221,13 @@ public sealed class ArchitectureGenerator(
                 "body",
                 "architecture",
                 "details",
-                "wiki"));
+                "wiki",
+                "output",
+                "text",
+                "result",
+                "response",
+                "message",
+                "answer"));
 
         if (!string.IsNullOrWhiteSpace(markdownBody) && LooksLikeMarkdownDocument(markdownBody))
         {
@@ -232,6 +250,9 @@ public sealed class ArchitectureGenerator(
 
             return document;
         }
+
+        // Sparse schema salvage: { "repo", "type", "entrypoints": [...] } — still better than offline dump.
+        SalvageSparseArchitecture(document, root);
 
         // If still empty, salvage any long string fields as summary.
         if (string.IsNullOrWhiteSpace(document.Summary) && string.IsNullOrWhiteSpace(document.SystemContext))
@@ -259,6 +280,53 @@ public sealed class ArchitectureGenerator(
         }
 
         return document;
+    }
+
+    /// <summary>
+    /// Accept minimal LLM sketches that name the stack and entry points without full schema.
+    /// </summary>
+    private static void SalvageSparseArchitecture(ArchitectureDocument document, JsonElement root)
+    {
+        var repo = LlmJson.ReadStringish(root, "repo", "repository", "name", "project", "projectName");
+        var type = LlmJson.ReadStringish(root, "type", "kind", "projectType", "stack", "framework");
+        var entrypoints = LlmJson.ReadStringList(root, "entrypoints", "entryPoints", "entry_points", "entryPoints");
+
+        if (string.IsNullOrWhiteSpace(type) && entrypoints.Count == 0 && string.IsNullOrWhiteSpace(repo))
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Title) || document.Title == "Architecture Overview")
+        {
+            document.Title = string.IsNullOrWhiteSpace(repo)
+                ? "Architecture Overview"
+                : $"{repo} Architecture Overview";
+        }
+
+        if (string.IsNullOrWhiteSpace(document.Summary))
+        {
+            document.Summary = string.IsNullOrWhiteSpace(type)
+                ? $"{repo ?? "This repository"} architecture (LLM sketch)."
+                : $"{repo ?? "This repository"} is a {type}.";
+        }
+
+        if (string.IsNullOrWhiteSpace(document.SystemContext))
+        {
+            document.SystemContext = document.Summary;
+        }
+
+        if (document.KeyComponents.Count == 0 && entrypoints.Count > 0)
+        {
+            foreach (var ep in entrypoints.Take(12))
+            {
+                document.KeyComponents.Add(new ArchitectureComponent
+                {
+                    Name = Path.GetFileNameWithoutExtension(ep.Replace('\\', '/')),
+                    Path = ep,
+                    Purpose = "Entry point / composition root (from LLM sketch)."
+                });
+            }
+        }
     }
 
     private static bool LooksLikeMarkdownDocument(string text)

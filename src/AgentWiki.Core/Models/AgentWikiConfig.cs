@@ -65,10 +65,17 @@ public sealed class AgentWikiConfig
     public int LlmTimeoutSeconds { get; set; } = Constants.Config.LlmTimeoutSeconds;
 
     /// <summary>
-    /// Max characters of repository summary included in LLM prompts (default 16_000).
+    /// Max characters of repository summary included in LLM prompts (default 24_000).
     /// Keeps prompts bounded so requests finish within the timeout.
     /// </summary>
     public int MaxLlmSummaryChars { get; set; } = Constants.Config.MaxLlmSummaryChars;
+
+    /// <summary>
+    /// When true (default), LLM transport/parse failures fall back to offline generators.
+    /// Set <c>false</c> for production so a bad architecture parse or network failure fails the run
+    /// instead of writing inventory-only architecture.
+    /// </summary>
+    public bool AllowOfflineFallback { get; set; } = Constants.Config.AllowOfflineFallback;
 
     /// <summary>
     /// When true (default), run <c>IWikiPostProcessor</c> guardrails after generation steps

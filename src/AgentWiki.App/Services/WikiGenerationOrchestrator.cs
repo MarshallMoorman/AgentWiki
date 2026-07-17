@@ -161,6 +161,12 @@ public sealed class WikiGenerationOrchestrator(
                 }
                 catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
                 {
+                    if (!request.Config.AllowOfflineFallback)
+                    {
+                        logger.LogError(ex, "Endpoint LLM enrichment failed and AllowOfflineFallback=false");
+                        throw;
+                    }
+
                     logger.LogWarning(ex, "Endpoint LLM enrichment failed; keeping heuristic descriptions");
                     warnings.Add("Endpoint LLM enrichment failed; using heuristic descriptions.");
                 }
@@ -353,6 +359,12 @@ public sealed class WikiGenerationOrchestrator(
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
+            if (!request.Config.AllowOfflineFallback)
+            {
+                logger.LogError(ex, "Module planning via LLM failed and AllowOfflineFallback=false");
+                throw;
+            }
+
             logger.LogWarning(ex, "Module planning via LLM failed; using offline planner");
             return OfflineModulePlanner.Plan(analysis, request.Config);
         }
@@ -413,6 +425,15 @@ public sealed class WikiGenerationOrchestrator(
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
+            if (!request.Config.AllowOfflineFallback)
+            {
+                logger.LogError(
+                    ex,
+                    "Module generation failed for {Module} and AllowOfflineFallback=false",
+                    descriptor.Id);
+                throw;
+            }
+
             logger.LogWarning(ex, "Module generation failed for {Module}; using offline content", descriptor.Id);
             var offline = OfflineModulePlanner.BuildModuleDocument(descriptor, analysis, request.Config);
             offline.Gotchas.Insert(0, $"LLM module generation failed: {ex.Message}");
@@ -493,6 +514,12 @@ public sealed class WikiGenerationOrchestrator(
         }
         catch (Exception ex) when (ArchitectureGenerator.ShouldFallbackToOffline(ex, cancellationToken))
         {
+            if (!request.Config.AllowOfflineFallback)
+            {
+                logger.LogError(ex, "Cross-cutting LLM generation failed and AllowOfflineFallback=false");
+                throw;
+            }
+
             logger.LogWarning(ex, "Cross-cutting LLM generation failed; using offline content");
             return offline;
         }

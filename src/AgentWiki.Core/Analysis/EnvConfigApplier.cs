@@ -254,6 +254,13 @@ public static class EnvConfigApplier
             return;
         }
 
+        if (name.Equals("AllowOfflineFallback", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var allowOffline))
+        {
+            config.AllowOfflineFallback = allowOffline;
+            return;
+        }
+
         if (name.Equals("EnablePostProcessing", StringComparison.OrdinalIgnoreCase)
             && bool.TryParse(value, out var enablePost))
         {

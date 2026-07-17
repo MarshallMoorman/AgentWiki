@@ -207,7 +207,13 @@ public sealed class SemanticWikiGenerator(
 
             sw.Stop();
             var mode = request.Incremental ? "update" : "generate";
-            var source = bundle.UsedOfflineFallback ? "offline/multi-step" : "Semantic Kernel multi-step";
+            // Architecture alone may fall offline while modules remain LLM-assisted — say so clearly.
+            var source = !bundle.UsedOfflineFallback
+                ? "Semantic Kernel multi-step"
+                : bundle.Architecture.UsedOfflineFallback
+                    && bundle.Modules.Any(m => !m.UsedOfflineFallback)
+                    ? "mixed (architecture offline / later steps LLM)"
+                    : "offline/multi-step";
             var scopeLabel = scope.IsFull ? "full" : "selective";
             var modelName = request.ModelOverride
                             ?? LlmSettings.ResolveModel(request.Config);

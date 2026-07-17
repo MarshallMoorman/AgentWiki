@@ -48,10 +48,16 @@ public static class Constants
         public const bool EnableIncrementalUpdates = true;
 
         /// <summary>Per-request LLM HTTP timeout (seconds). Large repos often need more than HttpClient's 100s default.</summary>
-        public const int LlmTimeoutSeconds = 300;
+        public const int LlmTimeoutSeconds = 600;
 
         /// <summary>Max characters of repository summary included in LLM prompts.</summary>
-        public const int MaxLlmSummaryChars = 16_000;
+        public const int MaxLlmSummaryChars = 24_000;
+
+        /// <summary>
+        /// When true (default), transport/parse failures fall back to offline generators.
+        /// Set false for production runs that should fail loudly rather than write inventory-only docs.
+        /// </summary>
+        public const bool AllowOfflineFallback = true;
 
         public const bool EnablePostProcessing = true;
         public const string PostProcessingModeLenient = "lenient";
@@ -157,7 +163,7 @@ public static class Constants
         public const int AbsoluteMaxHttpClientTimeoutSeconds = 930;
 
         /// <summary>Retry attempts after the first try (total attempts = MaxRetryAttempts + 1).</summary>
-        public const int MaxRetryAttempts = 3;
+        public const int MaxRetryAttempts = 4;
 
         public const int RetryBaseDelaySeconds = 2;
     }

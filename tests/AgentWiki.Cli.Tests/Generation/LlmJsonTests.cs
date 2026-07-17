@@ -85,6 +85,42 @@ public sealed class LlmJsonTests
     }
 
     [Fact]
+    public void ParseArchitectureJson_AcceptsOutputMarkdownField()
+    {
+        // 2026-07-17 LoanView: model wrapped full markdown in { "output": "..." }
+        var raw = """
+            {
+              "output": "# Elevate-LMS-LoanView Architecture Overview\n\n## Purpose\n\nElevate-LMS-LoanView is an ASP.NET Core–based loan servicing API. The repository is organized as a multi-project .NET solution centered around a public HTTP API that exposes loan, customer, rewards, and related loan-management functionality.\n\n## Layers\n\n- Controllers\n- Query / Service Layer\n"
+            }
+            """;
+
+        var doc = ArchitectureGenerator.ParseArchitectureJson(raw);
+        doc.FullMarkdown.ShouldNotBeNullOrWhiteSpace();
+        doc.FullMarkdown!.ShouldContain("loan servicing");
+    }
+
+    [Fact]
+    public void ParseArchitectureJson_SalvagesSparseRepoTypeEntrypoints()
+    {
+        // 2026-07-17 LoanView: tiny sketch instead of full schema
+        var raw = """
+            {
+              "repo": "Elevate-LMS-LoanView",
+              "type": "ASP.NET Core Web API",
+              "entrypoints": [
+                "LoanView/Elevate.Lms.LoanView.Api/Program.cs",
+                "LoanView/Elevate.Lms.LoanView.Api/Startup.cs"
+              ]
+            }
+            """;
+
+        var doc = ArchitectureGenerator.ParseArchitectureJson(raw);
+        doc.Summary.ShouldContain("ASP.NET Core");
+        doc.KeyComponents.Count.ShouldBe(2);
+        doc.KeyComponents[0].Path.ShouldContain("Program.cs");
+    }
+
+    [Fact]
     public void FlexibleStringList_ReadsMixedArray()
     {
         var json = """{ "items": ["a", { "name": "b" }, 3] }""";
