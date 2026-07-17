@@ -26,8 +26,7 @@
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
             <Button Content="Test connection"
                     Classes="primary"
-                    Command="{Binding TestCommand}"
-                    IsEnabled="{Binding !IsTesting}" />
+                    Command="{Binding TestCommand}" />
             <Button Content="Open log" Classes="secondary" Command="{Binding OpenLogCommand}" />
           </StackPanel>
         </Grid>

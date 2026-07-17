@@ -38,6 +38,24 @@ public sealed class SetupViewModelTests
         init.Verify(i => i.InitializeAsync(It.IsAny<string>(), true, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Fact]
+    public void BindRepo_EnablesRunInitCommand()
+    {
+        using var temp = new TempDir();
+        var init = new Mock<IInitService>();
+        var vm = new SetupViewModel(init.Object);
+
+        vm.RunInitCommand.CanExecute(null).ShouldBeFalse();
+
+        vm.BindRepo(temp.Path);
+
+        vm.RunInitCommand.CanExecute(null).ShouldBeTrue();
+
+        // Re-bind same path (no property change) must still leave command enabled.
+        vm.BindRepo(temp.Path);
+        vm.RunInitCommand.CanExecute(null).ShouldBeTrue();
+    }
+
     private sealed class TempDir : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(

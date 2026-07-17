@@ -8,9 +8,12 @@ namespace AgentWiki.Desktop.ViewModels;
 public partial class LogsViewModel : ViewModelBase
 {
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenFolderCommand))]
     private string _logDirectory = "";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(OpenSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshTailCommand))]
     private string? _selectedFile;
 
     [ObservableProperty]
@@ -49,6 +52,15 @@ public partial class LogsViewModel : ViewModelBase
 
         await RefreshTailAsync().ConfigureAwait(true);
         Status = $"Log directory: {LogDirectory}";
+        RefreshCommandStates();
+    }
+
+    /// <summary>Re-evaluate gated commands after tab load.</summary>
+    public void RefreshCommandStates()
+    {
+        RefreshTailCommand.NotifyCanExecuteChanged();
+        OpenFolderCommand.NotifyCanExecuteChanged();
+        OpenSelectedCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedFileChanged(string? value) => _ = RefreshTailAsync();
@@ -81,7 +93,7 @@ public partial class LogsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRefreshTail))]
     private async Task RefreshTailAsync()
     {
         if (string.IsNullOrWhiteSpace(SelectedFile) || !File.Exists(SelectedFile))
@@ -111,14 +123,19 @@ public partial class LogsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    private bool CanRefreshTail() =>
+        !string.IsNullOrWhiteSpace(SelectedFile) && File.Exists(SelectedFile);
+
+    [RelayCommand(CanExecute = nameof(CanOpenFolder))]
     private void OpenFolder()
     {
         Directory.CreateDirectory(LogDirectory);
         MainViewModel.OpenInOs(LogDirectory);
     }
 
-    [RelayCommand]
+    private bool CanOpenFolder() => !string.IsNullOrWhiteSpace(LogDirectory);
+
+    [RelayCommand(CanExecute = nameof(CanOpenSelected))]
     private void OpenSelected()
     {
         if (!string.IsNullOrWhiteSpace(SelectedFile) && File.Exists(SelectedFile))
@@ -126,6 +143,9 @@ public partial class LogsViewModel : ViewModelBase
             MainViewModel.OpenInOs(SelectedFile);
         }
     }
+
+    private bool CanOpenSelected() =>
+        !string.IsNullOrWhiteSpace(SelectedFile) && File.Exists(SelectedFile);
 
     [RelayCommand]
     private async Task CopyPathAsync()

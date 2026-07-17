@@ -92,6 +92,65 @@ public sealed class GenerateViewModelTests
             Times.Once);
     }
 
+    [Fact]
+    public void BindRepo_EnablesRunCommand_WhenRepoPathSet()
+    {
+        var configLoader = new Mock<IConfigLoader>();
+        var generator = new Mock<IWikiGenerator>();
+        var vm = new GenerateViewModel(configLoader.Object, generator.Object);
+
+        vm.RunCommand.CanExecute(null).ShouldBeFalse();
+        vm.CancelCommand.CanExecute(null).ShouldBeFalse();
+
+        vm.BindRepo("/tmp/some-repo", new AgentWikiConfig { RepoPath = "/tmp/some-repo", OutputPath = "docs/wiki" });
+
+        vm.RunCommand.CanExecute(null).ShouldBeTrue();
+        vm.CancelCommand.CanExecute(null).ShouldBeFalse();
+        vm.OutputPath.ShouldBe("docs/wiki");
+    }
+
+    [Fact]
+    public void BindRepo_ReenablesRunCommand_WhenRepoPathUnchanged()
+    {
+        // Simulates reopening the Generate tab after repo was already bound:
+        // property equality would skip NotifyPropertyChanged, so BindRepo must
+        // still force CanExecute refresh.
+        var configLoader = new Mock<IConfigLoader>();
+        var generator = new Mock<IWikiGenerator>();
+        var vm = new GenerateViewModel(configLoader.Object, generator.Object);
+
+        vm.BindRepo("/tmp/repo-a", null);
+        vm.RunCommand.CanExecute(null).ShouldBeTrue();
+
+        // Force-disable by clearing path without going through BindRepo, then re-bind same path.
+        vm.RepoPath = "";
+        vm.RunCommand.CanExecute(null).ShouldBeFalse();
+
+        vm.BindRepo("/tmp/repo-a", null);
+        vm.RunCommand.CanExecute(null).ShouldBeTrue();
+
+        // Second bind with identical path (no property change) must still leave command enabled.
+        vm.BindRepo("/tmp/repo-a", null);
+        vm.RunCommand.CanExecute(null).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void RefreshCommandStates_ReevaluatesAfterIsRunningToggle()
+    {
+        var configLoader = new Mock<IConfigLoader>();
+        var generator = new Mock<IWikiGenerator>();
+        var vm = new GenerateViewModel(configLoader.Object, generator.Object);
+        vm.BindRepo("/tmp/repo", null);
+
+        vm.IsRunning = true;
+        vm.RunCommand.CanExecute(null).ShouldBeFalse();
+        vm.CancelCommand.CanExecute(null).ShouldBeTrue();
+
+        vm.IsRunning = false;
+        vm.RunCommand.CanExecute(null).ShouldBeTrue();
+        vm.CancelCommand.CanExecute(null).ShouldBeFalse();
+    }
+
     private sealed class TempDir : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(

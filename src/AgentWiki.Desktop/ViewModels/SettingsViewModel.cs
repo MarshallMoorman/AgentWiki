@@ -78,6 +78,7 @@ public partial class SettingsViewModel(
     private string _message = "";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     private bool _isSaving;
 
     [ObservableProperty]
@@ -125,6 +126,14 @@ public partial class SettingsViewModel(
         AzureApiKeyInput = "";
 
         RefreshEffective(config);
+        RefreshCommandStates();
+    }
+
+    /// <summary>Re-evaluate gated commands after tab load.</summary>
+    public void RefreshCommandStates()
+    {
+        SaveCommand.NotifyCanExecuteChanged();
+        ReloadCommand.NotifyCanExecuteChanged();
     }
 
     private async Task LoadThemeAsync()
@@ -183,10 +192,10 @@ public partial class SettingsViewModel(
             "UI/CLI → .env → config.json → AGENTWIKI_* → appsettings"));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        if (string.IsNullOrWhiteSpace(_repoPath))
+        if (string.IsNullOrWhiteSpace(_repoPath) || IsSaving)
         {
             return;
         }
@@ -244,10 +253,13 @@ public partial class SettingsViewModel(
         finally
         {
             IsSaving = false;
+            RefreshCommandStates();
         }
     }
 
-    [RelayCommand]
+    private bool CanSave() => !IsSaving && !string.IsNullOrWhiteSpace(_repoPath);
+
+    [RelayCommand(CanExecute = nameof(CanReload))]
     private async Task ReloadAsync()
     {
         if (!string.IsNullOrWhiteSpace(_repoPath))
@@ -256,4 +268,6 @@ public partial class SettingsViewModel(
             Message = "Reloaded effective configuration.";
         }
     }
+
+    private bool CanReload() => !string.IsNullOrWhiteSpace(_repoPath);
 }

@@ -36,6 +36,7 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
     public ObservableCollection<string> ChangedFiles { get; } = [];
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     private string _repoPath = "";
 
     [ObservableProperty]
@@ -57,6 +58,8 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
     private bool _verbose;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     private bool _isRunning;
 
     [ObservableProperty]
@@ -68,6 +71,11 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
     [ObservableProperty]
     private bool? _lastSucceeded;
 
+    /// <summary>
+    /// Applies the active repository (and optional config) and re-evaluates command CanExecute.
+    /// Always refreshes command state so buttons enable when the tab loads even if
+    /// <see cref="RepoPath"/> is unchanged from a previous visit.
+    /// </summary>
     public void BindRepo(string repoPath, AgentWikiConfig? config)
     {
         RepoPath = repoPath;
@@ -77,6 +85,15 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
             Provider = config.Provider;
             Model = config.DefaultModel;
         }
+
+        RefreshCommandStates();
+    }
+
+    /// <summary>Forces CanExecute re-evaluation for generate/update commands after tab load or bind.</summary>
+    public void RefreshCommandStates()
+    {
+        RunCommand.NotifyCanExecuteChanged();
+        CancelCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanRun))]
@@ -158,8 +175,8 @@ public abstract partial class GenerationViewModelBase : ViewModelBase
             IsRunning = false;
             _cts?.Dispose();
             _cts = null;
-            RunCommand.NotifyCanExecuteChanged();
-            CancelCommand.NotifyCanExecuteChanged();
+            // IsRunning NotifyCanExecuteChangedFor covers this; call again for safety after dispose.
+            RefreshCommandStates();
         }
     }
 

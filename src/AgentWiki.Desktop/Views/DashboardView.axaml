@@ -19,8 +19,7 @@
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
             <Button Content="Analyze inventory"
                     Classes="primary"
-                    Command="{Binding AnalyzeCommand}"
-                    IsEnabled="{Binding !IsAnalyzing}" />
+                    Command="{Binding AnalyzeCommand}" />
             <Button Content="Open AGENTS.md"
                     Classes="secondary"
                     Command="{Binding OpenAgentsMdCommand}" />

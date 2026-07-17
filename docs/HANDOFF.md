@@ -159,6 +159,20 @@ Key knobs: `provider`, `defaultModel`, `openAI.*`, `azureOpenAI.*`, `llmTimeoutS
 
 ## 5. What landed recently
 
+### Desktop — command CanExecute refresh on tab load (1.2.4)
+
+**Bug:** On an already-configured repo, Generate’s **Run generate** stayed disabled until leaving the tab (e.g. Provider test) and returning. Checking Force alone did not help.
+
+**Cause:** `RelayCommand` CanExecute was evaluated when the view bound (often with empty `RepoPath`). `BindRepo` later set `RepoPath` but never raised `NotifyCanExecuteChanged`, and CommunityToolkit does not re-query CanExecute from property changes unless annotated.
+
+**Fix:** `[NotifyCanExecuteChangedFor]` on gate properties + explicit `RefreshCommandStates()` at end of every tab’s `BindRepo` / `LoadAsync` (Generate/Update, Setup, Provider, Dashboard, Wiki, Logs, Settings). Same-path re-bind still refreshes CanExecute.
+
+| Hotspot | Path |
+|---------|------|
+| Generate/Update | `GenerationViewModelBase.BindRepo` / `RefreshCommandStates` |
+| Other tabs | `*ViewModel.RefreshCommandStates` |
+| Tests | `GenerateViewModelTests`, `CommandCanExecuteRefreshTests`, `SetupViewModelTests` |
+
 ### v1.2 Phase 6 — Azure DevOps + Desktop theme + docs (committed `19399f6`)
 
 - **Azure Pipelines sample:** `examples/azure-pipelines/agent-wiki-update.yml` (schedule, secrets, dry-run, optional PR)

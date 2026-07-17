@@ -13,9 +13,12 @@ public partial class WikiBrowserViewModel : ViewModelBase
     private string _repoPath = "";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealInOsCommand))]
     private string _wikiRoot = "";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RevealInOsCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenExternalCommand))]
     private string _selectedPath = "";
 
     [ObservableProperty]
@@ -37,6 +40,15 @@ public partial class WikiBrowserViewModel : ViewModelBase
             ? Path.Combine(repoPath, AgentWikiConstants.DefaultOutputPath)
             : PathResolver.ResolveOutput(config, repoPath);
         Refresh();
+        RefreshCommandStates();
+    }
+
+    /// <summary>Re-evaluate gated commands after tab load / bind.</summary>
+    public void RefreshCommandStates()
+    {
+        RevealInOsCommand.NotifyCanExecuteChanged();
+        OpenExternalCommand.NotifyCanExecuteChanged();
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -176,7 +188,7 @@ public partial class WikiBrowserViewModel : ViewModelBase
         _ = absolutePath;
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRevealInOs))]
     private void RevealInOs()
     {
         var path = !string.IsNullOrWhiteSpace(SelectedPath) ? SelectedPath : WikiRoot;
@@ -186,7 +198,13 @@ public partial class WikiBrowserViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    private bool CanRevealInOs()
+    {
+        var path = !string.IsNullOrWhiteSpace(SelectedPath) ? SelectedPath : WikiRoot;
+        return !string.IsNullOrWhiteSpace(path) && (File.Exists(path) || Directory.Exists(path));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenExternal))]
     private void OpenExternal()
     {
         if (!string.IsNullOrWhiteSpace(SelectedPath) && File.Exists(SelectedPath))
@@ -194,6 +212,9 @@ public partial class WikiBrowserViewModel : ViewModelBase
             MainViewModel.OpenInOs(SelectedPath);
         }
     }
+
+    private bool CanOpenExternal() =>
+        !string.IsNullOrWhiteSpace(SelectedPath) && File.Exists(SelectedPath);
 }
 
 public sealed class WikiTreeNode

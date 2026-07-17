@@ -14,6 +14,7 @@ public partial class ProviderViewModel(
     ILlmCompletionService llm) : ViewModelBase
 {
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestCommand))]
     private string _repoPath = "";
 
     [ObservableProperty]
@@ -23,6 +24,7 @@ public partial class ProviderViewModel(
     private string? _model;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(TestCommand))]
     private bool _isTesting;
 
     [ObservableProperty]
@@ -44,15 +46,18 @@ public partial class ProviderViewModel(
         ResultRows.Clear();
         Succeeded = null;
 
-        if (config is null)
+        if (config is not null)
         {
-            return;
+            Provider = config.Provider;
+            Model = config.DefaultModel;
+            RefreshConnection(config);
         }
 
-        Provider = config.Provider;
-        Model = config.DefaultModel;
-        RefreshConnection(config);
+        RefreshCommandStates();
     }
+
+    /// <summary>Re-evaluate gated commands after tab load / bind.</summary>
+    public void RefreshCommandStates() => TestCommand.NotifyCanExecuteChanged();
 
     private void RefreshConnection(AgentWikiConfig config)
     {
@@ -76,10 +81,10 @@ public partial class ProviderViewModel(
                 : Redact(config.AzureOpenAI.Endpoint)));
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanTest))]
     private async Task TestAsync()
     {
-        if (string.IsNullOrWhiteSpace(RepoPath))
+        if (string.IsNullOrWhiteSpace(RepoPath) || IsTesting)
         {
             return;
         }
@@ -137,8 +142,11 @@ public partial class ProviderViewModel(
         finally
         {
             IsTesting = false;
+            RefreshCommandStates();
         }
     }
+
+    private bool CanTest() => !IsTesting && !string.IsNullOrWhiteSpace(RepoPath);
 
     [RelayCommand]
     private void OpenLog() => MainViewModel.OpenInOs(AgentWikiLogging.TodayLogFilePath);

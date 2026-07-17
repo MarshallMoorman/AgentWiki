@@ -16,12 +16,15 @@ public partial class DashboardViewModel(
     ILastRunStore lastRunStore) : ViewModelBase
 {
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AnalyzeCommand))]
+    [NotifyCanExecuteChangedFor(nameof(OpenAgentsMdCommand))]
     private string _repoPath = "";
 
     [ObservableProperty]
     private string _summary = "No repository loaded.";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AnalyzeCommand))]
     private bool _isAnalyzing;
 
     public ObservableCollection<KeyValueItem> ConfigRows { get; } = [];
@@ -128,12 +131,21 @@ public partial class DashboardViewModel(
                 Warnings.Add($"Could not parse meta file: {ex.Message}");
             }
         }
+
+        RefreshCommandStates();
     }
 
-    [RelayCommand]
+    /// <summary>Re-evaluate gated commands after tab load / bind.</summary>
+    public void RefreshCommandStates()
+    {
+        AnalyzeCommand.NotifyCanExecuteChanged();
+        OpenAgentsMdCommand.NotifyCanExecuteChanged();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAnalyze))]
     private async Task AnalyzeAsync()
     {
-        if (string.IsNullOrWhiteSpace(RepoPath))
+        if (string.IsNullOrWhiteSpace(RepoPath) || IsAnalyzing)
         {
             return;
         }
@@ -183,10 +195,13 @@ public partial class DashboardViewModel(
         finally
         {
             IsAnalyzing = false;
+            RefreshCommandStates();
         }
     }
 
-    [RelayCommand]
+    private bool CanAnalyze() => !IsAnalyzing && !string.IsNullOrWhiteSpace(RepoPath);
+
+    [RelayCommand(CanExecute = nameof(CanOpenAgentsMd))]
     private void OpenAgentsMd()
     {
         if (string.IsNullOrWhiteSpace(RepoPath))
@@ -205,6 +220,8 @@ public partial class DashboardViewModel(
             MainViewModel.OpenInOs(path);
         }
     }
+
+    private bool CanOpenAgentsMd() => !string.IsNullOrWhiteSpace(RepoPath);
 
     private static string RedactEndpoint(string? endpoint)
     {

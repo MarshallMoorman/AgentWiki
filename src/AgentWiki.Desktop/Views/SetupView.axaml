@@ -20,7 +20,6 @@
             <Button Content="Run init"
                     Classes="primary"
                     Command="{Binding RunInitCommand}"
-                    IsEnabled="{Binding !IsRunning}"
                     HorizontalAlignment="Left" />
             <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Classes="muted" />
           </StackPanel>

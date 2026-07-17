@@ -7,7 +7,7 @@ public static class AgentWikiConstants
 {
     public const string ToolName = "agent-wiki";
     public const string ProductName = "AgentWiki";
-    public const string Version = "1.2.3";
+    public const string Version = "1.2.4";
 
     public const string ConfigDirectoryName = ".agentwiki";
     public const string ConfigFileName = "config.json";

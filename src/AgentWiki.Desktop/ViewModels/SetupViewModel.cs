@@ -10,12 +10,14 @@ namespace AgentWiki.Desktop.ViewModels;
 public partial class SetupViewModel(IInitService initService) : ViewModelBase
 {
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunInitCommand))]
     private string _repoPath = "";
 
     [ObservableProperty]
     private bool _force;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RunInitCommand))]
     private bool _isRunning;
 
     [ObservableProperty]
@@ -28,7 +30,11 @@ public partial class SetupViewModel(IInitService initService) : ViewModelBase
     {
         RepoPath = repoPath;
         RefreshPreview();
+        RefreshCommandStates();
     }
+
+    /// <summary>Re-evaluate gated commands after tab load / bind.</summary>
+    public void RefreshCommandStates() => RunInitCommand.NotifyCanExecuteChanged();
 
     partial void OnRepoPathChanged(string value) => RefreshPreview();
 
@@ -80,10 +86,10 @@ public partial class SetupViewModel(IInitService initService) : ViewModelBase
         PreviewItems.Add($"{action}: {relative}");
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(CanRunInit))]
     private async Task RunInitAsync()
     {
-        if (string.IsNullOrWhiteSpace(RepoPath))
+        if (string.IsNullOrWhiteSpace(RepoPath) || IsRunning)
         {
             return;
         }
@@ -110,6 +116,9 @@ public partial class SetupViewModel(IInitService initService) : ViewModelBase
         finally
         {
             IsRunning = false;
+            RefreshCommandStates();
         }
     }
+
+    private bool CanRunInit() => !IsRunning && !string.IsNullOrWhiteSpace(RepoPath);
 }
