@@ -4,9 +4,13 @@
 
 ## Architecture flows
 
-1. Developer/agent runs CLI or build tooling against repository source.
-2. Configuration (csproj/json/yml) drives project composition and runtime settings.
-3. Tests exercise source modules under tests/ or *.Tests projects.
+1. User or automation invokes the application or workflow.
+2. Configuration is loaded through `src/AgentWiki.App/Services/ConfigLoader.cs` and environment settings are resolved through `src/AgentWiki.App/Services/DotEnvLoader.cs`.
+3. Repository state is inspected using git services including `GitChangeDetector` and `GitProcess`.
+4. Generation services load prompt templates from `src/AgentWiki.App/Prompts/` and construct AI-generation requests.
+5. Generators such as `ArchitectureGenerator` and `AgentsMdGenerator` create repository documentation artifacts.
+6. Logging and telemetry are emitted through infrastructure components.
+7. CI workflows in `.github/workflows/` execute validation and refresh automation around generated content.
 
 ## Module-oriented flow (recommended)
 
@@ -17,21 +21,53 @@
 
 ## Module entry points
 
-### AgentWiki.Cli
+### AgentWiki Application
 
-- `src/AgentWiki.Cli/Commands/CommandSettingsBase.cs`
-- `src/AgentWiki.Cli/Commands/GenerateCommand.cs`
-- `src/AgentWiki.Cli/Commands/InitCommand.cs`
-- `src/AgentWiki.Cli/Commands/StatusCommand.cs`
-- `src/AgentWiki.Cli/Commands/TestProviderCommand.cs`
-- `src/AgentWiki.Cli/Commands/UpdateCommand.cs`
-- `src/AgentWiki.Cli/Program.cs`
+- `src/AgentWiki.App/ServiceCollectionExtensions.cs`
+- `src/AgentWiki.App/Services/AgentBootstrapper.cs`
+- `src/AgentWiki.App/Services/AgentsMdGenerator.cs`
+- `src/AgentWiki.App/Services/ArchitectureGenerator.cs`
 
-### AgentWiki.Core
+### Prompt Templates
 
-_No explicit entry points listed._
+- `src/AgentWiki.App/Prompts/SystemPrompt.txt`
+- `src/AgentWiki.App/Prompts/ArchitectureOverviewPrompt.txt`
+- `src/AgentWiki.App/Prompts/ModuleAnalysisPrompt.txt`
+- `src/AgentWiki.App/Prompts/ModulePlanPrompt.txt`
+- `src/AgentWiki.App/Prompts/CrossCuttingPrompt.txt`
+- `src/AgentWiki.App/Prompts/CrossLinkValidationPrompt.txt`
 
-### AgentWiki.Cli.Tests
+### Infrastructure & Telemetry
 
-_No explicit entry points listed._
+- `src/AgentWiki.App/Infrastructure/AgentWikiLogging.cs`
+- `src/AgentWiki.App/Infrastructure/ApplicationInsightsRunTelemetry.cs`
+- `src/AgentWiki.App/Services/DotEnvLoader.cs`
+- `src/AgentWiki.App/Services/GitProcess.cs`
+
+### Automated Tests
+
+- `tests/AgentWiki.Cli.Tests/AgentWiki.Cli.Tests.csproj`
+- `tests/AgentWiki.Desktop.Tests/AgentWiki.Desktop.Tests.csproj`
+- `tests/AgentWiki.Cli.Tests/Integration/EndToEndOfflineTests.cs`
+
+### Documentation & Product Specification
+
+- `README.md`
+- `AGENTS.md`
+- `AgentWiki-Project-Specification.md`
+
+### Examples & Configuration
+
+- `examples/agentwiki.config.json`
+- `examples/github-actions/agent-wiki-update.yml`
+- `examples/azure-pipelines/agent-wiki-update.yml`
+
+### Automation, Packaging & CI
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/wiki-refresh.yml`
+- `scripts/pack-and-install-tool.sh`
+- `scripts/run-desktop.sh`
+- `.grok/skills/bump-version/SKILL.md`
+- `.grok/skills/bump-version/scripts/bump-version.sh`
 

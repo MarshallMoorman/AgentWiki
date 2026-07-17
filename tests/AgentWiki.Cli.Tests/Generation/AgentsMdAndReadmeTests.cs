@@ -251,8 +251,11 @@ public sealed class AgentsMdAndReadmeTests
         Directory.CreateDirectory(Path.Combine(temp.Path, "src"));
         await File.WriteAllTextAsync(Path.Combine(temp.Path, "src", "A.cs"), "class A {}");
 
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(l => l.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>())).Returns(false);
         var sut = new ReadmeGenerator(
             new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance),
+            llm.Object,
             NullLogger<ReadmeGenerator>.Instance);
 
         var created = await sut.GenerateAsync(new ReadmeGenerationRequest
@@ -304,8 +307,11 @@ public sealed class AgentsMdAndReadmeTests
         Directory.CreateDirectory(Path.Combine(temp.Path, "src"));
         await File.WriteAllTextAsync(Path.Combine(temp.Path, "src", "A.cs"), "class A {}");
 
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(l => l.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>())).Returns(false);
         var sut = new ReadmeGenerator(
             new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance),
+            llm.Object,
             NullLogger<ReadmeGenerator>.Instance);
 
         var result = await sut.GenerateAsync(new ReadmeGenerationRequest
@@ -371,7 +377,7 @@ public sealed class AgentsMdAndReadmeTests
                     new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
                     llm.Object,
                     NullLogger<AgentsMdGenerator>.Instance),
-                new ReadmeGenerator(analyzer, NullLogger<ReadmeGenerator>.Instance),
+                new ReadmeGenerator(analyzer, llm.Object, NullLogger<ReadmeGenerator>.Instance),
                 changeDetector.Object,
                 new LastRunStore(NullLogger<LastRunStore>.Instance),
                 new NullRunTelemetry(),

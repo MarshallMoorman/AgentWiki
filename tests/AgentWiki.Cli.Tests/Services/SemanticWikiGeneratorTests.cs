@@ -139,7 +139,7 @@ public sealed class SemanticWikiGeneratorTests
             new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
             llm.Object,
             NullLogger<AgentsMdGenerator>.Instance);
-        var readme = new ReadmeGenerator(analyzer, NullLogger<ReadmeGenerator>.Instance);
+        var readme = new ReadmeGenerator(analyzer, llm.Object, NullLogger<ReadmeGenerator>.Instance);
 
         return new SemanticWikiGenerator(
             analyzer,

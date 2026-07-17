@@ -8,9 +8,11 @@ namespace AgentWiki.App.Services;
 
 /// <summary>
 /// Generates README.md when missing or generic. Conservative: never overwrites rich READMEs without force.
+/// Uses a richer offline template (solution paths, wiki excerpts) and optional LLM polish.
 /// </summary>
 public sealed class ReadmeGenerator(
     IRepoAnalyzer repoAnalyzer,
+    ILlmCompletionService llm,
     ILogger<ReadmeGenerator> logger) : IReadmeGenerator
 {
     /// <inheritdoc />
@@ -52,7 +54,46 @@ public sealed class ReadmeGenerator(
                              && (File.Exists(Path.Combine(wikiAbs, "index.md"))
                                  || Directory.EnumerateFileSystemEntries(wikiAbs).Any());
 
-            var content = ReadmeOfflineBuilder.Build(analysis, request.Config, wikiRel, wikiExists);
+            var excerpts = await LoadWikiExcerptsAsync(wikiAbs, cancellationToken).ConfigureAwait(false);
+            var offline = ReadmeOfflineBuilder.Build(
+                analysis,
+                request.Config,
+                wikiRel,
+                wikiExists,
+                excerpts);
+
+            var content = offline;
+            if (llm.CanUseLiveLlm(request.Config, null))
+            {
+                try
+                {
+                    request.Progress?.Report("Enriching README.md with LLM…");
+                    var polished = await TryLlmPolishAsync(request, offline, analysis, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(polished)
+                        && polished.Contains(analysis.RepoName, StringComparison.OrdinalIgnoreCase)
+                        && polished.Length > offline.Length / 2)
+                    {
+                        content = polished.TrimEnd() + Environment.NewLine;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "README LLM polish failed; using offline template");
+                }
+            }
+
+            // Ensure agent docs pointer remains even if LLM omits it
+            if (!content.Contains(Constants.Paths.DefaultAgentMdPath, StringComparison.OrdinalIgnoreCase))
+            {
+                content = content.TrimEnd()
+                          + Environment.NewLine
+                          + Environment.NewLine
+                          + $"## Documentation for coding agents{Environment.NewLine}{Environment.NewLine}"
+                          + $"- See [{Constants.Paths.DefaultAgentMdPath}]({Constants.Paths.DefaultAgentMdPath}) "
+                          + $"and `{wikiRel}/` when present.{Environment.NewLine}";
+            }
+
             var wasGeneric = File.Exists(target) && missingOrGeneric;
             var action = !File.Exists(target)
                 ? ReadmeAction.Created
@@ -81,5 +122,62 @@ public sealed class ReadmeGenerator(
             logger.LogError(ex, "README generation failed for {Repo}", request.RepoPath);
             return ReadmeGenerationResult.Fail(ex.Message);
         }
+    }
+
+    private async Task<string?> TryLlmPolishAsync(
+        ReadmeGenerationRequest request,
+        string offlineDraft,
+        RepoAnalysisResult analysis,
+        CancellationToken cancellationToken)
+    {
+        var system =
+            "You write clear, accurate README.md files for engineering teams and coding agents. "
+            + "Return ONLY the full Markdown README. "
+            + "Include: project purpose, build/test commands with real solution/project paths when known, "
+            + "configuration notes, and links to AGENTS.md and docs/wiki when present. "
+            + "Do not invent product claims, ports, or secrets. Prefer concrete paths from the draft.";
+
+        var user = $"Repository: {analysis.RepoName}\n\nOffline draft to improve:\n\n{offlineDraft}";
+
+        var result = await llm.CompleteAsync(
+                request.Config,
+                system,
+                user,
+                options: LlmRequestOptions.ConnectivityProbe,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.Content;
+    }
+
+    private static async Task<Dictionary<string, string>> LoadWikiExcerptsAsync(
+        string wikiAbs,
+        CancellationToken cancellationToken)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!Directory.Exists(wikiAbs))
+        {
+            return map;
+        }
+
+        foreach (var (file, key) in new[] { ("architecture.md", "architecture"), ("index.md", "index") })
+        {
+            var path = Path.Combine(wikiAbs, file);
+            if (!File.Exists(path))
+            {
+                continue;
+            }
+
+            try
+            {
+                map[key] = await File.ReadAllTextAsync(path, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return map;
     }
 }

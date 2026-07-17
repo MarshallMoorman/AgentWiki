@@ -10,6 +10,8 @@ public static class ModuleMarkdownRenderer
 {
     public static string RenderModule(ModuleDocument doc)
     {
+        ModuleDocumentEnricher.Enrich(doc);
+
         var sb = new StringBuilder();
         sb.AppendLine($"# {doc.Title}");
         sb.AppendLine();
@@ -30,8 +32,9 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
 
         AppendList(sb, "Entry points", doc.EntryPoints, ordered: false, asCode: true);
-        AppendList(sb, "Dependencies / roots", doc.Dependencies, ordered: false, asCode: true);
-        AppendList(sb, "Key types / files", doc.KeyTypes, ordered: false, asCode: false);
+        // Dependencies as prose bullets (not code) — LLM often returns sentences
+        AppendList(sb, "Dependencies / roots", doc.Dependencies, ordered: false, asCode: false);
+        AppendList(sb, "Key types / files", doc.KeyTypes, ordered: false, asCode: true);
 
         sb.AppendLine("## Endpoints / Public API");
         sb.AppendLine();
@@ -42,23 +45,9 @@ public static class ModuleMarkdownRenderer
         }
         else
         {
-            ApiEndpointsMarkdownRenderer.AppendEndpointTable(sb, doc.Endpoints, maxRows: 25);
-            foreach (var ep in doc.Endpoints.Take(12))
-            {
-                if (string.IsNullOrWhiteSpace(ep.Description) && ep.Parameters.Count == 0)
-                {
-                    continue;
-                }
-
-                sb.AppendLine($"- `{ep.HttpMethod} {ep.Route}` — {ep.Description ?? ep.HandlerName}");
-                if (ep.Parameters.Count > 0)
-                {
-                    sb.AppendLine($"  - Params: {string.Join(", ", ep.Parameters.Select(p => $"`{p}`"))}");
-                }
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("See also [API Endpoints](../api-endpoints.md).");
+            // Single presentation: table with purpose column (no duplicate bullet dump)
+            AppendModuleEndpointTable(sb, doc.Endpoints, maxRows: 40);
+            sb.AppendLine("See also the full catalog: [API Endpoints](../api-endpoints.md).");
             sb.AppendLine();
         }
 
@@ -150,7 +139,9 @@ public static class ModuleMarkdownRenderer
             foreach (var module in modules)
             {
                 // Full purpose text — agents need complete context; do not truncate.
-                sb.AppendLine($"| [{Escape(module.Title)}]({module.RelativePath}) | {Escape(FlattenCell(module.Purpose))} |");
+                // Clean semi-structured LLM blobs for index readability.
+                var purpose = LlmTextCleanup.CleanProse(module.Purpose);
+                sb.AppendLine($"| [{Escape(module.Title)}]({module.RelativePath}) | {Escape(FlattenCell(purpose))} |");
             }
 
             sb.AppendLine();
@@ -193,6 +184,42 @@ public static class ModuleMarkdownRenderer
         sb.AppendLine();
 
         return sb.ToString().TrimEnd() + "\n";
+    }
+
+    private static void AppendModuleEndpointTable(
+        StringBuilder sb,
+        IReadOnlyList<EndpointInfo> endpoints,
+        int maxRows)
+    {
+        sb.AppendLine("| Method | Route | Handler | Purpose |");
+        sb.AppendLine("|--------|-------|---------|---------|");
+        var rows = endpoints.Take(maxRows).ToList();
+        foreach (var ep in rows)
+        {
+            var purpose = string.IsNullOrWhiteSpace(ep.Description)
+                ? "—"
+                : FlattenCell(ep.Description);
+            if (ep.Parameters.Count > 0 && purpose != "—")
+            {
+                purpose += $" Params: {string.Join(", ", ep.Parameters.Take(4))}";
+            }
+            else if (ep.Parameters.Count > 0)
+            {
+                purpose = $"Params: {string.Join(", ", ep.Parameters.Take(4))}";
+            }
+
+            sb.AppendLine(
+                $"| `{Escape(ep.HttpMethod)}` | `{Escape(ep.Route)}` | `{Escape(ep.HandlerName)}` | {Escape(purpose)} |");
+        }
+
+        if (endpoints.Count > maxRows)
+        {
+            sb.AppendLine();
+            sb.AppendLine(
+                $"_…and {endpoints.Count - maxRows} more for this module. See [api-endpoints.md](../api-endpoints.md)._");
+        }
+
+        sb.AppendLine();
     }
 
     private static void AppendList(

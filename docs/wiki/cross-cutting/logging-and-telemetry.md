@@ -1,24 +1,30 @@
 # Logging and Telemetry
 
-> Cross-cutting notes derived from the current file inventory.
+> Current cross-cutting documentation (AI-assisted).
 
 ## Summary
 
-Logging/telemetry-related files and conventions inferred from inventory.
+Operational visibility is provided through centralized logging and optional telemetry collection for application runs.
 
 ## Patterns
 
-- Use structured logging with correlation IDs for multi-step runs.
-- Never log secrets, API keys, or full prompt/response payloads by default.
+- Central logging setup
+- Run-level telemetry tracking
+- Dependency-injected observability services
+- Structured operational diagnostics
 
 ## Key files
 
-- `src/AgentWiki.Cli/Infrastructure/AgentWikiLogging.cs`
+- `src/AgentWiki.App/Infrastructure/AgentWikiLogging.cs`
+- `src/AgentWiki.App/Infrastructure/ApplicationInsightsRunTelemetry.cs`
+- `src/AgentWiki.App/ServiceCollectionExtensions.cs`
 
 ## Guidance for agents
 
-- Add log events around external calls and generation pipeline steps.
-- Prefer warning/error levels for actionable failures.
+- Use the existing logging infrastructure instead of writing directly to console where possible.
+- Emit useful contextual information around long-running generation workflows.
+- Ensure new background or generation services participate in telemetry and logging pipelines.
+- Avoid introducing parallel observability mechanisms outside the established infrastructure.
 
 ## Navigation
 

@@ -25,9 +25,13 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
         "AddOpenApi", "AddHealthChecks", "AddMemoryCache", "AddStackExchangeRedisCache"
     };
 
+    /// <summary>
+    /// Minimal-API mapping methods. Bare <c>Map</c> is excluded — AutoMapper / DI extension
+    /// methods named <c>Map</c> produce false <c>ANY /</c> endpoints.
+    /// </summary>
     private static readonly HashSet<string> MapMethods = new(StringComparer.Ordinal)
     {
-        "MapGet", "MapPost", "MapPut", "MapDelete", "MapPatch", "MapMethods", "Map"
+        "MapGet", "MapPost", "MapPut", "MapDelete", "MapPatch", "MapMethods"
     };
 
     private static readonly HashSet<string> HttpVerbAttributes = new(StringComparer.Ordinal)
@@ -530,19 +534,28 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
             var name = GetInvocationName(node);
             if (name is not null && MapMethods.Contains(name))
             {
-                var route = ExtractFirstStringArg(node) ?? "/";
-                var http = MapMethodToHttp(name);
-                var auth = ExtractAuthFromNearby(node);
-                Endpoints.Add(new EndpointInfo
+                // Require an explicit route string — bare MapGet() / MapMethods without a path
+                // is usually not a real endpoint declaration we can document.
+                var route = ExtractFirstStringArg(node);
+                if (route is null || IsNoiseMinimalRoute(route))
                 {
-                    HttpMethod = http,
-                    Route = route,
-                    HandlerName = Path.GetFileNameWithoutExtension(relativePath) + "." + name,
-                    RelativePath = relativePath,
-                    Kind = "minimal-api",
-                    AuthHints = auth,
-                    ProjectName = projectName
-                });
+                    // skip catch-alls and missing routes
+                }
+                else
+                {
+                    var http = MapMethodToHttp(name);
+                    var auth = ExtractAuthFromNearby(node);
+                    Endpoints.Add(new EndpointInfo
+                    {
+                        HttpMethod = http,
+                        Route = NormalizeRoutePath(route),
+                        HandlerName = Path.GetFileNameWithoutExtension(relativePath) + "." + name,
+                        RelativePath = relativePath,
+                        Kind = "minimal-api",
+                        AuthHints = auth,
+                        ProjectName = projectName
+                    });
+                }
             }
 
             if (name is not null && DiMethodNames.Contains(name))
@@ -650,6 +663,9 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
                 route = "/" + controllerName.Replace("Controller", "", StringComparison.OrdinalIgnoreCase);
             }
 
+            route = ExpandRouteTokens(route, controllerName, method.Identifier.Text);
+            route = NormalizeRoutePath(route);
+
             var auth = ExtractAuthAttributes(method.AttributeLists);
             Endpoints.Add(new EndpointInfo
             {
@@ -662,6 +678,62 @@ public sealed partial class RoslynStaticAnalyzer(ILogger<RoslynStaticAnalyzer> l
                 Parameters = ExtractParameters(method),
                 ProjectName = projectName
             });
+        }
+
+        /// <summary>Expand ASP.NET <c>[controller]</c> / <c>[action]</c> tokens.</summary>
+        private static string ExpandRouteTokens(string route, string controllerName, string actionName)
+        {
+            var controllerToken = controllerName.EndsWith("Controller", StringComparison.OrdinalIgnoreCase)
+                ? controllerName[..^"Controller".Length]
+                : controllerName;
+            return route
+                .Replace("[controller]", controllerToken, StringComparison.OrdinalIgnoreCase)
+                .Replace("[action]", actionName, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeRoutePath(string route)
+        {
+            route = (route ?? "").Trim().Replace('\\', '/');
+            if (route.Length == 0)
+            {
+                return "/";
+            }
+
+            if (!route.StartsWith('/'))
+            {
+                route = "/" + route;
+            }
+
+            // Collapse duplicate slashes (keep leading)
+            while (route.Contains("//", StringComparison.Ordinal))
+            {
+                route = route.Replace("//", "/", StringComparison.Ordinal);
+            }
+
+            return route;
+        }
+
+        /// <summary>Catch-all / placeholder routes that pollute the catalog.</summary>
+        private static bool IsNoiseMinimalRoute(string route)
+        {
+            var r = route.Trim();
+            if (r.Length == 0)
+            {
+                return true;
+            }
+
+            // ASP.NET catch-all patterns
+            if (r.Contains("{**", StringComparison.Ordinal)
+                || r.Contains("{*", StringComparison.Ordinal)
+                || r.Equals("/{*path}", StringComparison.OrdinalIgnoreCase)
+                || r.Equals("/{**path}", StringComparison.OrdinalIgnoreCase)
+                || r.Equals("{**path}", StringComparison.OrdinalIgnoreCase)
+                || r.Equals("{*path}", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void CollectFunctionEndpoints(MethodDeclarationSyntax method, string typeName)

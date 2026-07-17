@@ -88,6 +88,16 @@ AgentWiki.slnx
 
 ## 4. What landed recently
 
+### Post-1.3.0 quality: module endpoints, README, LLM cleanup (pending pack)
+
+Fixes after LoanView generate review:
+
+- **Endpoint scoping:** each endpoint assigned to at most one module (related files / controller / tokens); shared Api roots no longer dump the full catalog onto every module
+- **Noise filter:** drop bare `Map` / `ANY /` false minimal-apis, catch-all `/{**path}` routes
+- **Routes:** expand `[controller]` / `[action]` tokens
+- **Module pages:** single endpoint table (no duplicate bullets); backfill entry points/key types from related files; clean `key: value; …` LLM blobs
+- **README:** richer offline template (solution paths, layout, wiki architecture blurb) + optional LLM polish
+
 ### v1.3.0 — Step 01: Full AGENTS.md + README generation
 
 - **`agent-wiki agents`**: complete AGENTS.md from inventory, optional wiki excerpts, and instruction files; offline template + optional LLM polish; `--force`, `--dry-run`, `--with-readme`.
