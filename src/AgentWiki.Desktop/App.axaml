@@ -14,10 +14,10 @@
     <FluentTheme DensityStyle="Compact">
       <FluentTheme.Palettes>
         <ColorPaletteResources x:Key="Dark"
-                               Accent="#FF8B7CFF"
+                               Accent="#FF4C9AFF"
                                RegionColor="#FF10131A" />
         <ColorPaletteResources x:Key="Light"
-                               Accent="#FF6C5CE7"
+                               Accent="#FF2563EB"
                                RegionColor="#FFF5F7FC" />
       </FluentTheme.Palettes>
     </FluentTheme>

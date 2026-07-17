@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
   <!--
-    AgentWiki visual system — dark-first, indigo accent, soft glass surfaces.
+    AgentWiki visual system — dark-first, blue accent, soft glass surfaces.
     Tuned for long reading sessions (wiki/logs) and clear primary actions.
   -->
 
@@ -18,11 +18,11 @@
       <Color x:Key="Aw.Text">#E8EDF7</Color>
       <Color x:Key="Aw.TextMuted">#93A0B8</Color>
       <Color x:Key="Aw.TextDim">#6B7894</Color>
-      <Color x:Key="Aw.Accent">#8B7CFF</Color>
-      <Color x:Key="Aw.AccentHover">#A396FF</Color>
-      <Color x:Key="Aw.AccentDeep">#5B4FD6</Color>
-      <Color x:Key="Aw.AccentSoft">#2A2550</Color>
-      <Color x:Key="Aw.AccentGlow">#3D3480</Color>
+      <Color x:Key="Aw.Accent">#4C9AFF</Color>
+      <Color x:Key="Aw.AccentHover">#7BB8FF</Color>
+      <Color x:Key="Aw.AccentDeep">#2563EB</Color>
+      <Color x:Key="Aw.AccentSoft">#152A45</Color>
+      <Color x:Key="Aw.AccentGlow">#1E3A5F</Color>
       <Color x:Key="Aw.Success">#3DDC97</Color>
       <Color x:Key="Aw.SuccessSoft">#143528</Color>
       <Color x:Key="Aw.Warning">#F5C15C</Color>
@@ -33,11 +33,11 @@
       <Color x:Key="Aw.Teal">#2DD4BF</Color>
       <Color x:Key="Aw.CodeBg">#0A0C11</Color>
       <Color x:Key="Aw.Sidebar">#0D1018</Color>
-      <Color x:Key="Aw.HeaderStart">#14182A</Color>
+      <Color x:Key="Aw.HeaderStart">#121A2A</Color>
       <Color x:Key="Aw.HeaderEnd">#10131A</Color>
       <Color x:Key="Aw.ChipBg">#1A2030</Color>
-      <Color x:Key="Aw.NavSelectedStart">#2E2860</Color>
-      <Color x:Key="Aw.NavSelectedEnd">#1E1A40</Color>
+      <Color x:Key="Aw.NavSelectedStart">#1E3A5F</Color>
+      <Color x:Key="Aw.NavSelectedEnd">#152A45</Color>
       <Color x:Key="Aw.Shadow">#000000</Color>
     </ResourceDictionary>
 
@@ -53,11 +53,11 @@
       <Color x:Key="Aw.Text">#151A28</Color>
       <Color x:Key="Aw.TextMuted">#5A667F</Color>
       <Color x:Key="Aw.TextDim">#8793AB</Color>
-      <Color x:Key="Aw.Accent">#6C5CE7</Color>
-      <Color x:Key="Aw.AccentHover">#5A4BD1</Color>
-      <Color x:Key="Aw.AccentDeep">#4A3BB8</Color>
-      <Color x:Key="Aw.AccentSoft">#EDE9FF</Color>
-      <Color x:Key="Aw.AccentGlow">#D8D1FF</Color>
+      <Color x:Key="Aw.Accent">#2563EB</Color>
+      <Color x:Key="Aw.AccentHover">#1D4ED8</Color>
+      <Color x:Key="Aw.AccentDeep">#1E40AF</Color>
+      <Color x:Key="Aw.AccentSoft">#DBEAFE</Color>
+      <Color x:Key="Aw.AccentGlow">#BFDBFE</Color>
       <Color x:Key="Aw.Success">#0FA968</Color>
       <Color x:Key="Aw.SuccessSoft">#D8F5E8</Color>
       <Color x:Key="Aw.Warning">#C98900</Color>
@@ -71,8 +71,8 @@
       <Color x:Key="Aw.HeaderStart">#FFFFFF</Color>
       <Color x:Key="Aw.HeaderEnd">#F5F7FC</Color>
       <Color x:Key="Aw.ChipBg">#E8ECF6</Color>
-      <Color x:Key="Aw.NavSelectedStart">#E4DEFF</Color>
-      <Color x:Key="Aw.NavSelectedEnd">#EDE9FF</Color>
+      <Color x:Key="Aw.NavSelectedStart">#DBEAFE</Color>
+      <Color x:Key="Aw.NavSelectedEnd">#EFF6FF</Color>
       <Color x:Key="Aw.Shadow">#1A1F3A</Color>
     </ResourceDictionary>
   </ResourceDictionary.ThemeDictionaries>
@@ -114,8 +114,8 @@
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="AwBrush.LogoGradient" StartPoint="0%,0%" EndPoint="100%,100%">
-    <GradientStop Offset="0" Color="#A78BFA" />
-    <GradientStop Offset="0.5" Color="#8B7CFF" />
+    <GradientStop Offset="0" Color="#60A5FA" />
+    <GradientStop Offset="0.5" Color="#3B82F6" />
     <GradientStop Offset="1" Color="#2DD4BF" />
   </LinearGradientBrush>
 
@@ -125,7 +125,7 @@
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="AwBrush.SidebarGlow" StartPoint="0%,0%" EndPoint="0%,100%">
-    <GradientStop Offset="0" Color="#1A1640" />
+    <GradientStop Offset="0" Color="#0F1B33" />
     <GradientStop Offset="0.35" Color="{DynamicResource Aw.Sidebar}" />
     <GradientStop Offset="1" Color="{DynamicResource Aw.Sidebar}" />
   </LinearGradientBrush>

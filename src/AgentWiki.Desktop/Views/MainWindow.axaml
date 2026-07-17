@@ -96,7 +96,7 @@
         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <Border Width="36" Height="36" CornerRadius="10"
                   Background="{DynamicResource AwBrush.LogoGradient}"
-                  BoxShadow="0 4 16 0 #408B7CFF">
+                  BoxShadow="0 4 16 0 #404C9AFF">
             <TextBlock Text="A"
                        FontWeight="Bold"
                        FontSize="18"
