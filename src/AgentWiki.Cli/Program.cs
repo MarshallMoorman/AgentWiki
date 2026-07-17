@@ -71,6 +71,13 @@ try
             .WithExample("test-provider")
             .WithExample("test-provider", "--provider", "openai", "--model", "gpt-4o")
             .WithExample("test-provider", "--repo-path", ".");
+
+        config.AddCommand<AgentsCommand>("agents")
+            .WithDescription("Generate a complete AGENTS.md from analysis, wiki, and instruction files")
+            .WithExample("agents")
+            .WithExample("agents", "--repo-path", ".", "--force")
+            .WithExample("agents", "--dry-run")
+            .WithExample("agents", "--with-readme");
     });
 
     return await app.RunAsync(args).ConfigureAwait(false);
@@ -105,4 +112,5 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<UpdateCommand>();
     services.AddSingleton<StatusCommand>();
     services.AddSingleton<TestProviderCommand>();
+    services.AddSingleton<AgentsCommand>();
 }

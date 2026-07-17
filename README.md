@@ -4,7 +4,7 @@
 
 It analyzes a repository, optionally calls an LLM through **Microsoft.SemanticKernel** (OpenAI / Azure OpenAI / GitHub Models), and writes structured Markdown under `docs/wiki/` plus an `AGENTS.md` bootstrap block so coding agents start with durable context.
 
-> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.2.0**).  
+> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.3.0**).  
 > **Handoff for new agents:** **[`docs/HANDOFF.md`](docs/HANDOFF.md)** — read this first in a new conversation.
 
 ## Why AgentWiki?
@@ -36,7 +36,11 @@ agent-wiki init --repo-path /path/to/repo
 agent-wiki test-provider --repo-path /path/to/repo
 
 # Full generation (works offline without LLM credentials)
+# Also creates full AGENTS.md when missing/trivial, and README.md when missing/generic
 agent-wiki generate --repo-path /path/to/repo --force
+
+# Generate a complete AGENTS.md only (optional --force / --with-readme / --dry-run)
+agent-wiki agents --repo-path /path/to/repo
 
 # Incremental update (CI-friendly)
 agent-wiki update --repo-path /path/to/repo
@@ -117,21 +121,41 @@ flowchart TB
 | Command | Description |
 |---------|-------------|
 | `agent-wiki init` | Create `.agentwiki/config.json`, sample prompts, `.env.example` |
-| `agent-wiki generate` | Full multi-step wiki generation |
-| `agent-wiki update` | Incremental update from git changes since last run |
+| `agent-wiki generate` | Full multi-step wiki generation; also full AGENTS.md if missing/trivial and README.md if missing/generic |
+| `agent-wiki update` | Incremental update from git changes since last run (same AGENTS/README rules when applicable) |
+| `agent-wiki agents` | Generate a **complete** `AGENTS.md` from analysis, wiki, and instruction files |
 | `agent-wiki status` | Config, last-run, log path, optional `--analyze` |
 | `agent-wiki test-provider` | Verify LLM credentials with a minimal chat call |
+
+### `agents` command
+
+```bash
+agent-wiki agents --repo-path /path/to/repo
+agent-wiki agents --force              # overwrite substantial existing AGENTS.md
+agent-wiki agents --dry-run            # preview write/delete (no filesystem changes)
+agent-wiki agents --with-readme        # also create/replace missing or generic README.md
+```
+
+Generated AGENTS.md always includes a **Keep this file (and README) up to date** section so agents know to maintain both files when workflows change. If `.github/copilot-instructions.md` exists, its content is migrated into AGENTS.md and the source file is removed after a successful write (not on dry-run).
+
+### `generate` agent docs behavior (defaults on)
+
+| Config flag | Default | Behavior |
+|-------------|---------|----------|
+| `generateAgentsMdIfMissing` | `true` | Write a **full** AGENTS.md when missing or trivial; refresh only the AgentWiki block when a substantial file already exists |
+| `generateReadmeIfMissingOrGeneric` | `true` | Write README.md when missing or detected as a generic template; never overwrite a real README |
+| `migrateCopilotInstructions` | `true` | Merge well-known Copilot instruction files into AGENTS.md and delete them after success |
 
 ### Common options
 
 | Option | Description |
 |--------|-------------|
 | `-r, --repo-path` | Repository root (default: `.`) |
-| `-o, --output` | Wiki output path (default: `docs/wiki`) |
+| `-o, --output` | Wiki output path (default: `docs/wiki`); for `agents`, optional AGENTS.md path |
 | `-c, --config` | Path to config JSON |
 | `-m, --model` | Model / Azure deployment name |
 | `--provider` | `azure-openai` \| `openai` \| `github-models` |
-| `--force` | Overwrite without confirmation (`generate`) |
+| `--force` | Overwrite without confirmation (`generate` wiki; `agents` overwrites substantial AGENTS.md) |
 | `--dry-run` | Analyze / report without writing files |
 | `--verbose` | Stream diagnostics to console (file logging always on) |
 

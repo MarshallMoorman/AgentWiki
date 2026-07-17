@@ -11,7 +11,7 @@ public static class Constants
     {
         public const string ToolName = "agent-wiki";
         public const string ProductName = "AgentWiki";
-        public const string Version = "1.2.4";
+        public const string Version = "1.3.0";
     }
 
     /// <summary>Filesystem paths and well-known file names (repo-relative unless noted).</summary>
@@ -26,9 +26,16 @@ public static class Constants
         public const string DefaultOutputPath = "docs/wiki";
         public const string DefaultAgentMdPath = "AGENTS.md";
         public const string DefaultClaudeMdPath = "CLAUDE.md";
+        public const string DefaultReadmePath = "README.md";
 
         public const string EnvFileName = ".env";
         public const string EnvExampleFileName = ".env.example";
+
+        /// <summary>Primary GitHub Copilot instructions path.</summary>
+        public const string CopilotInstructionsGithub = ".github/copilot-instructions.md";
+
+        /// <summary>Less common root-level Copilot instructions path.</summary>
+        public const string CopilotInstructionsRoot = "copilot-instructions.md";
     }
 
     /// <summary>Default values for <see cref="Models.AgentWikiConfig"/> and matching scaffolds.</summary>
@@ -61,6 +68,21 @@ public static class Constants
         public const int MaxModules = 16;
         public const int MaxFilesPerModule = 40;
         public const bool IncludeTestProjectsAsModules = false;
+
+        /// <summary>When true, generate a full AGENTS.md if missing or trivial during wiki generate.</summary>
+        public const bool GenerateAgentsMdIfMissing = true;
+
+        /// <summary>When true, generate README.md if missing or detected as a generic template.</summary>
+        public const bool GenerateReadmeIfMissingOrGeneric = true;
+
+        /// <summary>When true, migrate and remove well-known copilot-instructions files after AGENTS write.</summary>
+        public const bool MigrateCopilotInstructions = true;
+
+        /// <summary>README shorter than this (chars) is treated as generic / empty.</summary>
+        public const int ReadmeGenericMaxLength = 500;
+
+        /// <summary>AGENTS.md shorter than this (chars) is treated as trivial / missing content.</summary>
+        public const int AgentsMdTrivialMaxLength = 200;
 
         /// <summary>Default ignore patterns beyond .gitignore (copied into new configs).</summary>
         public static IReadOnlyList<string> DefaultIgnorePatterns { get; } =
@@ -109,6 +131,9 @@ public static class Constants
     {
         public const string MarkerBegin = "<!-- BEGIN AGENTWIKI -->";
         public const string MarkerEnd = "<!-- END AGENTWIKI -->";
+
+        /// <summary>Heading used for the mandatory self-updating section (searchable in tests).</summary>
+        public const string SelfUpdateSectionHeading = "## Keep this file (and README) up to date";
     }
 
     /// <summary>Environment variable names and prefixes.</summary>

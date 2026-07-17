@@ -82,9 +82,18 @@ public sealed class EndToEndOfflineTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(ChangeDetectionResult.Full("test"));
 
+        var analyzer = new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance);
+        var staticAnalyzer = new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance);
+        var agentsMd = new AgentsMdGenerator(
+            analyzer,
+            staticAnalyzer,
+            llm.Object,
+            NullLogger<AgentsMdGenerator>.Instance);
+        var readme = new ReadmeGenerator(analyzer, NullLogger<ReadmeGenerator>.Instance);
+
         return new SemanticWikiGenerator(
-            new RepoAnalyzer(NullLogger<RepoAnalyzer>.Instance),
-            new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
+            analyzer,
+            staticAnalyzer,
             new WikiGenerationOrchestrator(
                 arch.Object,
                 llm.Object,
@@ -93,6 +102,8 @@ public sealed class EndToEndOfflineTests
                 NullLogger<WikiGenerationOrchestrator>.Instance),
             new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance),
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),
+            agentsMd,
+            readme,
             changeDetector.Object,
             new LastRunStore(NullLogger<LastRunStore>.Instance),
             new NullRunTelemetry(),

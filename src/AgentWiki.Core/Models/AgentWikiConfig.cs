@@ -28,6 +28,30 @@ public sealed class AgentWikiConfig
     /// <summary>Path to the agent bootstrap markdown file (default: <c>AGENTS.md</c>).</summary>
     public string AgentMdPath { get; set; } = Constants.Paths.DefaultAgentMdPath;
 
+    /// <summary>
+    /// When true (default), write a full <c>AGENTS.md</c> during generate if the file is missing or trivial.
+    /// Substantial existing files still only get the small AgentWiki block refresh.
+    /// </summary>
+    public bool GenerateAgentsMdIfMissing { get; set; } = Constants.Config.GenerateAgentsMdIfMissing;
+
+    /// <summary>
+    /// When true (default), write <c>README.md</c> during generate if missing or detected as a generic template.
+    /// </summary>
+    public bool GenerateReadmeIfMissingOrGeneric { get; set; } =
+        Constants.Config.GenerateReadmeIfMissingOrGeneric;
+
+    /// <summary>
+    /// When true (default), migrate content from well-known copilot-instructions files into AGENTS.md
+    /// and delete the source after a successful write.
+    /// </summary>
+    public bool MigrateCopilotInstructions { get; set; } = Constants.Config.MigrateCopilotInstructions;
+
+    /// <summary>README files shorter than this character count are treated as generic.</summary>
+    public int ReadmeGenericMaxLength { get; set; } = Constants.Config.ReadmeGenericMaxLength;
+
+    /// <summary>AGENTS.md files shorter than this character count are treated as trivial.</summary>
+    public int AgentsMdTrivialMaxLength { get; set; } = Constants.Config.AgentsMdTrivialMaxLength;
+
     /// <summary>Maximum number of source files to analyze.</summary>
     public int MaxFilesToAnalyze { get; set; } = Constants.Config.MaxFilesToAnalyze;
 

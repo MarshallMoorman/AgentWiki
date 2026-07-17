@@ -32,6 +32,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IWikiPostProcessor, WikiPostProcessor>();
         services.AddSingleton<IWikiGenerationOrchestrator, WikiGenerationOrchestrator>();
         services.AddSingleton<IAgentBootstrapper, AgentBootstrapper>();
+        services.AddSingleton<IAgentsMdGenerator, AgentsMdGenerator>();
+        services.AddSingleton<IReadmeGenerator, ReadmeGenerator>();
         services.AddSingleton<ILastRunStore, LastRunStore>();
         services.AddSingleton<IChangeDetector, GitChangeDetector>();
         services.AddSingleton<IRunTelemetry, ApplicationInsightsRunTelemetry>();

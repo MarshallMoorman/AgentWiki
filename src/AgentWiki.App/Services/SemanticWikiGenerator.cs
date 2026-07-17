@@ -20,6 +20,8 @@ public sealed class SemanticWikiGenerator(
     IWikiGenerationOrchestrator orchestrator,
     IOutputWriter outputWriter,
     IAgentBootstrapper agentBootstrapper,
+    IAgentsMdGenerator agentsMdGenerator,
+    IReadmeGenerator readmeGenerator,
     IChangeDetector changeDetector,
     ILastRunStore lastRunStore,
     IRunTelemetry runTelemetry,
@@ -173,27 +175,17 @@ public sealed class SemanticWikiGenerator(
 
             if (!request.DryRun)
             {
-                request.Progress?.Report("Updating meta and AGENTS.md bootstrap…");
+                request.Progress?.Report("Updating meta and agent docs…");
                 await WriteMetaAsync(request, analysis, bundle, filesWritten, changes, cancellationToken)
                     .ConfigureAwait(false);
 
-                var bootstrap = await agentBootstrapper
-                    .EnsureInstructionsAsync(
-                        request.RepoPath,
-                        request.Config.AgentMdPath,
-                        request.Config.OutputPath,
+                await ApplyAgentsAndReadmeAsync(
+                        request,
+                        analysis,
                         dryRun: false,
+                        warnings,
                         cancellationToken)
                     .ConfigureAwait(false);
-
-                if (!bootstrap.Success)
-                {
-                    warnings.Add($"AGENTS.md bootstrap failed: {bootstrap.Error}");
-                }
-                else if (bootstrap.Action is BootstrapAction.Created or BootstrapAction.Updated)
-                {
-                    warnings.Add($"Agent bootstrap: {bootstrap.Message}");
-                }
 
                 await SaveLastRunAsync(request, analysis, bundle, filesWritten, cancellationToken)
                     .ConfigureAwait(false);
@@ -204,18 +196,13 @@ public sealed class SemanticWikiGenerator(
                     $"[dry-run] Would create {writeResult.WouldCreate.Count}, " +
                     $"update {writeResult.WouldUpdate.Count}, " +
                     $"leave unchanged {writeResult.Unchanged.Count} wiki file(s).");
-                var bootstrap = await agentBootstrapper
-                    .EnsureInstructionsAsync(
-                        request.RepoPath,
-                        request.Config.AgentMdPath,
-                        request.Config.OutputPath,
+                await ApplyAgentsAndReadmeAsync(
+                        request,
+                        analysis,
                         dryRun: true,
+                        warnings,
                         cancellationToken)
                     .ConfigureAwait(false);
-                if (bootstrap.Success)
-                {
-                    warnings.Add(bootstrap.Message);
-                }
             }
 
             sw.Stop();
@@ -305,6 +292,116 @@ public sealed class SemanticWikiGenerator(
             }
 
             return fail;
+        }
+    }
+
+    /// <summary>
+    /// Full AGENTS.md when missing/trivial; bootstrap block when substantial;
+    /// README when missing/generic. Respects config flags and dry-run.
+    /// </summary>
+    private async Task ApplyAgentsAndReadmeAsync(
+        WikiGenerationRequest request,
+        RepoAnalysisResult analysis,
+        bool dryRun,
+        List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        var agentPath = Path.IsPathRooted(request.Config.AgentMdPath)
+            ? Path.GetFullPath(request.Config.AgentMdPath)
+            : Path.GetFullPath(Path.Combine(request.RepoPath, request.Config.AgentMdPath));
+
+        var trivialMax = request.Config.AgentsMdTrivialMaxLength > 0
+            ? request.Config.AgentsMdTrivialMaxLength
+            : Constants.Config.AgentsMdTrivialMaxLength;
+
+        var needsFullAgents = request.Config.GenerateAgentsMdIfMissing
+                              && AgentsMdFileClassifier.IsMissingOrTrivial(agentPath, trivialMax);
+
+        if (needsFullAgents)
+        {
+            request.Progress?.Report("Creating full AGENTS.md…");
+            var agentsResult = await agentsMdGenerator
+                .GenerateAsync(
+                    new AgentsMdGenerationRequest
+                    {
+                        Config = request.Config,
+                        RepoPath = request.RepoPath,
+                        WikiOutputPath = request.OutputPath,
+                        Analysis = analysis,
+                        Force = false,
+                        DryRun = dryRun,
+                        ModelOverride = request.ModelOverride,
+                        ProviderOverride = request.ProviderOverride,
+                        Progress = request.Progress
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!agentsResult.Success)
+            {
+                warnings.Add($"Full AGENTS.md generation failed: {agentsResult.Error}");
+            }
+            else
+            {
+                warnings.Add(agentsResult.Message);
+                warnings.AddRange(agentsResult.Warnings);
+            }
+        }
+        else
+        {
+            request.Progress?.Report(dryRun
+                ? "Checking AGENTS.md bootstrap block (dry-run)…"
+                : "Updating AGENTS.md bootstrap block…");
+            var bootstrap = await agentBootstrapper
+                .EnsureInstructionsAsync(
+                    request.RepoPath,
+                    request.Config.AgentMdPath,
+                    request.Config.OutputPath,
+                    dryRun: dryRun,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!bootstrap.Success)
+            {
+                warnings.Add($"AGENTS.md bootstrap failed: {bootstrap.Error}");
+            }
+            else if (bootstrap.Action is BootstrapAction.Created or BootstrapAction.Updated
+                     || dryRun)
+            {
+                warnings.Add($"Agent bootstrap: {bootstrap.Message}");
+            }
+        }
+
+        if (request.Config.GenerateReadmeIfMissingOrGeneric)
+        {
+            request.Progress?.Report("Checking README.md…");
+            var readmeResult = await readmeGenerator
+                .GenerateAsync(
+                    new ReadmeGenerationRequest
+                    {
+                        Config = request.Config,
+                        RepoPath = request.RepoPath,
+                        WikiOutputPath = request.OutputPath,
+                        Analysis = analysis,
+                        Force = false,
+                        DryRun = dryRun,
+                        Progress = request.Progress
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (!readmeResult.Success)
+            {
+                warnings.Add($"README generation failed: {readmeResult.Error}");
+            }
+            else if (readmeResult.Action is not ReadmeAction.Skipped)
+            {
+                warnings.Add(readmeResult.Message);
+            }
+            else if (dryRun)
+            {
+                warnings.Add(readmeResult.Message);
+            }
         }
     }
 

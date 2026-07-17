@@ -186,6 +186,43 @@ public static class EnvConfigApplier
             return;
         }
 
+        if (name.Equals("GenerateAgentsMdIfMissing", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var genAgents))
+        {
+            config.GenerateAgentsMdIfMissing = genAgents;
+            return;
+        }
+
+        if (name.Equals("GenerateReadmeIfMissingOrGeneric", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var genReadme))
+        {
+            config.GenerateReadmeIfMissingOrGeneric = genReadme;
+            return;
+        }
+
+        if (name.Equals("MigrateCopilotInstructions", StringComparison.OrdinalIgnoreCase)
+            && bool.TryParse(value, out var migrateCopilot))
+        {
+            config.MigrateCopilotInstructions = migrateCopilot;
+            return;
+        }
+
+        if (name.Equals("ReadmeGenericMaxLength", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var readmeMax)
+            && readmeMax > 0)
+        {
+            config.ReadmeGenericMaxLength = readmeMax;
+            return;
+        }
+
+        if (name.Equals("AgentsMdTrivialMaxLength", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(value, out var agentsTrivial)
+            && agentsTrivial > 0)
+        {
+            config.AgentsMdTrivialMaxLength = agentsTrivial;
+            return;
+        }
+
         if (name.Equals("MaxFilesToAnalyze", StringComparison.OrdinalIgnoreCase)
             && int.TryParse(value, out var maxFiles)
             && maxFiles > 0)

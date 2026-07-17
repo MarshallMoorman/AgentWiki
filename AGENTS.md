@@ -18,6 +18,7 @@ Instructions for coding agents working **on AgentWiki itself** (not on a target 
 - **AI:** Microsoft.SemanticKernel → OpenAI / Azure OpenAI / GitHub Models
 - **Version:** keep `Directory.Build.props` and `Constants.Product.Version` in sync (`/bump-version` skill)
 - **Shared constants:** use `Constants.[Group].[Name]` from `src/AgentWiki.Core/Constants/Constants.cs` (no magic config defaults in call sites)
+- **Agent docs:** full AGENTS.md via `IAgentsMdGenerator` / `agent-wiki agents`; generate only fills full AGENTS when missing/trivial; rich files keep `AgentBootstrapper` block updates. Generated AGENTS must include the self-update section (`Constants.AgentsMd.SelfUpdateSectionHeading`).
 - **Do not publish to NuGet.org** (local pack / Azure Artifacts later)
 
 ## Generated wiki for *this* repo
@@ -78,6 +79,7 @@ agent-wiki-ui
 
 | Ask | Where to work |
 |-----|----------------|
+| Full AGENTS.md / README auto-gen | `AgentsMdGenerator`, `ReadmeGenerator`, `AgentsMdOfflineBuilder`, `SemanticWikiGenerator.ApplyAgentsAndReadmeAsync`, `AgentsCommand` |
 | Bad wiki / LLM output | `src/AgentWiki.App/Prompts/`, `ArchitectureGenerator`, `WikiGenerationOrchestrator`, `LlmJson`, `WikiPostProcessor` |
 | Offline / Roslyn quality | `RoslynStaticAnalyzer`, `OfflineArchitectureGenerator`, `OfflineModulePlanner` |
 | Module discovery | `OfflineModulePlanner`, `moduleRoots` / `moduleGlobs`, `MaxModules` |

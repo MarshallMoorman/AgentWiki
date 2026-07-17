@@ -134,12 +134,21 @@ public sealed class SemanticWikiGeneratorTests
             changeDetector = mock.Object;
         }
 
+        var agentsMd = new AgentsMdGenerator(
+            analyzer,
+            new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
+            llm.Object,
+            NullLogger<AgentsMdGenerator>.Instance);
+        var readme = new ReadmeGenerator(analyzer, NullLogger<ReadmeGenerator>.Instance);
+
         return new SemanticWikiGenerator(
             analyzer,
             new RoslynStaticAnalyzer(NullLogger<RoslynStaticAnalyzer>.Instance),
             orchestrator,
             new MarkdownOutputWriter(NullLogger<MarkdownOutputWriter>.Instance),
             new AgentBootstrapper(NullLogger<AgentBootstrapper>.Instance),
+            agentsMd,
+            readme,
             changeDetector,
             new LastRunStore(NullLogger<LastRunStore>.Instance),
             new NullRunTelemetry(),
