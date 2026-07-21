@@ -78,6 +78,38 @@ try
             .WithExample("agents", "--repo-path", ".", "--force")
             .WithExample("agents", "--dry-run")
             .WithExample("agents", "--with-readme");
+
+        config.AddBranch("workspace", workspace =>
+        {
+            workspace.SetDescription("Multi-repo workspace commands (file-based system knowledge base)");
+
+            workspace.AddCommand<WorkspaceInitCommand>("init")
+                .WithDescription("Scaffold .agentwiki/workspace.json with sample members")
+                .WithExample("workspace", "init")
+                .WithExample("workspace", "init", "Lending Core")
+                .WithExample("workspace", "init", "--force");
+
+            workspace.AddCommand<WorkspaceGenerateCommand>("generate")
+                .WithDescription("Generate system knowledge base + ensure member wikis")
+                .WithExample("workspace", "generate")
+                .WithExample("workspace", "generate", "--repo-path", ".", "--force")
+                .WithExample("workspace", "generate", "--dry-run");
+
+            workspace.AddCommand<WorkspaceUpdateCommand>("update")
+                .WithDescription("Incrementally update the system wiki from member changes")
+                .WithExample("workspace", "update")
+                .WithExample("workspace", "update", "--dry-run");
+
+            workspace.AddCommand<WorkspaceStatusCommand>("status")
+                .WithDescription("Show workspace members, last-run, and member wiki health")
+                .WithExample("workspace", "status")
+                .WithExample("workspace", "status", "--repo-path", ".");
+
+            workspace.AddCommand<WorkspaceAddCommand>("add")
+                .WithDescription("Add a member (local path or git remote) to workspace.json")
+                .WithExample("workspace", "add", "loan-service", "../LoanService")
+                .WithExample("workspace", "add", "shared", "https://github.com/org/Shared.git", "--branch", "main");
+        });
     });
 
     return await app.RunAsync(args).ConfigureAwait(false);
@@ -113,4 +145,9 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<StatusCommand>();
     services.AddSingleton<TestProviderCommand>();
     services.AddSingleton<AgentsCommand>();
+    services.AddSingleton<WorkspaceInitCommand>();
+    services.AddSingleton<WorkspaceGenerateCommand>();
+    services.AddSingleton<WorkspaceUpdateCommand>();
+    services.AddSingleton<WorkspaceStatusCommand>();
+    services.AddSingleton<WorkspaceAddCommand>();
 }

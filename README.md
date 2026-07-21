@@ -4,7 +4,7 @@
 
 It analyzes a repository, optionally calls an LLM through **Microsoft.SemanticKernel** (OpenAI / Azure OpenAI / GitHub Models), and writes structured Markdown under `docs/wiki/` plus an `AGENTS.md` bootstrap block so coding agents start with durable context.
 
-> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.3.0**).  
+> **Version:** see `Directory.Build.props` / `agent-wiki --version` (currently **1.4.0**).  
 > **Handoff for new agents:** **[`docs/HANDOFF.md`](docs/HANDOFF.md)** — read this first in a new conversation.
 
 ## Why AgentWiki?
@@ -47,6 +47,13 @@ agent-wiki update --repo-path /path/to/repo
 
 # Status + live inventory
 agent-wiki status --repo-path /path/to/repo --analyze
+
+# Multi-repo workspace (system knowledge base — file-based Phase 1)
+agent-wiki workspace init "Lending Core" --repo-path /path/to/workspace-root
+# edit .agentwiki/workspace.json members (local paths and/or git remotes)
+agent-wiki workspace generate --repo-path /path/to/workspace-root --force
+agent-wiki workspace update --repo-path /path/to/workspace-root
+agent-wiki workspace status --repo-path /path/to/workspace-root
 ```
 
 From source without installing the tool:
@@ -126,6 +133,7 @@ flowchart TB
 | `agent-wiki agents` | Generate a **complete** `AGENTS.md` from analysis, wiki, and instruction files |
 | `agent-wiki status` | Config, last-run, log path, optional `--analyze` |
 | `agent-wiki test-provider` | Verify LLM credentials with a minimal chat call |
+| `agent-wiki workspace …` | Multi-repo **workspace** system knowledge base (see below) |
 
 ### `agents` command
 
@@ -137,6 +145,70 @@ agent-wiki agents --with-readme        # also create/replace missing or generic 
 ```
 
 Generated AGENTS.md always includes a **Keep this file (and README) up to date** section so agents know to maintain both files when workflows change. If `.github/copilot-instructions.md` exists, its content is migrated into AGENTS.md and the source file is removed after a successful write (not on dry-run).
+
+### `workspace` commands (multi-repo, file-based)
+
+Define a **workspace** that groups related repositories, then generate a system-level knowledge base with deep links into each member’s own `docs/wiki/`. **No vectors / embeddings** in this phase — Markdown only.
+
+```bash
+# Scaffold .agentwiki/workspace.json
+agent-wiki workspace init "Lending Core" --repo-path /path/to/workspace-root
+
+# Add members (local path or git remote)
+agent-wiki workspace add loan-service ../LoanService --repo-path /path/to/workspace-root
+agent-wiki workspace add shared-domain https://github.com/org/SharedDomain.git --branch main
+
+# Full system wiki (+ ensure member wikis when missing/stale)
+agent-wiki workspace generate --repo-path /path/to/workspace-root --force
+
+# Incremental (member HEAD / wiki changes + system pages)
+agent-wiki workspace update --repo-path /path/to/workspace-root
+
+# Health: members, resolve status, wiki freshness, last-run
+agent-wiki workspace status --repo-path /path/to/workspace-root
+
+# Safe preview
+agent-wiki workspace generate --dry-run --repo-path /path/to/workspace-root
+```
+
+Example `.agentwiki/workspace.json`:
+
+```json
+{
+  "name": "Lending Core",
+  "description": "Core lending platform and related services",
+  "outputPath": "docs/knowledge-base",
+  "members": [
+    {
+      "id": "loan-service",
+      "path": "../LoanService",
+      "label": "Loan Service",
+      "role": "service"
+    },
+    {
+      "id": "shared-domain",
+      "remote": "https://github.com/org/SharedDomain.git",
+      "branch": "main",
+      "label": "Shared Domain Models"
+    }
+  ]
+}
+```
+
+Default system output: `docs/knowledge-base/`
+
+```
+docs/knowledge-base/
+├── index.md
+├── architecture.md
+├── dependency-graph.md
+├── data-flows.md
+├── ownership.md
+├── members/<id>.md          # summary + deep links into member docs/wiki/
+└── .agentwiki-meta.json
+```
+
+Also writes/refreshes a **workspace-level `AGENTS.md`** (start at root → drill into members + self-update section). Remote members are shallow-cloned under `~/.agentwiki/cache/workspaces/…`. Single-repo commands (`generate` / `update` / `agents`) are unchanged.
 
 ### `generate` agent docs behavior (defaults on)
 

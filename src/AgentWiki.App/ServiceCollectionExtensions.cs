@@ -39,6 +39,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRunTelemetry, ApplicationInsightsRunTelemetry>();
         services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
+        // Multi-repo workspace (Phase 1 — file-based only)
+        services.AddSingleton<IWorkspaceConfigLoader, WorkspaceConfigLoader>();
+        services.AddSingleton<IWorkspaceMemberResolver, WorkspaceMemberResolver>();
+        services.AddSingleton<IWorkspaceInitService, WorkspaceInitService>();
+        services.AddSingleton<IMemberWikiInspector, MemberWikiInspector>();
+        services.AddSingleton<ICrossRepoSignalCollector, CrossRepoSignalCollector>();
+        services.AddSingleton<IWorkspaceLastRunStore, WorkspaceLastRunStore>();
+        services.AddSingleton<IWorkspaceOrchestrator, WorkspaceOrchestrator>();
+
         return services;
     }
 }

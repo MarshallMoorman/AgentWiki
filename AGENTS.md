@@ -19,6 +19,7 @@ Instructions for coding agents working **on AgentWiki itself** (not on a target 
 - **Version:** keep `Directory.Build.props` and `Constants.Product.Version` in sync (`/bump-version` skill)
 - **Shared constants:** use `Constants.[Group].[Name]` from `src/AgentWiki.Core/Constants/Constants.cs` (no magic config defaults in call sites)
 - **Agent docs:** full AGENTS.md via `IAgentsMdGenerator` / `agent-wiki agents`; generate only fills full AGENTS when missing/trivial; rich files keep `AgentBootstrapper` block updates. Generated AGENTS must include the self-update section (`Constants.AgentsMd.SelfUpdateSectionHeading`).
+- **Workspace (multi-repo, file-based Phase 1):** `agent-wiki workspace init|generate|update|status|add` — system KB under `docs/knowledge-base/`; no vectors/embeddings in this phase. Reuse single-repo generators for members; keep single-repo commands unaffected.
 - **Do not publish to NuGet.org** (local pack / Azure Artifacts later)
 
 ## Generated wiki for *this* repo
@@ -90,5 +91,7 @@ agent-wiki-ui
 | CI samples | `examples/github-actions/`, `examples/azure-pipelines/` |
 | Analysis / gitignore | `RepoAnalyzer`, `GitIgnoreMatcher`, `FileCategorizer`, `IStaticAnalyzer` |
 | Incremental update | `GitChangeDetector`, `LastRunStore`, `SemanticWikiGenerator` |
-| Config / init | `ConfigLoader`, `InitService`, `DotEnvLoader` |
+| Multi-repo workspace | `WorkspaceConfig` models, `WorkspaceConfigLoader`, `WorkspaceMemberResolver`, `CrossRepoSignalCollector`, `WorkspaceOfflineBuilder`, `WorkspaceOrchestrator`, `WorkspaceLastRunStore`, `WorkspaceCommands` |
+| Config / init | `ConfigLoader`, `InitService`, `DotEnvLoader`; workspace: `WorkspaceInitService` |
 | Release | `/bump-version`, `scripts/pack-and-install-tool.sh` |
+| Step requirements | `docs/development/01-*.md`, `docs/development/02-multi-repo-workspace-phase1-*.md` |

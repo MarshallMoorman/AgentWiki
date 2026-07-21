@@ -11,7 +11,7 @@ public static class Constants
     {
         public const string ToolName = "agent-wiki";
         public const string ProductName = "AgentWiki";
-        public const string Version = "1.3.0";
+        public const string Version = "1.4.0";
     }
 
     /// <summary>Filesystem paths and well-known file names (repo-relative unless noted).</summary>
@@ -27,6 +27,18 @@ public static class Constants
         public const string DefaultAgentMdPath = "AGENTS.md";
         public const string DefaultClaudeMdPath = "CLAUDE.md";
         public const string DefaultReadmePath = "README.md";
+
+        /// <summary>Default workspace definition file under <see cref="ConfigDirectoryName"/>.</summary>
+        public const string WorkspaceFileName = "workspace.json";
+
+        /// <summary>Default system knowledge-base output for multi-repo workspaces.</summary>
+        public const string DefaultWorkspaceOutputPath = "docs/knowledge-base";
+
+        /// <summary>Workspace last-run state file name (under .agentwiki/).</summary>
+        public const string WorkspaceLastRunFileName = "workspace-last-run.json";
+
+        /// <summary>Subdirectory under the user cache for remote member clones.</summary>
+        public const string WorkspaceCacheDirectoryName = "workspaces";
 
         public const string EnvFileName = ".env";
         public const string EnvExampleFileName = ".env.example";
@@ -89,6 +101,12 @@ public static class Constants
 
         /// <summary>AGENTS.md shorter than this (chars) is treated as trivial / missing content.</summary>
         public const int AgentsMdTrivialMaxLength = 200;
+
+        /// <summary>Member wiki older than this many days is reported as stale (status / generate warnings).</summary>
+        public const int MemberWikiStaleDays = 14;
+
+        /// <summary>Maximum members allowed in a workspace config (hard cap for Phase 1).</summary>
+        public const int MaxWorkspaceMembers = 50;
 
         /// <summary>Default ignore patterns beyond .gitignore (copied into new configs).</summary>
         public static IReadOnlyList<string> DefaultIgnorePatterns { get; } =
