@@ -64,6 +64,19 @@ public interface IWorkspaceInitService
         string? branch = null,
         string? workspaceConfigPath = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Removes a member by id from the workspace definition and saves.</summary>
+    Task<WorkspaceInitResult> RemoveMemberAsync(
+        string workspaceRoot,
+        string memberId,
+        string? workspaceConfigPath = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Lists members defined in the workspace config (no path resolve / clone).</summary>
+    Task<WorkspaceMemberListResult> ListMembersAsync(
+        string workspaceRoot,
+        string? workspaceConfigPath = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>Collects cross-repo signals from resolved members (file heuristics only).</summary>

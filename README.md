@@ -159,6 +159,8 @@ agent-wiki workspace add ../LoanService --repo-path /path/to/workspace-root
 agent-wiki workspace add https://github.com/org/SharedDomain.git --branch main
 agent-wiki workspace add ../LoanService --id loan-service   # optional explicit id
 # legacy: agent-wiki workspace add loan-service ../LoanService
+agent-wiki workspace list --repo-path /path/to/workspace-root
+agent-wiki workspace remove loan-service --repo-path /path/to/workspace-root
 
 # Full system wiki (+ ensure member wikis when missing/stale)
 agent-wiki workspace generate --repo-path /path/to/workspace-root --force

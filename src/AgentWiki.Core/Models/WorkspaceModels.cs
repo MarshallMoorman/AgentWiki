@@ -348,3 +348,31 @@ public sealed class WorkspaceInitResult
     public static WorkspaceInitResult Fail(string error) =>
         new() { Success = false, Message = "Workspace init failed.", Error = error };
 }
+
+/// <summary>Result of listing workspace members from config.</summary>
+public sealed class WorkspaceMemberListResult
+{
+    public required bool Success { get; init; }
+    public string? Error { get; init; }
+    public string? WorkspaceName { get; init; }
+    public string? ConfigPath { get; init; }
+    public IReadOnlyList<WorkspaceMember> Members { get; init; } = [];
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
+    public static WorkspaceMemberListResult Ok(
+        string workspaceName,
+        string? configPath,
+        IReadOnlyList<WorkspaceMember> members,
+        IReadOnlyList<string>? warnings = null) =>
+        new()
+        {
+            Success = true,
+            WorkspaceName = workspaceName,
+            ConfigPath = configPath,
+            Members = members,
+            Warnings = warnings ?? []
+        };
+
+    public static WorkspaceMemberListResult Fail(string error) =>
+        new() { Success = false, Error = error };
+}

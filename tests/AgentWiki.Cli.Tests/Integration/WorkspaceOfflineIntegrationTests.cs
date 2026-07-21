@@ -320,6 +320,52 @@ public sealed class WorkspaceOfflineIntegrationTests
     }
 
     [Fact]
+    public async Task ListAndRemoveMember_UpdatesConfig()
+    {
+        var workspace = CreateTempDir("ws-list-rm");
+        var memberA = CreateTempDir("ma-lr");
+        var memberB = CreateTempDir("mb-lr");
+        try
+        {
+            var loader = new WorkspaceConfigLoader(NullLogger<WorkspaceConfigLoader>.Instance);
+            var init = new WorkspaceInitService(loader, NullLogger<WorkspaceInitService>.Instance);
+            await loader.SaveAsync(
+                new WorkspaceConfig
+                {
+                    Name = "ListRm",
+                    Members =
+                    [
+                        new WorkspaceMember { Id = "a", Path = memberA },
+                        new WorkspaceMember { Id = "b", Path = memberB }
+                    ]
+                },
+                Path.Combine(workspace, ".agentwiki", "workspace.json"));
+
+            var list = await init.ListMembersAsync(workspace);
+            list.Success.ShouldBeTrue(list.Error);
+            list.Members.Count.ShouldBe(2);
+
+            var remove = await init.RemoveMemberAsync(workspace, "a");
+            remove.Success.ShouldBeTrue(remove.Error);
+            remove.Message.ShouldContain("1 member");
+
+            list = await init.ListMembersAsync(workspace);
+            list.Members.Count.ShouldBe(1);
+            list.Members.Single().Id.ShouldBe("b");
+
+            var missing = await init.RemoveMemberAsync(workspace, "nope");
+            missing.Success.ShouldBeFalse();
+            missing.Error.ShouldContain("not found");
+        }
+        finally
+        {
+            TryDelete(workspace);
+            TryDelete(memberA);
+            TryDelete(memberB);
+        }
+    }
+
+    [Fact]
     public async Task AddMember_WithoutId_DerivesFromPath()
     {
         var workspace = CreateTempDir("ws-add-auto");

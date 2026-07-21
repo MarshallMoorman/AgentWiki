@@ -65,6 +65,14 @@ public class WorkspaceInitSettings : WorkspaceSettingsBase
     public bool Force { get; init; }
 }
 
+/// <summary>Settings for workspace remove.</summary>
+public class WorkspaceRemoveSettings : WorkspaceSettingsBase
+{
+    [CommandArgument(0, "<ID>")]
+    [Description("Member id to remove (see workspace list)")]
+    public string MemberId { get; init; } = "";
+}
+
 /// <summary>Settings for workspace add.</summary>
 public class WorkspaceAddSettings : WorkspaceSettingsBase
 {
@@ -205,6 +213,101 @@ public sealed class WorkspaceAddCommand(IWorkspaceInitService initService)
         pathOrRemote = first!;
         memberId = idOption;
         return true;
+    }
+}
+
+/// <summary><c>agent-wiki workspace list</c> — list configured members.</summary>
+public sealed class WorkspaceListCommand(IWorkspaceInitService initService)
+    : AsyncCommand<WorkspaceSettingsBase>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, WorkspaceSettingsBase settings)
+    {
+        AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — workspace members");
+        var root = PathUtility.ExpandAndResolve(settings.RepoPath);
+        var result = await initService
+            .ListMembersAsync(root, settings.WorkspaceConfigPath)
+            .ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            CliConsole.WriteError(result.Error ?? "Failed to list members.");
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[grey]Workspace:[/] {Markup.Escape(result.WorkspaceName ?? "—")}");
+        if (!string.IsNullOrWhiteSpace(result.ConfigPath))
+        {
+            AnsiConsole.MarkupLine($"[grey]Config:[/] {Markup.Escape(result.ConfigPath)}");
+        }
+
+        if (result.Members.Count == 0)
+        {
+            AnsiConsole.MarkupLine("[yellow]No members configured.[/] Add one with `agent-wiki workspace add <path-or-remote>`.");
+            return 0;
+        }
+
+        var table = new Table()
+            .Border(TableBorder.Rounded)
+            .Title($"[bold]Members ({result.Members.Count})[/]")
+            .AddColumn("Id")
+            .AddColumn("Label")
+            .AddColumn("Role")
+            .AddColumn("Type")
+            .AddColumn("Source")
+            .AddColumn("Branch");
+
+        foreach (var m in result.Members)
+        {
+            // Prefer path when both set (resolver behavior)
+            var type = !string.IsNullOrWhiteSpace(m.Path) ? "local" : "remote";
+            var source = !string.IsNullOrWhiteSpace(m.Path)
+                ? m.Path!
+                : (m.Remote ?? "—");
+            if (source.Length > 56)
+            {
+                source = source[..53] + "…";
+            }
+
+            table.AddRow(
+                Markup.Escape(m.Id),
+                Markup.Escape(m.DisplayName),
+                Markup.Escape(string.IsNullOrWhiteSpace(m.Role) ? "—" : m.Role!),
+                type,
+                Markup.Escape(source),
+                Markup.Escape(string.IsNullOrWhiteSpace(m.Branch) ? "—" : m.Branch!));
+        }
+
+        AnsiConsole.Write(table);
+
+        foreach (var w in result.Warnings.Take(5))
+        {
+            AnsiConsole.MarkupLine($"[yellow]![/] {Markup.Escape(w)}");
+        }
+
+        return 0;
+    }
+}
+
+/// <summary><c>agent-wiki workspace remove</c> — remove a member by id.</summary>
+public sealed class WorkspaceRemoveCommand(IWorkspaceInitService initService)
+    : AsyncCommand<WorkspaceRemoveSettings>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, WorkspaceRemoveSettings settings)
+    {
+        AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — workspace remove member");
+        var root = PathUtility.ExpandAndResolve(settings.RepoPath);
+        var result = await initService
+            .RemoveMemberAsync(root, settings.MemberId, settings.WorkspaceConfigPath)
+            .ConfigureAwait(false);
+
+        if (!result.Success)
+        {
+            CliConsole.WriteError(result.Error ?? result.Message);
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] {Markup.Escape(result.Message)}");
+        return 0;
     }
 }
 

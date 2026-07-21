@@ -105,7 +105,8 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
 
         if (config.Members.Count == 0)
         {
-            errors.Add("Workspace has no members. Add at least one member (path or remote).");
+            // Allow empty config while editing (add/remove); generate fails when nothing resolves.
+            warnings.Add("Workspace has no members. Add at least one member (path or remote).");
         }
 
         if (config.Members.Count > Constants.Config.MaxWorkspaceMembers)

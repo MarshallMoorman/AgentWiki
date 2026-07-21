@@ -111,6 +111,16 @@ try
                 .WithExample("workspace", "add", "../LoanService", "--id", "loan-service")
                 .WithExample("workspace", "add", "loan-service", "../LoanService")
                 .WithExample("workspace", "add", "https://github.com/org/Shared.git", "--branch", "main");
+
+            workspace.AddCommand<WorkspaceListCommand>("list")
+                .WithDescription("List members defined in workspace.json")
+                .WithExample("workspace", "list")
+                .WithExample("workspace", "list", "--repo-path", ".");
+
+            workspace.AddCommand<WorkspaceRemoveCommand>("remove")
+                .WithDescription("Remove a member from workspace.json by id")
+                .WithExample("workspace", "remove", "loan-service")
+                .WithExample("workspace", "remove", "loan-service", "--repo-path", ".");
         });
     });
 
@@ -152,4 +162,6 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<WorkspaceUpdateCommand>();
     services.AddSingleton<WorkspaceStatusCommand>();
     services.AddSingleton<WorkspaceAddCommand>();
+    services.AddSingleton<WorkspaceListCommand>();
+    services.AddSingleton<WorkspaceRemoveCommand>();
 }

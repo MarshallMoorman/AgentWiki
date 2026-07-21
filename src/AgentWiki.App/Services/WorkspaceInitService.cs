@@ -173,6 +173,95 @@ public sealed class WorkspaceInitService(
         }
     }
 
+    /// <inheritdoc />
+    public async Task<WorkspaceInitResult> RemoveMemberAsync(
+        string workspaceRoot,
+        string memberId,
+        string? workspaceConfigPath = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(memberId))
+            {
+                return WorkspaceInitResult.Fail("Member id is required. Example: agent-wiki workspace remove loan-service");
+            }
+
+            var load = await configLoader
+                .LoadAsync(workspaceRoot, workspaceConfigPath, cancellationToken)
+                .ConfigureAwait(false);
+            if (!load.Success || load.Config is null)
+            {
+                return WorkspaceInitResult.Fail(load.Error ?? "Failed to load workspace config.");
+            }
+
+            var config = load.Config;
+            var id = memberId.Trim();
+            var index = config.Members.FindIndex(m =>
+                m.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                var known = config.Members.Count == 0
+                    ? "(none)"
+                    : string.Join(", ", config.Members.Select(m => m.Id));
+                return WorkspaceInitResult.Fail(
+                    $"Member id '{id}' not found in the workspace. Known members: {known}");
+            }
+
+            var removed = config.Members[index];
+            config.Members.RemoveAt(index);
+
+            var path = config.ConfigFilePath
+                       ?? Path.Combine(
+                           PathUtility.ExpandAndResolve(workspaceRoot),
+                           Constants.Paths.ConfigDirectoryName,
+                           Constants.Paths.WorkspaceFileName);
+
+            await configLoader.SaveAsync(config, path, cancellationToken).ConfigureAwait(false);
+            logger.LogInformation("Removed member {Id} from workspace at {Path}", removed.Id, path);
+
+            var remaining = config.Members.Count;
+            return WorkspaceInitResult.Ok(
+                $"Removed member '{removed.Id}' from {path} ({remaining} member(s) remaining).",
+                path,
+                [path]);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to remove workspace member");
+            return WorkspaceInitResult.Fail(ex.Message);
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<WorkspaceMemberListResult> ListMembersAsync(
+        string workspaceRoot,
+        string? workspaceConfigPath = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var load = await configLoader
+                .LoadAsync(workspaceRoot, workspaceConfigPath, cancellationToken)
+                .ConfigureAwait(false);
+            if (!load.Success || load.Config is null)
+            {
+                return WorkspaceMemberListResult.Fail(load.Error ?? "Failed to load workspace config.");
+            }
+
+            return WorkspaceMemberListResult.Ok(
+                load.Config.Name,
+                load.Config.ConfigFilePath,
+                load.Config.Members,
+                load.Warnings);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to list workspace members");
+            return WorkspaceMemberListResult.Fail(ex.Message);
+        }
+    }
+
     /// <summary>
     /// Derives a stable member id from a local path or git remote URL
     /// (last path segment, strip <c>.git</c>, sanitize; unique among <paramref name="existingIds"/>).
