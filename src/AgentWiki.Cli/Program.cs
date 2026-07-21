@@ -121,6 +121,19 @@ try
                 .WithDescription("Remove a member from workspace.json by id")
                 .WithExample("workspace", "remove", "loan-service")
                 .WithExample("workspace", "remove", "loan-service", "--repo-path", ".");
+
+            workspace.AddBranch("member", member =>
+            {
+                member.SetDescription("Per-member orchestration (init, generate, update, replace-configs, status)");
+
+                member.AddCommand<WorkspaceMemberReplaceConfigsCommand>("replace-configs")
+                    .WithDescription(
+                        "Force-write workspace memberDefaults into each local member's .agentwiki/config.json")
+                    .WithExample("workspace", "member", "replace-configs")
+                    .WithExample("workspace", "member", "replace-configs", "--dry-run")
+                    .WithExample("workspace", "member", "replace-configs", "--id", "Elevate-LMS-LoanView")
+                    .WithExample("workspace", "member", "replace-configs", "--force");
+            });
         });
     });
 
@@ -164,4 +177,5 @@ static void ConfigureServices(IServiceCollection services)
     services.AddSingleton<WorkspaceAddCommand>();
     services.AddSingleton<WorkspaceListCommand>();
     services.AddSingleton<WorkspaceRemoveCommand>();
+    services.AddSingleton<WorkspaceMemberReplaceConfigsCommand>();
 }

@@ -311,6 +311,141 @@ public sealed class WorkspaceRemoveCommand(IWorkspaceInitService initService)
     }
 }
 
+/// <summary>Settings for <c>workspace member replace-configs</c>.</summary>
+public class WorkspaceMemberReplaceConfigsSettings : WorkspaceSettingsBase
+{
+    [CommandOption("--id <ID>")]
+    [Description("Limit to a single member id (default: all local path members)")]
+    public string? MemberId { get; init; }
+
+    [CommandOption("--dry-run")]
+    [Description("Report would-create / would-overwrite paths without writing")]
+    [DefaultValue(false)]
+    public bool DryRun { get; init; }
+
+    [CommandOption("--force")]
+    [Description("Skip confirmation when overwriting existing member configs")]
+    [DefaultValue(false)]
+    public bool Force { get; init; }
+}
+
+/// <summary>
+/// <c>agent-wiki workspace member replace-configs</c> —
+/// force-write <c>memberDefaults</c> into each selected local member's <c>.agentwiki/config.json</c>.
+/// </summary>
+public sealed class WorkspaceMemberReplaceConfigsCommand(
+    IWorkspaceConfigLoader configLoader,
+    IWorkspaceMemberResolver memberResolver,
+    IMemberConfigApplier configApplier) : AsyncCommand<WorkspaceMemberReplaceConfigsSettings>
+{
+    public override async Task<int> ExecuteAsync(
+        CommandContext context,
+        WorkspaceMemberReplaceConfigsSettings settings)
+    {
+        AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — workspace member replace-configs");
+        CliConsole.WriteLogHint();
+
+        var root = PathUtility.ExpandAndResolve(settings.RepoPath);
+        var load = await configLoader
+            .LoadAsync(root, settings.WorkspaceConfigPath)
+            .ConfigureAwait(false);
+
+        if (!load.Success || load.Config is null)
+        {
+            CliConsole.WriteError(load.Error ?? "Failed to load workspace config.");
+            return 1;
+        }
+
+        var config = load.Config;
+        if (config.MemberDefaults is null)
+        {
+            CliConsole.WriteError(
+                "workspace.json has no memberDefaults section. Run `agent-wiki workspace init` or add memberDefaults first.");
+            return 1;
+        }
+
+        foreach (var w in load.Warnings.Where(x =>
+                     x.Contains("apiKey", StringComparison.OrdinalIgnoreCase)
+                     || x.Contains("secret", StringComparison.OrdinalIgnoreCase)
+                     || x.Contains("memberDefaults", StringComparison.OrdinalIgnoreCase)))
+        {
+            AnsiConsole.MarkupLine($"[yellow]![/] {Markup.Escape(w)}");
+        }
+
+        var resolved = await memberResolver.ResolveAllAsync(config).ConfigureAwait(false);
+
+        // Preview existing configs for confirmation
+        var candidates = resolved
+            .Where(m =>
+                string.IsNullOrWhiteSpace(settings.MemberId)
+                || m.Definition.Id.Equals(settings.MemberId.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Where(m => !m.IsRemote && !string.IsNullOrWhiteSpace(m.Definition.Path) && m.Success)
+            .ToList();
+
+        var existingCount = candidates.Count(m =>
+            File.Exists(Path.Combine(m.AbsolutePath, ".agentwiki", "config.json")));
+
+        if (!settings.DryRun
+            && !settings.Force
+            && existingCount > 1
+            && !IsNonInteractiveEnvironment())
+        {
+            var confirm = AnsiConsole.Confirm(
+                $"This will overwrite {existingCount} existing member config.json file(s) from memberDefaults. Continue?",
+                defaultValue: false);
+            if (!confirm)
+            {
+                AnsiConsole.MarkupLine("[yellow]Cancelled.[/]");
+                return 1;
+            }
+        }
+
+        var batch = await configApplier
+            .ReplaceConfigsAsync(
+                config,
+                resolved,
+                settings.MemberId,
+                settings.DryRun)
+            .ConfigureAwait(false);
+
+        if (!batch.Success)
+        {
+            CliConsole.WriteError(batch.Error ?? batch.Message);
+            return 1;
+        }
+
+        AnsiConsole.MarkupLine($"[green]✓[/] {Markup.Escape(batch.Message)}");
+        foreach (var r in batch.Results)
+        {
+            var icon = r.Wrote || r.WouldWrite ? "+" : r.Skipped ? "·" : "!";
+            var color = r.Success ? (r.Skipped ? "grey" : "green") : "red";
+            AnsiConsole.MarkupLine($"  [{color}]{icon}[/] {Markup.Escape(r.Message)}");
+        }
+
+        foreach (var w in batch.Warnings.Take(10))
+        {
+            AnsiConsole.MarkupLine($"[yellow]![/] {Markup.Escape(w)}");
+        }
+
+        return 0;
+    }
+
+    /// <summary>True in CI / non-interactive environments (skips overwrite confirmation).</summary>
+    public static bool IsNonInteractiveEnvironment()
+    {
+        // CI and documented non-interactive flags skip confirmations.
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Environment.GetEnvironmentVariable("TF_BUILD"), "True", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Environment.GetEnvironmentVariable("AGENTWIKI_NONINTERACTIVE"), "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Environment.GetEnvironmentVariable("AGENTWIKI_NONINTERACTIVE"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return Console.IsInputRedirected;
+    }
+}
+
 /// <summary><c>agent-wiki workspace generate</c> — full system wiki + member ensure.</summary>
 public sealed class WorkspaceGenerateCommand(
     IWorkspaceConfigLoader configLoader,
