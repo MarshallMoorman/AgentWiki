@@ -1,9 +1,9 @@
 # AgentWiki — session handoff (for new conversations)
 
-**Last updated:** 2026-07-20  
-**Current version:** **1.4.0**  
+**Last updated:** 2026-07-21  
+**Current version:** **1.5.0**  
 **Repo:** this repository root  
-**Active plan:** Step 02 complete — multi-repo file-based Workspace Phase 1 (`docs/development/02-multi-repo-workspace-phase1-requirements.md`)
+**Active plan:** Step 02b complete — workspace corpus, routing quality & member orchestration (`docs/development/02b-workspace-corpus-routing-requirements.md`)
 
 | Surface | Package | Command |
 |---------|---------|---------|
@@ -14,7 +14,7 @@ This document is the single best place for a new coding agent or human to contin
 
 **Session hygiene:** commit after each completed step (product + tests + docs). Do **not** publish to NuGet.org (local pack / Azure Artifacts later).
 
-**Git (as of this handoff):** **1.4.0** on `main` includes Step 02 (workspace multi-repo Phase 1, file-based only).
+**Git (as of this handoff):** **1.5.0** on `main` includes Step 02b (workspace corpus + routing; still file-based only).
 
 ---
 
@@ -27,7 +27,7 @@ This document is the single best place for a new coding agent or human to contin
 3. Writes an **agent-optimized wiki** under `docs/wiki/`
 4. Produces / maintains **`AGENTS.md`** (full file when missing; bootstrap block when rich) and optional **README.md**
 5. Supports **incremental updates** via git change detection (`.agentwiki/last-run.json`)
-6. **Workspace mode (1.4+):** multi-repo system knowledge base under `docs/knowledge-base/` with deep links into member wikis (file-based; no vectors)
+6. **Workspace mode (1.5+):** multi-repo **routing corpus** under `docs/knowledge-base/` with member manifests, web deep links, and Phase 2–ready meta (still no vectors)
 
 It is intentionally file-based Markdown (not a RAG vector DB). Spec source of truth: `AgentWiki-Project-Specification.md`.
 
@@ -47,7 +47,7 @@ dotnet build AgentWiki.slnx
 dotnet test AgentWiki.slnx
 
 ./scripts/pack-and-install-tool.sh
-agent-wiki --version                # 1.4.0
+agent-wiki --version                # 1.5.0
 agent-wiki-ui
 
 agent-wiki init --repo-path /path/to/repo
@@ -57,10 +57,12 @@ agent-wiki agents --repo-path /path/to/repo
 agent-wiki update --repo-path /path/to/repo
 agent-wiki status --repo-path /path/to/repo --analyze
 
-# Multi-repo workspace (Phase 1 — file-based system KB)
+# Multi-repo workspace (Step 02b — corpus + routing)
 agent-wiki workspace init "My System" --repo-path /path/to/workspace-root
-agent-wiki workspace add svc-a ../ServiceA --repo-path /path/to/workspace-root
-agent-wiki workspace generate --repo-path /path/to/workspace-root --force
+agent-wiki workspace add ../ServiceA --repo-path /path/to/workspace-root
+agent-wiki workspace member replace-configs --force
+agent-wiki workspace generate --repo-path /path/to/workspace-root
+agent-wiki workspace generate --update-members=stale
 agent-wiki workspace update --repo-path /path/to/workspace-root
 agent-wiki workspace status --repo-path /path/to/workspace-root
 ```
@@ -85,56 +87,48 @@ AgentWiki.slnx
 
 | Hotspot | Path |
 |---------|------|
-| Shared constants | `src/AgentWiki.Core/Constants/Constants.cs` → `Constants.Product\|Paths\|Config\|…` |
+| Shared constants | `src/AgentWiki.Core/Constants/Constants.cs` → `Constants.Product\|Paths\|WorkspaceManifest\|Workspace\|…` |
 | Full AGENTS.md | `IAgentsMdGenerator` / `AgentsMdGenerator`, `AgentsMdOfflineBuilder` |
 | README | `IReadmeGenerator` / `ReadmeGenerator`, `ReadmeHeuristics`, `ReadmeOfflineBuilder` |
 | Bootstrap block only | `AgentBootstrapper` (rich AGENTS.md still uses this) |
-| Generate wiring | `SemanticWikiGenerator.ApplyAgentsAndReadmeAsync` |
-| **Workspace (Phase 1)** | `WorkspaceConfig` models, `WorkspaceConfigLoader`, `WorkspaceMemberResolver`, `CrossRepoSignalCollector`, `WorkspaceOfflineBuilder`, `WorkspaceOrchestrator`, `WorkspaceLastRunStore` |
-| Workspace CLI | `WorkspaceCommands` branch under `workspace` in `Program.cs` |
-| Step docs | `docs/development/01-*.md`, `docs/development/02-multi-repo-workspace-phase1-*.md` |
+| Generate wiring | `SemanticWikiGenerator.ApplyAgentsAndReadmeAsync` + manifest scaffold |
+| **Workspace corpus (02b)** | `WorkspaceManifestParser/Scaffold`, `AgentWikiConfigDefaults`, `MemberConfigApplier`, `MemberWikiFreshness`, `RepoWebLinkBuilder`, `WorkspaceOfflineBuilder` (routing cards), `WorkspaceOrchestrator` |
+| Workspace CLI | `WorkspaceCommands` + `workspace member replace-configs` in `Program.cs` |
+| Step docs | `docs/development/01-*.md`, `02-multi-repo-workspace-phase1-*.md`, `02b-workspace-corpus-routing-*.md` |
 
 ---
 
 ## 4. What landed recently
 
-### v1.4.0 — Step 02: Multi-repo file-based Workspace (Phase 1)
+### v1.5.0 — Step 02b: Workspace corpus, routing & member orchestration
 
-**Strictly file-based** — no embeddings, Azure AI Search, or RAG.
+**Still file-based only** — no embeddings, Azure AI Search, or MCP.
 
-- **Config:** `.agentwiki/workspace.json` with local `path` and/or remote `remote`+`branch` members; validation (ids, sources, caps).
-- **CLI:** `workspace init | generate | update | status | add`
-  - `generate` resolves members, ensures per-repo wikis (reuses `IWikiGenerator`), collects cross-repo signals, writes system KB + workspace `AGENTS.md`
-  - `update` incremental via `.agentwiki/workspace-last-run.json` (per-member HEAD / wiki freshness)
-  - Remote members: shallow clone/fetch under `~/.agentwiki/cache/workspaces/…`
-- **System output** (default `docs/knowledge-base/`): `index.md`, `architecture.md`, `dependency-graph.md`, `data-flows.md`, `ownership.md`, `members/<id>.md` (deep links into member `docs/wiki/`), meta JSON
-- **Signals:** PackageReference / packages.config / package.json, ProjectReference cross-matches, CODEOWNERS, OpenAPI/proto/contract paths
-- **AGENTS.md (workspace):** “start at root → drill into members” + marker block + mandatory self-update section
-- **Offline-first:** `WorkspaceOfflineBuilder`; dry-run never writes; single-repo commands untouched
-- **Tests:** config/loader/resolver/signals/offline builder + workspace offline E2E (generate, dry-run, incremental, status, add)
-- **Desktop:** no Workspace tab yet (acceptable follow-up)
+- **Manifest:** `docs/wiki/workspace-manifest.md` human-owned (Purpose, rules, Layer, Team, Applications/Services, Brands Rise/Shine/Elastic/Blueprint, routing sections); scaffold on single-repo generate when missing; never overwrite
+- **memberDefaults:** full `AgentWikiConfig` template in `workspace.json`; seeded on workspace init; init-copy into members when config missing; **`workspace member replace-configs`** force overwrite (dry-run / --id / --force / CI skip confirm)
+- **memberWikiPolicy:** `ensureMissing` (default true), `updateMembers` never\|stale\|all (default never); CLI `--update-members`, `--no-ensure-member-wikis`
+- **Staleness:** git HEAD vs baseline (member last-run commit → workspace last-run head); calendar age is soft warning only
+- **Ids:** exact repo name (case/dots preserved); collision `-2`, `-3`
+- **Web links:** GitHub + Azure DevOps from upstream/origin + current branch
+- **Corpus:** `routing-guide.md`, `members/<id>/index.md` routing cards, Phase 2 meta JSON (layer, brands, apps, repoUrl, wikiWebUrl, …)
+- **Offline-first** system synthesis; dry-run never writes; single-repo mode preserved
+- **Tests:** manifest parser, defaults/replace-configs, freshness policy, link builder, corpus, workspace offline E2E
 
-### Prior — post-1.3.0 quality (module endpoints, README, LLM cleanup)
+### v1.4.x — Step 02: Multi-repo file-based Workspace (Phase 1)
 
-- Endpoint scoping, noise filter, route token expansion, module page cleanup, richer offline README
+- workspace init/add/list/remove/generate/update/status; system KB scaffold; remote cache
 
 ### v1.3.0 — Step 01: Full AGENTS.md + README generation
-
-- `agent-wiki agents`, full AGENTS when missing/trivial, README heuristics, copilot migration, self-update section
-
-### Prior (1.2.x)
-
-- Single-repo polish Phases 1–6, CanExecute UI fix, nested `Constants` hierarchy, LLM timeout/retry hardening, blue theme.
 
 ---
 
 ## 5. Recommended next steps
 
-1. Pack/install tools: `./scripts/pack-and-install-tool.sh` → verify `agent-wiki --version` is **1.4.0**
-2. Consumer trial: multi-repo workspace with 2–3 local members → `workspace generate --force`
-3. **Phase 2 (vectors / semantic “which repos for this story?”)** when requirements land (GitHub issue #2) — do **not** add embeddings until then
-4. Optional: Desktop Workspace tab / member list parity
-5. Optional: Desktop parity for `agents` / README messaging
+1. Pack/install: `./scripts/pack-and-install-tool.sh` → verify `agent-wiki --version` is **1.5.0**
+2. Consumer trial: multi-repo workspace, fill member manifests (layer/brands/apps), `workspace generate`
+3. **Phase 2 (vectors / Azure AI Search / shared HTTP MCP)** — GitHub issue #2 — index `docs/knowledge-base/**` + meta; do **not** add embeddings until then
+4. Optional: `workspace member status|init|generate|update` CLI polish; Desktop Workspace tab
+5. Optional: LLM enrichment path for system architecture pages (offline routing cards remain authoritative for human fields)
 
 ---
 
@@ -142,8 +136,9 @@ AgentWiki.slnx
 
 - Publish to NuGet.org without explicit request  
 - Force-push / rewrite shared history  
-- Commit secrets or `.env` with keys  
+- Commit secrets or `.env` with keys (warn if memberDefaults contains apiKey)  
 - Break offline generate when LLM is unavailable  
 - Overwrite rich AGENTS.md / README without force / generic detection  
-- Implement vector/embedding/RAG in this codebase until Phase 2 requirements are explicit  
+- Overwrite existing `workspace-manifest.md`  
+- Implement vector/embedding/RAG/MCP until Phase 2 requirements are explicit  
 - Break single-repo `generate` / `update` / `agents` behavior when changing workspace code  

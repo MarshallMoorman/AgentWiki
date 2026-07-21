@@ -48,10 +48,12 @@ agent-wiki update --repo-path /path/to/repo
 # Status + live inventory
 agent-wiki status --repo-path /path/to/repo --analyze
 
-# Multi-repo workspace (system knowledge base — file-based Phase 1)
+# Multi-repo workspace (routing corpus — Step 02b, still file-based)
 agent-wiki workspace init "Lending Core" --repo-path /path/to/workspace-root
-# edit .agentwiki/workspace.json members (local paths and/or git remotes)
-agent-wiki workspace generate --repo-path /path/to/workspace-root --force
+# edit .agentwiki/workspace.json members + memberDefaults
+agent-wiki workspace member replace-configs --force   # push defaults into local members
+agent-wiki workspace generate --repo-path /path/to/workspace-root
+agent-wiki workspace generate --update-members=stale
 agent-wiki workspace update --repo-path /path/to/workspace-root
 agent-wiki workspace status --repo-path /path/to/workspace-root
 ```
@@ -146,73 +148,101 @@ agent-wiki agents --with-readme        # also create/replace missing or generic 
 
 Generated AGENTS.md always includes a **Keep this file (and README) up to date** section so agents know to maintain both files when workflows change. If `.github/copilot-instructions.md` exists, its content is migrated into AGENTS.md and the source file is removed after a successful write (not on dry-run).
 
-### `workspace` commands (multi-repo, file-based)
+### `workspace` commands (multi-repo corpus + routing — Step 02b)
 
-Define a **workspace** that groups related repositories, then generate a system-level knowledge base with deep links into each member’s own `docs/wiki/`. **No vectors / embeddings** in this phase — Markdown only.
+Define a **workspace** that groups related repositories, orchestrates **local full clones**, and synthesizes a durable **routing corpus** under `docs/knowledge-base/`. Member repos own deep wikis + a human **`workspace-manifest.md`** (layer, team, apps/services, brands Rise/Shine/Elastic/Blueprint, route-when). Workspace pages use **web deep links** (GitHub / Azure DevOps) when remotes are known.
+
+**Still file-based** — no vectors, Azure AI Search, or MCP (those are Phase 2 / issue #2). Meta JSON is Phase 2–ready.
 
 ```bash
-# Scaffold .agentwiki/workspace.json
+# Scaffold .agentwiki/workspace.json (includes full memberDefaults template)
 agent-wiki workspace init "Lending Core" --repo-path /path/to/workspace-root
 
-# Add members (local path or git remote). Id is optional — derived from folder/remote name.
-agent-wiki workspace add ../LoanService --repo-path /path/to/workspace-root
+# Add members. Id defaults to exact repo name (e.g. Elevate-LMS-LoanView), not kebab-case.
+agent-wiki workspace add ../Elevate-LMS-LoanView --repo-path /path/to/workspace-root
 agent-wiki workspace add https://github.com/org/SharedDomain.git --branch main
-agent-wiki workspace add ../LoanService --id loan-service   # optional explicit id
-# legacy: agent-wiki workspace add loan-service ../LoanService
+agent-wiki workspace add ../LoanService --id LoanService   # optional explicit id
 agent-wiki workspace list --repo-path /path/to/workspace-root
-agent-wiki workspace remove loan-service --repo-path /path/to/workspace-root
+agent-wiki workspace remove LoanService --repo-path /path/to/workspace-root
 
-# Full system wiki (+ ensure member wikis when missing/stale)
-agent-wiki workspace generate --repo-path /path/to/workspace-root --force
+# Force-write memberDefaults → each local member's .agentwiki/config.json
+agent-wiki workspace member replace-configs --repo-path /path/to/workspace-root --force
+agent-wiki workspace member replace-configs --dry-run
+agent-wiki workspace member replace-configs --id Elevate-LMS-LoanView
 
-# Incremental (member HEAD / wiki changes + system pages)
+# Generate corpus (+ ensure missing member wikis by default; does NOT bulk-update stale)
+agent-wiki workspace generate --repo-path /path/to/workspace-root
+agent-wiki workspace generate --update-members=stale   # also refresh git-stale members
+agent-wiki workspace generate --update-members=all --force
+agent-wiki workspace generate --no-ensure-member-wikis
+agent-wiki workspace generate --dry-run
+
+# Incremental system refresh
 agent-wiki workspace update --repo-path /path/to/workspace-root
 
-# Health: members, resolve status, wiki freshness, last-run
+# Health: members, resolve status, git-freshness, last-run
 agent-wiki workspace status --repo-path /path/to/workspace-root
-
-# Safe preview
-agent-wiki workspace generate --dry-run --repo-path /path/to/workspace-root
 ```
 
-Example `.agentwiki/workspace.json`:
+**Member contribution manifest** (human-owned, scaffolded on single-repo generate when missing):
+
+```text
+docs/wiki/workspace-manifest.md
+```
+
+Contains Purpose, Maintenance rules, Layer, Team, Applications/Services, Brands, routing sections, keywords, additional context. Never overwritten by generate after scaffold.
+
+**`memberDefaults`** in `workspace.json` is a **complete** single-repo `config.json` template (same surface as `AgentWikiConfig`). Used only to copy/replace into members — not as the workspace LLM runtime config. Prefer env vars over committing API keys.
+
+**Staleness:** git change since last member wiki baseline (member `last-run.json` commit, else workspace last-run head). Calendar age alone does **not** mark stale.
+
+**Member wiki policy** (`memberWikiPolicy`):
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `ensureMissing` | `true` | Auto init+generate when local wiki missing |
+| `updateMembers` | `never` | `never` \| `stale` \| `all` |
+
+CLI overrides: `--update-members`, `--no-ensure-member-wikis`, `--force`. Precedence: CLI > policy > legacy `ensureMemberWikis`.
+
+Example shape (abbreviated):
 
 ```json
 {
-  "name": "Lending Core",
-  "description": "Core lending platform and related services",
+  "name": "Elevate LMS",
   "outputPath": "docs/knowledge-base",
+  "memberWikiPolicy": { "ensureMissing": true, "updateMembers": "never" },
+  "memberDefaults": {
+    "provider": "azure-openai",
+    "defaultModel": "gpt-4o",
+    "outputPath": "docs/wiki"
+  },
   "members": [
     {
-      "id": "loan-service",
-      "path": "../LoanService",
-      "label": "Loan Service",
+      "id": "Elevate-LMS-LoanView",
+      "path": "../lms/Elevate-LMS-LoanView",
+      "label": "Loan View",
       "role": "service"
-    },
-    {
-      "id": "shared-domain",
-      "remote": "https://github.com/org/SharedDomain.git",
-      "branch": "main",
-      "label": "Shared Domain Models"
     }
   ]
 }
 ```
 
-Default system output: `docs/knowledge-base/`
+Default system output:
 
 ```
 docs/knowledge-base/
 ├── index.md
+├── routing-guide.md
 ├── architecture.md
 ├── dependency-graph.md
 ├── data-flows.md
 ├── ownership.md
-├── members/<id>.md          # summary + deep links into member docs/wiki/
-└── .agentwiki-meta.json
+├── members/<id>/index.md   # routing card (layer, brands, apps, web links)
+└── .agentwiki-meta.json    # Phase 2 fields: ids, layer, brands, apps, URLs
 ```
 
-Also writes/refreshes a **workspace-level `AGENTS.md`** (start at root → drill into members + self-update section). Remote members are shallow-cloned under `~/.agentwiki/cache/workspaces/…`. Single-repo commands (`generate` / `update` / `agents`) are unchanged.
+Also writes/refreshes **workspace `AGENTS.md`** (routing-guide → cards → web links → member clone). Remote-only members: analyze + warn on write policies. Single-repo commands remain unchanged.
 
 ### `generate` agent docs behavior (defaults on)
 
