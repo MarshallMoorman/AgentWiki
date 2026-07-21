@@ -50,6 +50,20 @@ public class WorkspaceGenerationSettings : WorkspaceSettingsBase
     [Description("Analyze and report without writing files")]
     [DefaultValue(false)]
     public bool DryRun { get; init; }
+
+    [CommandOption("--update-members <POLICY>")]
+    [Description("Member wiki update policy for this run: never | stale | all (default from workspace.json)")]
+    public string? UpdateMembers { get; init; }
+
+    [CommandOption("--no-ensure-member-wikis")]
+    [Description("Do not auto-generate missing member wikis for this run")]
+    [DefaultValue(false)]
+    public bool NoEnsureMemberWikis { get; init; }
+
+    [CommandOption("--allow-cache-write")]
+    [Description("Allow writing member wikis into remote cache clones (default: local full clones only)")]
+    [DefaultValue(false)]
+    public bool AllowCacheWrite { get; init; }
 }
 
 /// <summary>Settings for workspace init.</summary>
@@ -622,6 +636,9 @@ internal static class WorkspaceCommandHelpers
                     Incremental = incremental,
                     ModelOverride = settings.Model,
                     ProviderOverride = settings.Provider,
+                    UpdateMembersOverride = settings.UpdateMembers,
+                    EnsureMemberWikisOverride = settings.NoEnsureMemberWikis ? false : null,
+                    AllowCacheWrite = settings.AllowCacheWrite,
                     Progress = progress
                 };
                 result = await orchestrator.GenerateAsync(request).ConfigureAwait(false);

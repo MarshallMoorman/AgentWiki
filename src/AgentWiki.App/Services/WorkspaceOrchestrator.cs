@@ -19,12 +19,14 @@ public sealed class WorkspaceOrchestrator(
     IWorkspaceConfigLoader workspaceConfigLoader,
     IWorkspaceMemberResolver memberResolver,
     IMemberWikiInspector wikiInspector,
+    IMemberConfigApplier memberConfigApplier,
     ICrossRepoSignalCollector signalCollector,
     IRepoAnalyzer repoAnalyzer,
     IConfigLoader configLoader,
+    ILastRunStore lastRunStore,
     IWikiGenerator wikiGenerator,
     IOutputWriter outputWriter,
-    IWorkspaceLastRunStore lastRunStore,
+    IWorkspaceLastRunStore workspaceLastRunStore,
     ILogger<WorkspaceOrchestrator> logger) : IWorkspaceOrchestrator
 {
     private static readonly JsonSerializerOptions MetaJsonOptions = new()
@@ -83,14 +85,20 @@ public sealed class WorkspaceOrchestrator(
                     warnings);
             }
 
-            // Incremental: load last-run and decide which members need work.
-            WorkspaceLastRunState? lastRun = null;
-            if (request.Incremental)
-            {
-                request.Progress?.Report("Loading workspace last-run state…");
-                lastRun = await lastRunStore.LoadAsync(root, cancellationToken).ConfigureAwait(false);
-                steps.Add("load-last-run");
-            }
+            request.Progress?.Report("Loading workspace last-run state…");
+            var lastRun = await workspaceLastRunStore.LoadAsync(root, cancellationToken).ConfigureAwait(false);
+            steps.Add("load-last-run");
+
+            var (ensureMissing, updateMembers) = MemberWikiFreshness.ResolvePolicy(
+                config,
+                request.EnsureMemberWikisOverride,
+                request.UpdateMembersOverride);
+
+            logger.LogInformation(
+                "Member wiki policy: ensureMissing={Ensure}, updateMembers={Update}, force={Force}",
+                ensureMissing,
+                updateMembers,
+                request.Force);
 
             var memberAnalyses = new List<WorkspaceMemberAnalysis>();
             var membersGenerated = 0;
@@ -111,29 +119,104 @@ public sealed class WorkspaceOrchestrator(
                 }
 
                 request.Progress?.Report($"Inspecting member '{member.Definition.Id}'…");
-                var wikiStatus = wikiInspector.Inspect(member);
+
+                string? memberLastRunSha = null;
+                try
+                {
+                    var memberLast = await lastRunStore
+                        .LoadAsync(member.AbsolutePath, cancellationToken)
+                        .ConfigureAwait(false);
+                    memberLastRunSha = memberLast?.CommitSha;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                string? workspaceBaseline = null;
+                if (lastRun?.Members.TryGetValue(member.Definition.Id, out var priorMember) == true)
+                {
+                    workspaceBaseline = priorMember.HeadSha;
+                }
+
+                var wikiStatus = wikiInspector is MemberWikiInspector concrete
+                    ? concrete.InspectWithBaselines(member, memberLastRunSha, workspaceBaseline)
+                    : wikiInspector.Inspect(member);
+
+                // Manifest presence
+                var manifestPath = WorkspaceManifestScaffold.ResolvePath(
+                    member.AbsolutePath,
+                    member.Definition.WikiPath);
+                var manifestPresent = File.Exists(manifestPath);
+                wikiStatus = new MemberWikiStatus
+                {
+                    MemberId = wikiStatus.MemberId,
+                    WikiAbsolutePath = wikiStatus.WikiAbsolutePath,
+                    Exists = wikiStatus.Exists,
+                    HasIndex = wikiStatus.HasIndex,
+                    HasArchitecture = wikiStatus.HasArchitecture,
+                    LastWriteUtc = wikiStatus.LastWriteUtc,
+                    IsStale = wikiStatus.IsStale,
+                    Summary = wikiStatus.Summary,
+                    Warnings = wikiStatus.Warnings,
+                    Freshness = wikiStatus.Freshness,
+                    BaselineSha = wikiStatus.BaselineSha,
+                    CurrentHeadSha = wikiStatus.CurrentHeadSha,
+                    ManifestPresent = manifestPresent
+                };
+
                 memberWarnings.AddRange(wikiStatus.Warnings);
 
                 GenerationResult? genResult = null;
                 RepoAnalysisResult? analysis = null;
 
-                var needsMemberWiki =
-                    config.EnsureMemberWikis
-                    && (!wikiStatus.Exists || wikiStatus.IsStale || request.Force);
-
-                if (request.Incremental && lastRun is not null && !request.Force)
+                var freshnessKind = wikiStatus.Summary switch
                 {
-                    needsMemberWiki = ShouldRegenerateMember(member, wikiStatus, lastRun) && config.EnsureMemberWikis;
-                    if (!needsMemberWiki && wikiStatus.Exists)
-                    {
-                        logger.LogDebug(
-                            "Member {Id} unchanged since last workspace run — skipping member wiki generate",
-                            member.Definition.Id);
-                    }
+                    "missing" => MemberWikiFreshnessKind.Missing,
+                    "stale" => MemberWikiFreshnessKind.Stale,
+                    _ => wikiStatus.IsStale ? MemberWikiFreshnessKind.Stale : MemberWikiFreshnessKind.Ok
+                };
+
+                var isLocalClone = !member.IsRemote && !string.IsNullOrWhiteSpace(member.Definition.Path);
+                var allowWrite = isLocalClone || request.AllowCacheWrite;
+
+                var needsMemberWiki = MemberWikiFreshness.ShouldGenerate(
+                    freshnessKind,
+                    ensureMissing,
+                    updateMembers,
+                    forceAll: request.Force);
+
+                if (needsMemberWiki && !allowWrite)
+                {
+                    memberWarnings.Add(
+                        $"Member '{member.Definition.Id}' needs wiki generate but is remote-only/cache "
+                        + "(use a local full clone or --allow-cache-write).");
+                    warnings.Add(memberWarnings[^1]);
+                    needsMemberWiki = false;
                 }
 
                 if (needsMemberWiki)
                 {
+                    // Init + memberDefaults when config missing (local only)
+                    if (isLocalClone && config.MemberDefaults is not null)
+                    {
+                        var apply = await memberConfigApplier
+                            .ApplyToMemberAsync(
+                                member.AbsolutePath,
+                                config.MemberDefaults,
+                                forceReplace: false,
+                                dryRun: request.DryRun,
+                                cancellationToken)
+                            .ConfigureAwait(false);
+                        if (apply.Wrote)
+                        {
+                            logger.LogInformation(
+                                "Applied memberDefaults (init) for {Id}",
+                                member.Definition.Id);
+                            memberWarnings.Add(apply.Message);
+                        }
+                    }
+
                     request.Progress?.Report(
                         wikiStatus.Exists
                             ? $"Updating member wiki '{member.Definition.Id}'…"
@@ -148,8 +231,10 @@ public sealed class WorkspaceOrchestrator(
                     if (genResult.Success)
                     {
                         membersGenerated++;
-                        // Refresh status after generation
-                        wikiStatus = wikiInspector.Inspect(member);
+                        // Refresh status after generation (baseline now = current head after last-run write)
+                        wikiStatus = wikiInspector is MemberWikiInspector c2
+                            ? c2.InspectWithBaselines(member, member.HeadSha, member.HeadSha)
+                            : wikiInspector.Inspect(member);
                     }
                     else
                     {
@@ -159,13 +244,20 @@ public sealed class WorkspaceOrchestrator(
                         warnings.Add(memberWarnings[^1]);
                     }
                 }
-                else if (!wikiStatus.Exists)
+                else if (freshnessKind == MemberWikiFreshnessKind.Missing)
                 {
                     var msg =
                         $"Member '{member.Definition.Id}' wiki is missing — run `agent-wiki generate` in that repo "
-                        + "or enable ensureMemberWikis and re-run workspace generate.";
+                        + "or enable memberWikiPolicy.ensureMissing and re-run workspace generate.";
                     memberWarnings.Add(msg);
                     warnings.Add(msg);
+                }
+                else if (freshnessKind == MemberWikiFreshnessKind.Stale
+                         && updateMembers == Constants.Workspace.UpdateMembersNever)
+                {
+                    logger.LogDebug(
+                        "Member {Id} is git-stale but updateMembers=never — skipping member wiki update",
+                        member.Definition.Id);
                 }
 
                 // Always analyze inventory for system pages (offline-safe).
@@ -309,7 +401,7 @@ public sealed class WorkspaceOrchestrator(
             if (!request.DryRun)
             {
                 request.Progress?.Report("Saving workspace last-run state…");
-                await lastRunStore
+                await workspaceLastRunStore
                     .SaveAsync(root, BuildLastRunState(request, config, memberAnalyses, filesWritten), cancellationToken)
                     .ConfigureAwait(false);
                 steps.Add("save-last-run");
@@ -366,11 +458,53 @@ public sealed class WorkspaceOrchestrator(
 
         var config = load.Config;
         var resolved = await memberResolver.ResolveAllAsync(config, cancellationToken).ConfigureAwait(false);
-        var wikiStatuses = resolved
-            .Where(r => r.Success)
-            .Select(r => wikiInspector.Inspect(r))
-            .ToList();
-        var lastRun = await lastRunStore.LoadAsync(config.WorkspaceRoot, cancellationToken).ConfigureAwait(false);
+        var lastRun = await workspaceLastRunStore
+            .LoadAsync(config.WorkspaceRoot, cancellationToken)
+            .ConfigureAwait(false);
+
+        var wikiStatuses = new List<MemberWikiStatus>();
+        foreach (var r in resolved.Where(x => x.Success))
+        {
+            string? memberLastRunSha = null;
+            try
+            {
+                memberLastRunSha = (await lastRunStore.LoadAsync(r.AbsolutePath, cancellationToken)
+                    .ConfigureAwait(false))?.CommitSha;
+            }
+            catch
+            {
+                // ignore
+            }
+
+            string? workspaceBaseline = null;
+            if (lastRun?.Members.TryGetValue(r.Definition.Id, out var prior) == true)
+            {
+                workspaceBaseline = prior.HeadSha;
+            }
+
+            var status = wikiInspector is MemberWikiInspector concrete
+                ? concrete.InspectWithBaselines(r, memberLastRunSha, workspaceBaseline)
+                : wikiInspector.Inspect(r);
+
+            var manifestPath = WorkspaceManifestScaffold.ResolvePath(r.AbsolutePath, r.Definition.WikiPath);
+            wikiStatuses.Add(new MemberWikiStatus
+            {
+                MemberId = status.MemberId,
+                WikiAbsolutePath = status.WikiAbsolutePath,
+                Exists = status.Exists,
+                HasIndex = status.HasIndex,
+                HasArchitecture = status.HasArchitecture,
+                LastWriteUtc = status.LastWriteUtc,
+                IsStale = status.IsStale,
+                Summary = status.Summary,
+                Warnings = status.Warnings,
+                Freshness = status.Freshness,
+                BaselineSha = status.BaselineSha,
+                CurrentHeadSha = status.CurrentHeadSha,
+                ManifestPresent = File.Exists(manifestPath)
+            });
+        }
+
         var warnings = new List<string>(load.Warnings);
         warnings.AddRange(resolved.Where(r => !r.Success).Select(r => r.Error!));
         warnings.AddRange(wikiStatuses.SelectMany(w => w.Warnings));

@@ -1,21 +1,41 @@
 using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 
 namespace AgentWiki.App.Services;
 
 /// <summary>
-/// Checks whether a member repo has a usable wiki and whether it looks stale.
+/// Checks whether a member repo has a usable wiki and git-based staleness (Step 02b).
 /// </summary>
 public sealed class MemberWikiInspector : IMemberWikiInspector
 {
     /// <inheritdoc />
     public MemberWikiStatus Inspect(ResolvedWorkspaceMember member, int staleDays = 0)
     {
+        // Sync path without baselines — uses git HEAD vs no baseline → often STALE.
+        // Prefer InspectAsync / InspectWithBaselines for accurate orchestration.
+        return InspectWithBaselines(
+            member,
+            memberLastRunCommitSha: null,
+            workspaceMemberBaselineSha: null,
+            calendarAgeWarningDays: staleDays > 0 ? staleDays : Constants.Config.MemberWikiStaleDays);
+    }
+
+    /// <summary>
+    /// Inspect with explicit baselines (member last-run commit and/or workspace last-run head).
+    /// </summary>
+    public MemberWikiStatus InspectWithBaselines(
+        ResolvedWorkspaceMember member,
+        string? memberLastRunCommitSha,
+        string? workspaceMemberBaselineSha,
+        int calendarAgeWarningDays = 0)
+    {
         ArgumentNullException.ThrowIfNull(member);
-        if (staleDays <= 0)
+
+        if (calendarAgeWarningDays <= 0)
         {
-            staleDays = Constants.Config.MemberWikiStaleDays;
+            calendarAgeWarningDays = Constants.Config.MemberWikiStaleDays;
         }
 
         var wikiRel = member.Definition.WikiPath.Replace('\\', '/').Trim('/');
@@ -24,7 +44,6 @@ public sealed class MemberWikiInspector : IMemberWikiInspector
             wikiRel.Replace('/', Path.DirectorySeparatorChar));
         var index = Path.Combine(wikiAbs, "index.md");
         var arch = Path.Combine(wikiAbs, "architecture.md");
-        var warnings = new List<string>();
 
         var exists = Directory.Exists(wikiAbs);
         var hasIndex = File.Exists(index);
@@ -51,33 +70,22 @@ public sealed class MemberWikiInspector : IMemberWikiInspector
             }
         }
 
-        var isStale = false;
+        var freshness = MemberWikiFreshness.Evaluate(
+            hasWikiIndex: hasIndex,
+            currentHeadSha: member.HeadSha,
+            memberLastRunCommitSha: memberLastRunCommitSha,
+            workspaceMemberBaselineSha: workspaceMemberBaselineSha,
+            calendarAgeWarningDays: calendarAgeWarningDays,
+            wikiLastWriteUtc: lastWrite);
+
+        var warnings = freshness.Warnings.ToList();
         if (!hasIndex)
         {
-            warnings.Add(
+            warnings.Insert(
+                0,
                 $"Member '{member.Definition.Id}' wiki is missing ({wikiRel}/index.md). "
-                + $"Run `agent-wiki generate` in that repo first.");
+                + "Run `agent-wiki generate` in that repo or workspace generate with ensureMissing.");
         }
-        else if (lastWrite is not null)
-        {
-            var age = DateTimeOffset.UtcNow - lastWrite.Value;
-            if (age.TotalDays > staleDays)
-            {
-                isStale = true;
-                warnings.Add(
-                    $"Member '{member.Definition.Id}' wiki looks stale "
-                    + $"(last write {lastWrite:u}, threshold {staleDays} days). "
-                    + "Consider `agent-wiki update` in that repo.");
-            }
-        }
-
-        var summary = !exists
-            ? "missing"
-            : !hasIndex
-                ? "incomplete"
-                : isStale
-                    ? "stale"
-                    : "ok";
 
         return new MemberWikiStatus
         {
@@ -87,9 +95,12 @@ public sealed class MemberWikiInspector : IMemberWikiInspector
             HasIndex = hasIndex,
             HasArchitecture = hasArchitecture,
             LastWriteUtc = lastWrite,
-            IsStale = isStale,
-            Summary = summary,
-            Warnings = warnings
+            IsStale = freshness.Kind == MemberWikiFreshnessKind.Stale,
+            Summary = freshness.Summary,
+            Warnings = warnings,
+            Freshness = freshness.Kind.ToString(),
+            BaselineSha = freshness.BaselineSha,
+            CurrentHeadSha = freshness.CurrentHeadSha ?? member.HeadSha
         };
     }
 }

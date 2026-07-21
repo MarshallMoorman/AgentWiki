@@ -166,9 +166,16 @@ public sealed class MemberWikiStatus
     public bool HasIndex { get; init; }
     public bool HasArchitecture { get; init; }
     public DateTimeOffset? LastWriteUtc { get; init; }
+    /// <summary>True when git-stale (HEAD differs from baseline), not calendar age alone.</summary>
     public bool IsStale { get; init; }
+    /// <summary>missing | incomplete | stale | ok</summary>
     public string Summary { get; init; } = "";
     public IReadOnlyList<string> Warnings { get; init; } = [];
+    /// <summary>Missing | Stale | Ok (Step 02b).</summary>
+    public string? Freshness { get; init; }
+    public string? BaselineSha { get; init; }
+    public string? CurrentHeadSha { get; init; }
+    public bool ManifestPresent { get; init; }
 }
 
 /// <summary>Cross-repo signals collected from members (file-based heuristics only).</summary>
@@ -246,6 +253,12 @@ public sealed class WorkspaceGenerationRequest
     public bool Incremental { get; init; }
     public string? ModelOverride { get; init; }
     public string? ProviderOverride { get; init; }
+    /// <summary>CLI override for updateMembers: never | stale | all.</summary>
+    public string? UpdateMembersOverride { get; init; }
+    /// <summary>When false, skip ensuring missing member wikis for this run.</summary>
+    public bool? EnsureMemberWikisOverride { get; init; }
+    /// <summary>When true, allow writing member wikis into remote cache (default false).</summary>
+    public bool AllowCacheWrite { get; init; }
     public string CorrelationId { get; init; } = Guid.NewGuid().ToString("N");
     public IProgress<string>? Progress { get; init; }
 }
