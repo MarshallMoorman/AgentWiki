@@ -70,6 +70,13 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
                 config.AgentMdPath = Constants.Paths.DefaultAgentMdPath;
             }
 
+            // Normalize member wiki policy + legacy ensureMemberWikis.
+            config.MemberWikiPolicy ??= new MemberWikiPolicy();
+            if (string.IsNullOrWhiteSpace(config.MemberWikiPolicy.UpdateMembers))
+            {
+                config.MemberWikiPolicy.UpdateMembers = Constants.Workspace.DefaultUpdateMembers;
+            }
+
             logger.LogInformation(
                 "Loaded workspace '{Name}' with {Count} member(s) from {Path}",
                 config.Name,
@@ -129,7 +136,7 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
             if (!IsValidMemberId(m.Id))
             {
                 errors.Add(
-                    $"Member id '{m.Id}' is invalid. Use letters, digits, hyphens, or underscores only.");
+                    $"Member id '{m.Id}' is invalid. Use letters, digits, '.', '-', or '_' only (exact repo name).");
             }
 
             if (!seenIds.Add(m.Id))
@@ -160,6 +167,37 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
             {
                 m.WikiPath = Constants.Paths.DefaultOutputPath;
             }
+        }
+
+        config.MemberWikiPolicy ??= new MemberWikiPolicy();
+        var updatePolicy = (config.MemberWikiPolicy.UpdateMembers ?? "").Trim().ToLowerInvariant();
+        if (updatePolicy is not (
+            Constants.Workspace.UpdateMembersNever
+            or Constants.Workspace.UpdateMembersStale
+            or Constants.Workspace.UpdateMembersAll))
+        {
+            warnings.Add(
+                $"memberWikiPolicy.updateMembers '{config.MemberWikiPolicy.UpdateMembers}' is invalid; "
+                + $"using '{Constants.Workspace.DefaultUpdateMembers}'.");
+            config.MemberWikiPolicy.UpdateMembers = Constants.Workspace.DefaultUpdateMembers;
+        }
+        else
+        {
+            config.MemberWikiPolicy.UpdateMembers = updatePolicy;
+        }
+
+        // Secret warnings for memberDefaults (never log values).
+        if (config.MemberDefaults is not null)
+        {
+            foreach (var secretNote in AgentWiki.Core.Generation.AgentWikiConfigDefaults.DescribeSecretsPresent(config.MemberDefaults))
+            {
+                warnings.Add(secretNote + " Prefer env vars; do not commit secrets.");
+            }
+        }
+        else
+        {
+            warnings.Add(
+                "workspace.json has no memberDefaults; member init/replace-configs will need a defaults section.");
         }
 
         if (errors.Count > 0)
@@ -195,6 +233,8 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
             AgentMdPath = config.AgentMdPath,
             GenerateAgentsMd = config.GenerateAgentsMd,
             EnsureMemberWikis = config.EnsureMemberWikis,
+            MemberWikiPolicy = config.MemberWikiPolicy ?? new MemberWikiPolicy(),
+            MemberDefaults = config.MemberDefaults,
             Members = config.Members.Select(m => new WorkspaceMember
             {
                 Id = m.Id,
@@ -218,16 +258,20 @@ public sealed class WorkspaceConfigLoader(ILogger<WorkspaceConfigLoader> logger)
         logger.LogInformation("Wrote workspace config to {Path}", path);
     }
 
+    /// <summary>
+    /// Member ids are exact repo names: letters, digits, <c>.</c>, <c>-</c>, <c>_</c> (max 128).
+    /// Forbidden: path separators, spaces, and other punctuation.
+    /// </summary>
     internal static bool IsValidMemberId(string id)
     {
-        if (string.IsNullOrWhiteSpace(id) || id.Length > 64)
+        if (string.IsNullOrWhiteSpace(id) || id.Length > 128)
         {
             return false;
         }
 
         foreach (var c in id)
         {
-            if (!(char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+            if (!(char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.'))
             {
                 return false;
             }

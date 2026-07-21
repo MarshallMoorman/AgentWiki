@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core;
+using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -103,32 +104,8 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         }
     }
 
-    private static AgentWikiConfig CreateDefaultConfig() => new()
-    {
-        // RepoPath is resolved at runtime; omit a real path from scaffold.
-        RepoPath = ".",
-        OutputPath = Constants.Paths.DefaultOutputPath,
-        DefaultModel = Constants.Config.DefaultModel,
-        Provider = Constants.Config.DefaultProvider,
-        AgentMdPath = Constants.Paths.DefaultAgentMdPath,
-        MaxFilesToAnalyze = Constants.Config.MaxFilesToAnalyze,
-        EnableIncrementalUpdates = Constants.Config.EnableIncrementalUpdates,
-        LlmTimeoutSeconds = Constants.Config.LlmTimeoutSeconds,
-        MaxLlmSummaryChars = Constants.Config.MaxLlmSummaryChars,
-        AzureOpenAI = new AzureOpenAiOptions
-        {
-            Endpoint = "https://YOUR_RESOURCE.openai.azure.com/",
-            DeploymentName = Constants.Config.DefaultModel,
-            ApiKey = "",
-            UseManagedIdentity = false
-        },
-        OpenAI = new OpenAiOptions
-        {
-            Endpoint = "",
-            ApiKey = "",
-            Model = Constants.Config.DefaultModel
-        }
-    };
+    private static AgentWikiConfig CreateDefaultConfig() =>
+        AgentWikiConfigDefaults.CreateFullTemplate();
 
     private static string BuildEnvExample() =>
         $"""

@@ -39,10 +39,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IRunTelemetry, ApplicationInsightsRunTelemetry>();
         services.AddSingleton<IWikiGenerator, SemanticWikiGenerator>();
 
-        // Multi-repo workspace (Phase 1 — file-based only)
+        // Multi-repo workspace (Phase 1 — file-based only; 02b corpus/routing extensions)
         services.AddSingleton<IWorkspaceConfigLoader, WorkspaceConfigLoader>();
         services.AddSingleton<IWorkspaceMemberResolver, WorkspaceMemberResolver>();
         services.AddSingleton<IWorkspaceInitService, WorkspaceInitService>();
+        services.AddSingleton<IMemberConfigApplier, MemberConfigApplier>();
         services.AddSingleton<IMemberWikiInspector, MemberWikiInspector>();
         services.AddSingleton<ICrossRepoSignalCollector, CrossRepoSignalCollector>();
         services.AddSingleton<IWorkspaceLastRunStore, WorkspaceLastRunStore>();

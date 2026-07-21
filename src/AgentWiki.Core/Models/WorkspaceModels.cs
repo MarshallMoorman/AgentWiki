@@ -30,10 +30,21 @@ public sealed class WorkspaceConfig
     public bool GenerateAgentsMd { get; set; } = true;
 
     /// <summary>
-    /// When true (default), run per-member wiki generate/update when a member wiki is missing or stale.
-    /// When false, only warn and continue with system pages from available signals.
+    /// Legacy: when true, ensure missing member wikis during generate.
+    /// Prefer <see cref="MemberWikiPolicy"/>. Precedence: CLI &gt; MemberWikiPolicy &gt; this flag.
     /// </summary>
     public bool EnsureMemberWikis { get; set; } = true;
+
+    /// <summary>
+    /// Policy for orchestrating local member wiki init/generate during workspace generate.
+    /// </summary>
+    public MemberWikiPolicy MemberWikiPolicy { get; set; } = new();
+
+    /// <summary>
+    /// Full single-repo config template copied/replaced into members.
+    /// Not used as the workspace runtime LLM config.
+    /// </summary>
+    public AgentWikiConfig? MemberDefaults { get; set; }
 
     /// <summary>Member repositories that form this workspace.</summary>
     public List<WorkspaceMember> Members { get; set; } = [];
@@ -58,6 +69,20 @@ public sealed class WorkspaceConfig
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string? ConfigFilePath { get; set; }
+}
+
+/// <summary>
+/// Controls when workspace generate init/generates local member wikis.
+/// </summary>
+public sealed class MemberWikiPolicy
+{
+    /// <summary>Auto init+generate when local member wiki is missing (default true).</summary>
+    public bool EnsureMissing { get; set; } = Constants.Workspace.EnsureMissingDefault;
+
+    /// <summary>
+    /// When to update existing member wikis: <c>never</c> (default), <c>stale</c>, or <c>all</c>.
+    /// </summary>
+    public string UpdateMembers { get; set; } = Constants.Workspace.DefaultUpdateMembers;
 }
 
 /// <summary>A single repository participating in a workspace.</summary>

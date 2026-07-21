@@ -1,6 +1,7 @@
 using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
+using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
@@ -118,7 +119,7 @@ public sealed class WorkspaceInitService(
             if (!WorkspaceConfigLoader.IsValidMemberId(id))
             {
                 return WorkspaceInitResult.Fail(
-                    $"Invalid member id '{id}'. Use letters, digits, hyphens, or underscores only"
+                    $"Invalid member id '{id}'. Use letters, digits, '.', '-', or '_' only (exact repo name)"
                     + (explicitId ? "." : " (could not derive a valid id from the path/remote; pass --id)."));
             }
 
@@ -263,8 +264,9 @@ public sealed class WorkspaceInitService(
     }
 
     /// <summary>
-    /// Derives a stable member id from a local path or git remote URL
-    /// (last path segment, strip <c>.git</c>, sanitize; unique among <paramref name="existingIds"/>).
+    /// Derives a stable member id from a local path or git remote URL:
+    /// exact repository name (last path segment, strip <c>.git</c>), not kebab-cased.
+    /// Collision suffix <c>-2</c>, <c>-3</c>, …
     /// </summary>
     public static string DeriveMemberId(string pathOrRemote, IEnumerable<string>? existingIds = null)
     {
@@ -278,11 +280,9 @@ public sealed class WorkspaceInitService(
         }
         else
         {
-            // Prefer the last non-empty segment (works for relative and absolute paths).
             var normalized = raw.Replace('\\', '/');
             var parts = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
             candidate = parts.Length > 0 ? parts[^1] : "member";
-            // If someone passes a file path, drop extension for project-ish names only when it's .git
             if (candidate.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
             {
                 candidate = candidate[..^4];
@@ -293,6 +293,10 @@ public sealed class WorkspaceInitService(
         return EnsureUniqueMemberId(baseId, existingIds);
     }
 
+    /// <summary>
+    /// Keeps exact repo name characters (letters, digits, <c>.</c>, <c>-</c>, <c>_</c>).
+    /// Does not force lowercase or kebab-case.
+    /// </summary>
     internal static string SanitizeMemberId(string value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -300,45 +304,24 @@ public sealed class WorkspaceInitService(
             return "member";
         }
 
-        // Prefer kebab-case from PascalCase / spaced names: LoanService → loan-service
-        var sb = new System.Text.StringBuilder(value.Length + 8);
-        var prevHyphen = false;
-        for (var i = 0; i < value.Length; i++)
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var c in value.Trim())
         {
-            var c = value[i];
-            if (char.IsAsciiLetterOrDigit(c))
+            if (char.IsAsciiLetterOrDigit(c) || c is '.' or '-' or '_')
             {
-                if (char.IsUpper(c)
-                    && sb.Length > 0
-                    && !prevHyphen
-                    && (char.IsLower(value[i - 1]) || (i + 1 < value.Length && char.IsLower(value[i + 1]))))
-                {
-                    sb.Append('-');
-                }
-
-                sb.Append(char.ToLowerInvariant(c));
-                prevHyphen = false;
-            }
-            else if (c is '-' or '_' || char.IsWhiteSpace(c) || c is '.' or '/')
-            {
-                if (!prevHyphen && sb.Length > 0)
-                {
-                    sb.Append('-');
-                    prevHyphen = true;
-                }
+                sb.Append(c);
             }
         }
 
-        var s = sb.ToString().Trim('-');
+        var s = sb.ToString().Trim('.', '-', '_');
         if (string.IsNullOrEmpty(s))
         {
             return "member";
         }
 
-        // Valid ids max 64 chars
-        if (s.Length > 64)
+        if (s.Length > 128)
         {
-            s = s[..64].TrimEnd('-');
+            s = s[..128].TrimEnd('.', '-', '_');
         }
 
         return string.IsNullOrEmpty(s) ? "member" : s;
@@ -357,8 +340,8 @@ public sealed class WorkspaceInitService(
         for (var n = 2; n < 1000; n++)
         {
             var suffix = $"-{n}";
-            var maxBase = Math.Max(1, 64 - suffix.Length);
-            var truncated = baseId.Length <= maxBase ? baseId : baseId[..maxBase].TrimEnd('-');
+            var maxBase = Math.Max(1, 128 - suffix.Length);
+            var truncated = baseId.Length <= maxBase ? baseId : baseId[..maxBase].TrimEnd('.', '-', '_');
             var candidate = truncated + suffix;
             if (!existing.Contains(candidate))
             {
@@ -391,6 +374,7 @@ public sealed class WorkspaceInitService(
     private static WorkspaceConfig CreateSampleConfig(string name, string root)
     {
         // Prefer sibling-style sample paths that are easy to edit.
+        // Seed full memberDefaults (same surface as single-repo init).
         return new WorkspaceConfig
         {
             Name = name,
@@ -399,12 +383,18 @@ public sealed class WorkspaceInitService(
             AgentMdPath = Constants.Paths.DefaultAgentMdPath,
             GenerateAgentsMd = true,
             EnsureMemberWikis = true,
+            MemberWikiPolicy = new MemberWikiPolicy
+            {
+                EnsureMissing = Constants.Workspace.EnsureMissingDefault,
+                UpdateMembers = Constants.Workspace.DefaultUpdateMembers
+            },
+            MemberDefaults = AgentWikiConfigDefaults.CreateFullTemplate(),
             WorkspaceRoot = root,
             Members =
             [
                 new WorkspaceMember
                 {
-                    Id = "service-a",
+                    Id = "ServiceA",
                     Path = "../ServiceA",
                     Label = "Service A",
                     Role = "service",
@@ -412,7 +402,7 @@ public sealed class WorkspaceInitService(
                 },
                 new WorkspaceMember
                 {
-                    Id = "shared-lib",
+                    Id = "SharedLib",
                     Path = "../SharedLib",
                     Label = "Shared Library",
                     Role = "library"

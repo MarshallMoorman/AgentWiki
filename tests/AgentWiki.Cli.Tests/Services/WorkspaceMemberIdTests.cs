@@ -6,12 +6,13 @@ namespace AgentWiki.Cli.Tests.Services;
 public sealed class WorkspaceMemberIdTests
 {
     [Theory]
-    [InlineData("https://github.com/org/SharedDomain.git", "shared-domain")]
-    [InlineData("git@github.com:org/LoanService.git", "loan-service")]
-    [InlineData("https://github.com/org/my_repo.git", "my-repo")]
-    [InlineData("../LoanService", "loan-service")]
-    [InlineData("/Users/me/dev/elevate/Payment.Api", "payment-api")]
-    public void DeriveMemberId_FromPathOrRemote(string source, string expected)
+    [InlineData("https://github.com/org/SharedDomain.git", "SharedDomain")]
+    [InlineData("git@github.com:org/LoanService.git", "LoanService")]
+    [InlineData("https://github.com/org/my_repo.git", "my_repo")]
+    [InlineData("../LoanService", "LoanService")]
+    [InlineData("/Users/me/dev/elevate/Payment.Api", "Payment.Api")]
+    [InlineData("../Elevate-LMS-LoanView", "Elevate-LMS-LoanView")]
+    public void DeriveMemberId_ExactRepoName(string source, string expected)
     {
         WorkspaceInitService.DeriveMemberId(source).ShouldBe(expected);
     }
@@ -19,8 +20,15 @@ public sealed class WorkspaceMemberIdTests
     [Fact]
     public void DeriveMemberId_UniquesAgainstExisting()
     {
-        var id = WorkspaceInitService.DeriveMemberId("../LoanService", ["loan-service"]);
-        id.ShouldBe("loan-service-2");
+        var id = WorkspaceInitService.DeriveMemberId("../LoanService", ["LoanService"]);
+        id.ShouldBe("LoanService-2");
+    }
+
+    [Fact]
+    public void DeriveMemberId_PreservesCaseAndDots()
+    {
+        WorkspaceInitService.DeriveMemberId("../Elevate.LMS.LoanView")
+            .ShouldBe("Elevate.LMS.LoanView");
     }
 
     [Fact]
