@@ -52,11 +52,14 @@ public interface IWorkspaceInitService
         bool force = false,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Adds a member to an existing workspace definition and saves.</summary>
+    /// <summary>
+    /// Adds a member to an existing workspace definition and saves.
+    /// When <paramref name="memberId"/> is null/empty, derives a stable id from the path or remote URL.
+    /// </summary>
     Task<WorkspaceInitResult> AddMemberAsync(
         string workspaceRoot,
-        string memberId,
         string pathOrRemote,
+        string? memberId = null,
         string? label = null,
         string? branch = null,
         string? workspaceConfigPath = null,

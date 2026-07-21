@@ -106,9 +106,11 @@ try
                 .WithExample("workspace", "status", "--repo-path", ".");
 
             workspace.AddCommand<WorkspaceAddCommand>("add")
-                .WithDescription("Add a member (local path or git remote) to workspace.json")
+                .WithDescription("Add a member (local path or git remote) to workspace.json; id is optional")
+                .WithExample("workspace", "add", "../LoanService")
+                .WithExample("workspace", "add", "../LoanService", "--id", "loan-service")
                 .WithExample("workspace", "add", "loan-service", "../LoanService")
-                .WithExample("workspace", "add", "shared", "https://github.com/org/Shared.git", "--branch", "main");
+                .WithExample("workspace", "add", "https://github.com/org/Shared.git", "--branch", "main");
         });
     });
 

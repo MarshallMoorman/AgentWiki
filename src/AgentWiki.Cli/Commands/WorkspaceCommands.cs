@@ -68,13 +68,20 @@ public class WorkspaceInitSettings : WorkspaceSettingsBase
 /// <summary>Settings for workspace add.</summary>
 public class WorkspaceAddSettings : WorkspaceSettingsBase
 {
-    [CommandArgument(0, "<ID>")]
-    [Description("Stable member id (e.g. loan-service)")]
-    public string MemberId { get; init; } = "";
+    /// <summary>
+    /// Either <c>path-or-remote</c> alone, or <c>id</c> when a second positional is also provided.
+    /// </summary>
+    [CommandArgument(0, "[ID_OR_PATH]")]
+    [Description("Member path/remote, or optional id when followed by PATH_OR_REMOTE")]
+    public string? IdOrPath { get; init; }
 
-    [CommandArgument(1, "<PATH_OR_REMOTE>")]
-    [Description("Local path or git remote URL")]
-    public string PathOrRemote { get; init; } = "";
+    [CommandArgument(1, "[PATH_OR_REMOTE]")]
+    [Description("Local path or git remote URL (required unless ID_OR_PATH is the path/remote)")]
+    public string? PathOrRemote { get; init; }
+
+    [CommandOption("--id <ID>")]
+    [Description("Stable member id (default: derived from path or remote name)")]
+    public string? MemberId { get; init; }
 
     [CommandOption("--label <LABEL>")]
     [Description("Optional display label")]
@@ -127,12 +134,22 @@ public sealed class WorkspaceAddCommand(IWorkspaceInitService initService)
     public override async Task<int> ExecuteAsync(CommandContext context, WorkspaceAddSettings settings)
     {
         AnsiConsole.MarkupLine("[bold blue]AgentWiki[/] — workspace add member");
+
+        if (!TryResolveAddArgs(settings, out var pathOrRemote, out var memberId, out var parseError))
+        {
+            CliConsole.WriteError(parseError ?? "Invalid arguments.");
+            AnsiConsole.MarkupLine(
+                "[grey]Usage:[/] agent-wiki workspace add <path-or-remote> [--id id]  "
+                + "[grey]or[/]  agent-wiki workspace add <id> <path-or-remote>");
+            return 1;
+        }
+
         var root = PathUtility.ExpandAndResolve(settings.RepoPath);
         var result = await initService
             .AddMemberAsync(
                 root,
-                settings.MemberId,
-                settings.PathOrRemote,
+                pathOrRemote,
+                memberId,
                 settings.Label,
                 settings.Branch,
                 settings.WorkspaceConfigPath)
@@ -146,6 +163,48 @@ public sealed class WorkspaceAddCommand(IWorkspaceInitService initService)
 
         AnsiConsole.MarkupLine($"[green]✓[/] {Markup.Escape(result.Message)}");
         return 0;
+    }
+
+    /// <summary>
+    /// Supports:
+    /// <list type="bullet">
+    /// <item><c>add ../LoanService</c> — id derived from folder/remote name</item>
+    /// <item><c>add ../LoanService --id loan-service</c></item>
+    /// <item><c>add loan-service ../LoanService</c> — explicit id (legacy two-arg form)</item>
+    /// </list>
+    /// </summary>
+    public static bool TryResolveAddArgs(
+        WorkspaceAddSettings settings,
+        out string pathOrRemote,
+        out string? memberId,
+        out string? error)
+    {
+        pathOrRemote = "";
+        memberId = null;
+        error = null;
+
+        var first = settings.IdOrPath?.Trim();
+        var second = settings.PathOrRemote?.Trim();
+        var idOption = string.IsNullOrWhiteSpace(settings.MemberId) ? null : settings.MemberId.Trim();
+
+        if (string.IsNullOrWhiteSpace(first) && string.IsNullOrWhiteSpace(second))
+        {
+            error = "Missing path or remote. Example: agent-wiki workspace add ../MyRepo";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(second))
+        {
+            // Two positionals: <id> <path-or-remote>
+            pathOrRemote = second;
+            memberId = idOption ?? first;
+            return true;
+        }
+
+        // One positional: path or remote; optional --id
+        pathOrRemote = first!;
+        memberId = idOption;
+        return true;
     }
 }
 

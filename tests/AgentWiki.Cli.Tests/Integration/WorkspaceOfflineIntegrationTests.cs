@@ -305,7 +305,7 @@ public sealed class WorkspaceOfflineIntegrationTests
                 },
                 Path.Combine(workspace, ".agentwiki", "workspace.json"));
 
-            var add = await init.AddMemberAsync(workspace, "extra", member, label: "Extra");
+            var add = await init.AddMemberAsync(workspace, member, memberId: "extra", label: "Extra");
             add.Success.ShouldBeTrue(add.Error);
 
             var load = await loader.LoadAsync(workspace);
@@ -316,6 +316,46 @@ public sealed class WorkspaceOfflineIntegrationTests
         {
             TryDelete(workspace);
             TryDelete(member);
+        }
+    }
+
+    [Fact]
+    public async Task AddMember_WithoutId_DerivesFromPath()
+    {
+        var workspace = CreateTempDir("ws-add-auto");
+        var memberDir = Path.Combine(Path.GetTempPath(), "LoanService-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(memberDir);
+        try
+        {
+            var loader = new WorkspaceConfigLoader(NullLogger<WorkspaceConfigLoader>.Instance);
+            var init = new WorkspaceInitService(loader, NullLogger<WorkspaceInitService>.Instance);
+            await loader.SaveAsync(
+                new WorkspaceConfig
+                {
+                    Name = "Auto",
+                    Members = [new WorkspaceMember { Id = "seed", Path = memberDir }]
+                },
+                Path.Combine(workspace, ".agentwiki", "workspace.json"));
+
+            var add = await init.AddMemberAsync(workspace, memberDir); // no id
+            add.Success.ShouldBeTrue(add.Error);
+            add.Message.ShouldContain("derived");
+
+            var load = await loader.LoadAsync(workspace);
+            load.Config!.Members.ShouldContain(m =>
+                m.Id.StartsWith("loan-service", StringComparison.OrdinalIgnoreCase)
+                || m.Id.Contains("loanservice", StringComparison.OrdinalIgnoreCase)
+                || m.Path == memberDir);
+            // Folder is LoanService-<guid> → id starts with loan-service-…
+            load.Config.Members.Count(m => m.Id != "seed").ShouldBe(1);
+            var auto = load.Config.Members.Single(m => m.Id != "seed");
+            auto.Path.ShouldBe(memberDir);
+            auto.Id.ShouldNotBeNullOrWhiteSpace();
+        }
+        finally
+        {
+            TryDelete(workspace);
+            TryDelete(memberDir);
         }
     }
 

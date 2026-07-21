@@ -86,8 +86,8 @@ public sealed class WorkspaceInitService(
     /// <inheritdoc />
     public async Task<WorkspaceInitResult> AddMemberAsync(
         string workspaceRoot,
-        string memberId,
         string pathOrRemote,
+        string? memberId = null,
         string? label = null,
         string? branch = null,
         string? workspaceConfigPath = null,
@@ -95,22 +95,12 @@ public sealed class WorkspaceInitService(
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(memberId))
-            {
-                return WorkspaceInitResult.Fail("Member id is required.");
-            }
-
-            if (!WorkspaceConfigLoader.IsValidMemberId(memberId.Trim()))
-            {
-                return WorkspaceInitResult.Fail(
-                    $"Invalid member id '{memberId}'. Use letters, digits, hyphens, or underscores only.");
-            }
-
             if (string.IsNullOrWhiteSpace(pathOrRemote))
             {
                 return WorkspaceInitResult.Fail("Path or remote URL is required.");
             }
 
+            var source = pathOrRemote.Trim();
             var load = await configLoader
                 .LoadAsync(workspaceRoot, workspaceConfigPath, cancellationToken)
                 .ConfigureAwait(false);
@@ -120,19 +110,32 @@ public sealed class WorkspaceInitService(
             }
 
             var config = load.Config;
-            if (config.Members.Any(m => m.Id.Equals(memberId.Trim(), StringComparison.OrdinalIgnoreCase)))
+            var explicitId = !string.IsNullOrWhiteSpace(memberId);
+            var id = explicitId
+                ? memberId!.Trim()
+                : DeriveMemberId(source, config.Members.Select(m => m.Id));
+
+            if (!WorkspaceConfigLoader.IsValidMemberId(id))
             {
-                return WorkspaceInitResult.Fail($"Member id '{memberId}' already exists in the workspace.");
+                return WorkspaceInitResult.Fail(
+                    $"Invalid member id '{id}'. Use letters, digits, hyphens, or underscores only"
+                    + (explicitId ? "." : " (could not derive a valid id from the path/remote; pass --id)."));
+            }
+
+            if (config.Members.Any(m => m.Id.Equals(id, StringComparison.OrdinalIgnoreCase)))
+            {
+                return WorkspaceInitResult.Fail(
+                    $"Member id '{id}' already exists in the workspace."
+                    + (explicitId ? "" : " Pass --id to choose a different id."));
             }
 
             var member = new WorkspaceMember
             {
-                Id = memberId.Trim(),
+                Id = id,
                 Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim(),
                 Branch = string.IsNullOrWhiteSpace(branch) ? null : branch.Trim()
             };
 
-            var source = pathOrRemote.Trim();
             if (IsRemote(source))
             {
                 member.Remote = source;
@@ -156,9 +159,10 @@ public sealed class WorkspaceInitService(
                            Constants.Paths.WorkspaceFileName);
 
             await configLoader.SaveAsync(config, path, cancellationToken).ConfigureAwait(false);
+            var derivedNote = explicitId ? "" : " (id derived from path/remote)";
             logger.LogInformation("Added member {Id} to workspace at {Path}", member.Id, path);
             return WorkspaceInitResult.Ok(
-                $"Added member '{member.Id}' to {path}.",
+                $"Added member '{member.Id}'{derivedNote} to {path}.",
                 path,
                 [path]);
         }
@@ -167,6 +171,132 @@ public sealed class WorkspaceInitService(
             logger.LogError(ex, "Failed to add workspace member");
             return WorkspaceInitResult.Fail(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Derives a stable member id from a local path or git remote URL
+    /// (last path segment, strip <c>.git</c>, sanitize; unique among <paramref name="existingIds"/>).
+    /// </summary>
+    public static string DeriveMemberId(string pathOrRemote, IEnumerable<string>? existingIds = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(pathOrRemote);
+        var raw = pathOrRemote.Trim().TrimEnd('/', '\\');
+        string candidate;
+
+        if (IsRemote(raw))
+        {
+            candidate = ExtractRemoteName(raw);
+        }
+        else
+        {
+            // Prefer the last non-empty segment (works for relative and absolute paths).
+            var normalized = raw.Replace('\\', '/');
+            var parts = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            candidate = parts.Length > 0 ? parts[^1] : "member";
+            // If someone passes a file path, drop extension for project-ish names only when it's .git
+            if (candidate.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+            {
+                candidate = candidate[..^4];
+            }
+        }
+
+        var baseId = SanitizeMemberId(candidate);
+        return EnsureUniqueMemberId(baseId, existingIds);
+    }
+
+    internal static string SanitizeMemberId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "member";
+        }
+
+        // Prefer kebab-case from PascalCase / spaced names: LoanService → loan-service
+        var sb = new System.Text.StringBuilder(value.Length + 8);
+        var prevHyphen = false;
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (char.IsAsciiLetterOrDigit(c))
+            {
+                if (char.IsUpper(c)
+                    && sb.Length > 0
+                    && !prevHyphen
+                    && (char.IsLower(value[i - 1]) || (i + 1 < value.Length && char.IsLower(value[i + 1]))))
+                {
+                    sb.Append('-');
+                }
+
+                sb.Append(char.ToLowerInvariant(c));
+                prevHyphen = false;
+            }
+            else if (c is '-' or '_' || char.IsWhiteSpace(c) || c is '.' or '/')
+            {
+                if (!prevHyphen && sb.Length > 0)
+                {
+                    sb.Append('-');
+                    prevHyphen = true;
+                }
+            }
+        }
+
+        var s = sb.ToString().Trim('-');
+        if (string.IsNullOrEmpty(s))
+        {
+            return "member";
+        }
+
+        // Valid ids max 64 chars
+        if (s.Length > 64)
+        {
+            s = s[..64].TrimEnd('-');
+        }
+
+        return string.IsNullOrEmpty(s) ? "member" : s;
+    }
+
+    private static string EnsureUniqueMemberId(string baseId, IEnumerable<string>? existingIds)
+    {
+        var existing = new HashSet<string>(
+            existingIds ?? [],
+            StringComparer.OrdinalIgnoreCase);
+        if (!existing.Contains(baseId))
+        {
+            return baseId;
+        }
+
+        for (var n = 2; n < 1000; n++)
+        {
+            var suffix = $"-{n}";
+            var maxBase = Math.Max(1, 64 - suffix.Length);
+            var truncated = baseId.Length <= maxBase ? baseId : baseId[..maxBase].TrimEnd('-');
+            var candidate = truncated + suffix;
+            if (!existing.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return baseId + "-" + Guid.NewGuid().ToString("N")[..8];
+    }
+
+    private static string ExtractRemoteName(string remote)
+    {
+        // git@github.com:org/Repo.git  or  https://github.com/org/Repo.git
+        var s = remote.Trim();
+        if (s.EndsWith(".git", StringComparison.OrdinalIgnoreCase))
+        {
+            s = s[..^4];
+        }
+
+        s = s.TrimEnd('/', '\\');
+        var slash = s.LastIndexOfAny(['/', ':']);
+        if (slash >= 0 && slash < s.Length - 1)
+        {
+            return s[(slash + 1)..];
+        }
+
+        return s;
     }
 
     private static WorkspaceConfig CreateSampleConfig(string name, string root)

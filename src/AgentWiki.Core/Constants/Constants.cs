@@ -11,7 +11,7 @@ public static class Constants
     {
         public const string ToolName = "agent-wiki";
         public const string ProductName = "AgentWiki";
-        public const string Version = "1.4.0";
+        public const string Version = "1.4.1";
     }
 
     /// <summary>Filesystem paths and well-known file names (repo-relative unless noted).</summary>

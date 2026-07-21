@@ -154,9 +154,11 @@ Define a **workspace** that groups related repositories, then generate a system-
 # Scaffold .agentwiki/workspace.json
 agent-wiki workspace init "Lending Core" --repo-path /path/to/workspace-root
 
-# Add members (local path or git remote)
-agent-wiki workspace add loan-service ../LoanService --repo-path /path/to/workspace-root
-agent-wiki workspace add shared-domain https://github.com/org/SharedDomain.git --branch main
+# Add members (local path or git remote). Id is optional — derived from folder/remote name.
+agent-wiki workspace add ../LoanService --repo-path /path/to/workspace-root
+agent-wiki workspace add https://github.com/org/SharedDomain.git --branch main
+agent-wiki workspace add ../LoanService --id loan-service   # optional explicit id
+# legacy: agent-wiki workspace add loan-service ../LoanService
 
 # Full system wiki (+ ensure member wikis when missing/stale)
 agent-wiki workspace generate --repo-path /path/to/workspace-root --force
