@@ -9,7 +9,7 @@ namespace AgentWiki.Core.Generation;
 /// </summary>
 public static class WorkspaceOfflineBuilder
 {
-    /// <summary>Builds all system wiki sections for the workspace analysis.</summary>
+    /// <summary>Builds all system wiki sections for the workspace analysis (Step 02b corpus).</summary>
     public static IReadOnlyList<WikiSection> BuildSections(WorkspaceAnalysisResult analysis)
     {
         ArgumentNullException.ThrowIfNull(analysis);
@@ -22,7 +22,12 @@ public static class WorkspaceOfflineBuilder
             new("architecture", "System Architecture", "architecture.md", BuildArchitecture(analysis)),
             new("dependency-graph", "Dependency Graph", "dependency-graph.md", BuildDependencyGraph(analysis)),
             new("data-flows", "Data Flows & Contracts", "data-flows.md", BuildDataFlows(analysis)),
-            new("ownership", "Ownership Map", "ownership.md", BuildOwnership(analysis))
+            new("ownership", "Ownership Map", "ownership.md", BuildOwnership(analysis)),
+            new(
+                "routing-guide",
+                "Routing Guide",
+                Constants.Workspace.RoutingGuideFileName,
+                BuildRoutingGuide(analysis, wikiRel))
         };
 
         foreach (var member in analysis.Members.Where(m => m.Resolved.Success))
@@ -31,8 +36,8 @@ public static class WorkspaceOfflineBuilder
             sections.Add(new WikiSection(
                 $"member-{id}",
                 member.Resolved.Definition.DisplayName,
-                $"members/{id}.md",
-                BuildMemberPage(member, analysis)));
+                $"{Constants.Workspace.MembersFolderName}/{id}/{Constants.Workspace.MemberRoutingCardFileName}",
+                BuildRoutingCard(member, analysis)));
         }
 
         return sections;
@@ -56,10 +61,10 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine("This is a **multi-repo workspace**. Prefer the system knowledge base before diving into a single repository.");
         sb.AppendLine();
         sb.AppendLine("1. Read this file for workspace-level workflow and guardrails.");
-        sb.AppendLine($"2. Start at `{wiki}index.md` and `{wiki}architecture.md` for the system map.");
-        sb.AppendLine($"3. Use `{wiki}dependency-graph.md`, `{wiki}data-flows.md`, and `{wiki}ownership.md` for cross-repo orientation.");
-        sb.AppendLine($"4. Open the relevant member summary under `{wiki}members/` for deep links into that repo’s own wiki.");
-        sb.AppendLine("5. Only then edit code inside a member repository; verify against that member’s source and `AGENTS.md` when present.");
+        sb.AppendLine($"2. Start at `{wiki}index.md` and `{wiki}routing-guide.md` for estate orientation and story routing.");
+        sb.AppendLine($"3. Use `{wiki}architecture.md`, dependency graph, data-flows, and ownership for system context.");
+        sb.AppendLine($"4. Open member **routing cards** under `{wiki}members/<id>/` (layer, brands, apps, route-when).");
+        sb.AppendLine("5. Follow **web deep links** into the member repo wiki for implementation detail; use that clone’s AGENTS.md + workspace-manifest.md.");
         sb.AppendLine();
         sb.AppendLine("## Workspace snapshot");
         sb.AppendLine();
@@ -76,30 +81,31 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine();
         sb.AppendLine("### Member repositories");
         sb.AppendLine();
-        sb.AppendLine("| Id | Label | Role | Member wiki |");
-        sb.AppendLine("|----|-------|------|-------------|");
+        sb.AppendLine("| Id | Label | Layer | Brands | Apps | Card |");
+        sb.AppendLine("|----|-------|-------|--------|------|------|");
         foreach (var m in analysis.Members)
         {
             var def = m.Resolved.Definition;
-            var wikiStatus = m.WikiStatus;
-            var wikiNote = wikiStatus is null
-                ? "unknown"
-                : wikiStatus.Exists
-                    ? (wikiStatus.IsStale ? "stale" : "ok")
-                    : "missing";
-            var memberWikiLink = wikiStatus is { Exists: true }
-                ? $"`{def.WikiPath.TrimEnd('/')}/index.md` ({wikiNote})"
-                : wikiNote;
+            var layer = m.Manifest?.Layer ?? def.Role ?? "—";
+            var brands = m.Manifest?.Brands is { Count: > 0 } b
+                ? string.Join(", ", b)
+                : "—";
+            var apps = m.Manifest?.Applications is { Count: > 0 } a
+                ? string.Join(", ", a.Select(x => x.Name).Take(3))
+                : "—";
+            var card = m.Resolved.Success
+                ? $"[card]({wiki}members/{def.Id}/index.md)"
+                : "unresolved";
             sb.AppendLine(
-                $"| `{def.Id}` | {EscapeCell(def.DisplayName)} | {EscapeCell(def.Role ?? "—")} | {memberWikiLink} |");
+                $"| `{def.Id}` | {EscapeCell(def.DisplayName)} | {EscapeCell(layer)} | {EscapeCell(brands)} | {EscapeCell(apps)} | {card} |");
         }
 
         sb.AppendLine();
         sb.AppendLine("### Locating work");
         sb.AppendLine();
-        sb.AppendLine("- Use system pages to decide **which member repos** are in scope for a story.");
-        sb.AppendLine("- Prefer member `docs/wiki/` for detailed modules; do not duplicate that content here.");
-        sb.AppendLine("- When a member already has a rich `AGENTS.md`, follow that file for in-repo conventions.");
+        sb.AppendLine("- Filter by **layer**, **brand**, **application/service**, and keywords on routing cards.");
+        sb.AppendLine("- Prefer member deep wiki (via web link) for modules/APIs; do not mirror full member wikis here.");
+        sb.AppendLine("- Human-owned routing authority is each member’s `docs/wiki/workspace-manifest.md`.");
         sb.AppendLine();
 
         sb.AppendLine(BuildWorkspaceBootstrapBlock(wiki).TrimEnd());
@@ -111,7 +117,8 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine("- Do not commit secrets, API keys, or `.env` files with credentials.");
         sb.AppendLine("- Do not force-push shared branches without explicit human request.");
         sb.AppendLine("- Keep workspace and member docs file-based and reviewable (no vector DB required for Phase 1).");
-        sb.AppendLine("- Prefer linking to member wikis over copying their architecture pages.");
+        sb.AppendLine("- Prefer web links to member wikis over copying their architecture pages.");
+        sb.AppendLine("- Never invent layer/brands/apps — only human manifest fields are authoritative.");
 
         return EnsureTrailingNewline(sb.ToString());
     }
@@ -126,10 +133,10 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine($"This workspace maintains a **system knowledge base** at `{wiki}`.");
         sb.AppendLine();
         sb.AppendLine("**For any multi-repo task:**");
-        sb.AppendLine($"1. Start by reading `{wiki}index.md` and `{wiki}architecture.md`");
-        sb.AppendLine($"2. Review `{wiki}dependency-graph.md`, `{wiki}data-flows.md`, and `{wiki}ownership.md`");
-        sb.AppendLine($"3. Open the matching page under `{wiki}members/` for deep links into member repos");
-        sb.AppendLine("4. Drill into each member’s own `docs/wiki/` (and `AGENTS.md`) for implementation detail");
+        sb.AppendLine($"1. Start by reading `{wiki}index.md` and `{wiki}routing-guide.md`");
+        sb.AppendLine($"2. Review `{wiki}architecture.md`, dependency graph, data-flows, and ownership");
+        sb.AppendLine($"3. Open the matching routing card under `{wiki}members/<id>/` (layer, brands, apps)");
+        sb.AppendLine("4. Follow web deep links into the member repo wiki + AGENTS.md + workspace-manifest.md");
         sb.AppendLine(
             "5. Refresh with `agent-wiki workspace generate` / `workspace update`. Prefer wiki maps, then verify against source.");
         sb.AppendLine(Constants.AgentsMd.MarkerEnd);
@@ -177,33 +184,39 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine();
         sb.AppendLine("| Page | Purpose |");
         sb.AppendLine("|------|---------|");
+        sb.AppendLine("| [Routing guide](routing-guide.md) | Which repo / layer / brand / app for a story |");
         sb.AppendLine("| [Architecture](architecture.md) | System design, layers, key decisions |");
         sb.AppendLine("| [Dependency graph](dependency-graph.md) | Repo + package relationships |");
         sb.AppendLine("| [Data flows](data-flows.md) | Contracts, APIs, messaging hints |");
         sb.AppendLine("| [Ownership](ownership.md) | CODEOWNERS and team hints |");
         sb.AppendLine();
-        sb.AppendLine("## Members");
+        sb.AppendLine("## Members (routing cards)");
         sb.AppendLine();
-        sb.AppendLine("| Member | Role | Wiki | Summary |");
-        sb.AppendLine("|--------|------|------|---------|");
+        sb.AppendLine("| Member | Layer | Brands | Applications | Wiki | Card |");
+        sb.AppendLine("|--------|-------|--------|--------------|------|------|");
         foreach (var m in analysis.Members)
         {
             var def = m.Resolved.Definition;
-            var summaryLink = m.Resolved.Success
-                ? $"[summary](members/{def.Id}.md)"
+            var cardLink = m.Resolved.Success
+                ? $"[routing card](members/{def.Id}/index.md)"
                 : "unresolved";
             var wikiLink = FormatMemberWikiLink(m);
-            var role = string.IsNullOrWhiteSpace(def.Role) ? "—" : def.Role;
-            sb.AppendLine($"| **{EscapeCell(def.DisplayName)}** (`{def.Id}`) | {EscapeCell(role)} | {wikiLink} | {summaryLink} |");
+            var layer = m.Manifest?.Layer ?? def.Role ?? "—";
+            var brands = m.Manifest?.Brands is { Count: > 0 } b ? string.Join(", ", b) : "—";
+            var apps = m.Manifest?.Applications is { Count: > 0 } a
+                ? string.Join(", ", a.Select(x => x.Name).Take(4))
+                : "—";
+            sb.AppendLine(
+                $"| **{EscapeCell(def.DisplayName)}** (`{def.Id}`) | {EscapeCell(layer)} | {EscapeCell(brands)} | {EscapeCell(apps)} | {wikiLink} | {cardLink} |");
         }
 
         sb.AppendLine();
         sb.AppendLine("## How agents should use this");
         sb.AppendLine();
-        sb.AppendLine("1. Read architecture + dependency graph to scope the change.");
-        sb.AppendLine("2. Open only the member summary pages that are in scope.");
-        sb.AppendLine("3. Follow deep links into each member’s `docs/wiki/` for modules and APIs.");
-        sb.AppendLine("4. Prefer member source of truth when wiki and code disagree.");
+        sb.AppendLine("1. Read [routing-guide.md](routing-guide.md) to filter by layer, brand, app, and keywords.");
+        sb.AppendLine("2. Open only the member routing cards that are in scope.");
+        sb.AppendLine("3. Follow **web deep links** into each member’s wiki for modules and APIs.");
+        sb.AppendLine("4. Prefer member source of truth (and workspace-manifest.md) when wiki and code disagree.");
         sb.AppendLine();
         sb.AppendLine($"Workspace root AGENTS.md points agents at `{wikiRel}`.");
         if (analysis.Warnings.Count > 0)
@@ -267,7 +280,7 @@ public static class WorkspaceOfflineBuilder
                 }
             }
 
-            sb.AppendLine($"- **Member summary:** [members/{def.Id}.md](members/{def.Id}.md)");
+            sb.AppendLine($"- **Routing card:** [members/{def.Id}/index.md](members/{def.Id}/index.md)");
             sb.AppendLine($"- **Member wiki:** {FormatMemberWikiLink(m)}");
             sb.AppendLine();
         }
@@ -423,113 +436,229 @@ public static class WorkspaceOfflineBuilder
         return EnsureTrailingNewline(sb.ToString());
     }
 
-    private static string BuildMemberPage(WorkspaceMemberAnalysis member, WorkspaceAnalysisResult analysis)
+    private static string BuildRoutingGuide(WorkspaceAnalysisResult analysis, string wikiRel)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# Routing guide — which repos should this story touch?");
+        sb.AppendLine();
+        sb.AppendLine("Use this page **before** opening member clones. The workspace corpus is optimized for estate-scale routing.");
+        sb.AppendLine();
+        sb.AppendLine("## Agent workflow");
+        sb.AppendLine();
+        sb.AppendLine($"1. Start at [`index.md`](index.md) and this guide under `{wikiRel}`.");
+        sb.AppendLine("2. Filter candidates by **layer**, **brand**, **application/service**, and **keywords** (table below + routing cards).");
+        sb.AppendLine("3. Open the matching **routing card** under `members/<id>/index.md`.");
+        sb.AppendLine("4. Follow **web deep links** into the member wiki for modules/APIs; use member `AGENTS.md` + `workspace-manifest.md` for implementation.");
+        sb.AppendLine("5. Prefer human-owned manifest fields over inferred inventory when they conflict.");
+        sb.AppendLine();
+        sb.AppendLine("## Candidate matrix");
+        sb.AppendLine();
+        sb.AppendLine("| Member | Layer | Team | Brands | Applications | Keywords | Card |");
+        sb.AppendLine("|--------|-------|------|--------|--------------|----------|------|");
+        foreach (var m in analysis.Members.Where(x => x.Resolved.Success))
+        {
+            var def = m.Resolved.Definition;
+            var man = m.Manifest;
+            var layer = man?.Layer ?? def.Role ?? "—";
+            var team = man?.Team ?? "—";
+            var brands = man?.Brands is { Count: > 0 } b ? string.Join(", ", b) : "—";
+            var apps = man?.Applications is { Count: > 0 } a
+                ? string.Join(", ", a.Select(x => x.Name).Take(4))
+                : "—";
+            var keywords = man?.Keywords is { Count: > 0 } k
+                ? string.Join(", ", k.Take(6))
+                : "—";
+            sb.AppendLine(
+                $"| `{def.Id}` | {EscapeCell(layer)} | {EscapeCell(team)} | {EscapeCell(brands)} | {EscapeCell(apps)} | {EscapeCell(keywords)} | [open](members/{def.Id}/index.md) |");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Brands vocabulary");
+        sb.AppendLine();
+        sb.AppendLine(string.Join(", ", Constants.WorkspaceManifest.KnownBrands)
+                      + " (Blueprint = dummy/non-prod templates).");
+        sb.AppendLine();
+        sb.AppendLine("## Related");
+        sb.AppendLine();
+        sb.AppendLine("- [Architecture](architecture.md)");
+        sb.AppendLine("- [Dependency graph](dependency-graph.md)");
+        sb.AppendLine("- [Ownership](ownership.md)");
+
+        return EnsureTrailingNewline(sb.ToString());
+    }
+
+    /// <summary>
+    /// Per-member routing card (primary corpus page under <c>members/&lt;id&gt;/index.md</c>).
+    /// Offline path emits manifest fields verbatim — never invents layer/brands/apps.
+    /// </summary>
+    public static string BuildRoutingCard(WorkspaceMemberAnalysis member, WorkspaceAnalysisResult analysis)
     {
         var def = member.Resolved.Definition;
+        var man = member.Manifest;
         var sb = new StringBuilder();
-        sb.AppendLine($"# {def.DisplayName}");
+        sb.AppendLine($"# Routing card — {def.DisplayName}");
         sb.AppendLine();
-        sb.AppendLine($"Workspace member id: `{def.Id}`");
-        sb.AppendLine();
-        if (!string.IsNullOrWhiteSpace(def.Role))
+        sb.AppendLine($"**memberId:** `{def.Id}`");
+        if (!string.IsNullOrWhiteSpace(def.Label) && !def.Label.Equals(def.Id, StringComparison.Ordinal))
         {
-            sb.AppendLine($"**Role:** {def.Role}");
+            sb.AppendLine($"**label:** {def.Label}");
+        }
+
+        sb.AppendLine();
+
+        // Layer / team from manifest (authoritative) else role as non-authoritative
+        var layer = man?.Layer;
+        if (!string.IsNullOrWhiteSpace(layer))
+        {
+            sb.AppendLine($"## Layer");
+            sb.AppendLine();
+            sb.AppendLine(layer);
+            sb.AppendLine();
+        }
+        else if (!string.IsNullOrWhiteSpace(def.Role))
+        {
+            sb.AppendLine("## Layer");
+            sb.AppendLine();
+            sb.AppendLine($"{def.Role} _(inferred from workspace member role — not from human manifest)_");
             sb.AppendLine();
         }
 
-        if (!string.IsNullOrWhiteSpace(def.Notes))
+        if (!string.IsNullOrWhiteSpace(man?.Team))
         {
-            sb.AppendLine(def.Notes.Trim());
+            sb.AppendLine("## Team");
+            sb.AppendLine();
+            sb.AppendLine(man.Team);
             sb.AppendLine();
         }
 
-        sb.AppendLine("## Location");
+        sb.AppendLine("## Applications / Services");
         sb.AppendLine();
-        if (member.Resolved.IsRemote)
+        if (man?.Applications is { Count: > 0 })
+        {
+            foreach (var app in man.Applications)
+            {
+                sb.AppendLine(string.IsNullOrWhiteSpace(app.Description)
+                    ? $"- **{app.Name}**"
+                    : $"- **{app.Name}** — {app.Description}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("_Not set in workspace-manifest.md_");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Brands");
+        sb.AppendLine();
+        if (man?.Brands is { Count: > 0 })
+        {
+            sb.AppendLine(string.Join(", ", man.Brands));
+        }
+        else
+        {
+            sb.AppendLine("_Not set in workspace-manifest.md_");
+        }
+
+        sb.AppendLine();
+        AppendBulletSection(sb, "Responsibilities", man?.Responsibilities);
+        AppendBulletSection(sb, "Route work here when", man?.RouteWhen);
+        AppendBulletSection(sb, "Do not route work here when", man?.DoNotRouteWhen);
+        AppendBulletSection(sb, "Related systems", man?.RelatedSystems);
+
+        sb.AppendLine("## Keywords");
+        sb.AppendLine();
+        if (man?.Keywords is { Count: > 0 })
+        {
+            sb.AppendLine(string.Join(", ", man.Keywords));
+        }
+        else
+        {
+            sb.AppendLine("_None_");
+        }
+
+        sb.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(man?.AdditionalContext))
+        {
+            sb.AppendLine("## Additional context");
+            sb.AppendLine();
+            sb.AppendLine(man.AdditionalContext.Trim());
+            sb.AppendLine();
+        }
+
+        // Dependencies / related members
+        var related = analysis.Signals.SharedPackages
+            .Where(p => p.MemberIds.Contains(def.Id, StringComparer.OrdinalIgnoreCase) && p.MemberIds.Count >= 2)
+            .SelectMany(p => p.MemberIds.Where(id => !id.Equals(def.Id, StringComparison.OrdinalIgnoreCase)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+        var projRelated = analysis.Signals.ProjectReferences
+            .Where(p => p.FromMemberId.Equals(def.Id, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(p.MatchedMemberId))
+            .Select(p => p.MatchedMemberId!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+        var depMembers = related.Concat(projRelated).Distinct(StringComparer.OrdinalIgnoreCase).Take(15).ToList();
+        sb.AppendLine("## Dependencies / related members");
+        sb.AppendLine();
+        if (depMembers.Count > 0)
+        {
+            foreach (var id in depMembers)
+            {
+                sb.AppendLine($"- [`{id}`](../{id}/index.md)");
+            }
+        }
+        else
+        {
+            sb.AppendLine("_No cross-repo dependency signals detected._");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Web links");
+        sb.AppendLine();
+        if (!string.IsNullOrWhiteSpace(member.RepoWebUrl))
+        {
+            sb.AppendLine($"- **Repository:** {member.RepoWebUrl}");
+        }
+        else if (!string.IsNullOrWhiteSpace(def.Remote))
         {
             sb.AppendLine($"- **Remote:** `{def.Remote}`");
-            if (!string.IsNullOrWhiteSpace(member.Resolved.ResolvedBranch))
-            {
-                sb.AppendLine($"- **Branch:** `{member.Resolved.ResolvedBranch}`");
-            }
-
-            if (!string.IsNullOrWhiteSpace(member.Resolved.CachePath))
-            {
-                sb.AppendLine($"- **Local cache:** `{member.Resolved.CachePath}`");
-            }
         }
         else if (!string.IsNullOrWhiteSpace(def.Path))
         {
-            sb.AppendLine($"- **Configured path:** `{def.Path}`");
+            sb.AppendLine($"- **Local path:** `{def.Path}` _(no remote URL for web links)_");
         }
 
+        if (!string.IsNullOrWhiteSpace(member.WikiWebUrl))
+        {
+            sb.AppendLine($"- **Member wiki (web):** {member.WikiWebUrl}");
+        }
+        else
+        {
+            var wikiRel = def.WikiPath.Replace('\\', '/').TrimEnd('/');
+            sb.AppendLine($"- **Member wiki (path):** `{wikiRel}/index.md`");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## Evidence");
+        sb.AppendLine();
+        sb.AppendLine($"- **Manifest present:** {(man?.Present == true ? "yes" : "no")}");
+        sb.AppendLine($"- **Wiki present:** {(member.WikiStatus?.Exists == true ? "yes" : "no")}");
         if (!string.IsNullOrWhiteSpace(member.Resolved.HeadSha))
         {
-            sb.AppendLine($"- **HEAD:** `{member.Resolved.HeadSha[..Math.Min(12, member.Resolved.HeadSha.Length)]}`");
+            var sha = member.Resolved.HeadSha;
+            sb.AppendLine($"- **HEAD:** `{sha[..Math.Min(12, sha.Length)]}`");
         }
 
-        sb.AppendLine();
-        sb.AppendLine("## Member wiki (deep links)");
-        sb.AppendLine();
-        var wikiRel = def.WikiPath.Replace('\\', '/').TrimEnd('/');
-        if (member.WikiStatus is { Exists: true })
+        if (member.WikiStatus is { IsStale: true })
         {
-            sb.AppendLine($"Member wiki root: `{wikiRel}/`");
-            sb.AppendLine();
-            sb.AppendLine("| Page | Path |");
-            sb.AppendLine("|------|------|");
-            sb.AppendLine($"| Index | `{wikiRel}/index.md` |");
-            sb.AppendLine($"| Architecture | `{wikiRel}/architecture.md` |");
-            sb.AppendLine($"| Modules | `{wikiRel}/modules/` |");
-            sb.AppendLine($"| Cross-cutting | `{wikiRel}/cross-cutting/` |");
-            if (member.WikiStatus.IsStale)
-            {
-                sb.AppendLine();
-                sb.AppendLine(
-                    $"> **Stale:** member wiki may be outdated. Run `agent-wiki generate` or `agent-wiki update` in the member repo (`{def.Id}`).");
-            }
+            sb.AppendLine("- **Freshness:** git-stale (source changed since last member wiki baseline)");
         }
-        else
+        else if (member.WikiStatus is not null)
         {
-            sb.AppendLine(
-                $"> **Missing wiki:** no `{wikiRel}/index.md` found. "
-                + $"Run `agent-wiki generate --repo-path <path-to-{def.Id}> --force` first, "
-                + "or re-run `agent-wiki workspace generate` with member wiki ensure enabled.");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("## Inventory snapshot");
-        sb.AppendLine();
-        if (member.Analysis is { } a)
-        {
-            sb.AppendLine($"- **Repo name:** {a.RepoName}");
-            sb.AppendLine($"- **Files:** {a.Stats.TotalFiles} (selected {a.Stats.SelectedFiles})");
-            if (a.Stats.DetectedLanguages.Count > 0)
-            {
-                sb.AppendLine($"- **Languages:** {string.Join(", ", a.Stats.DetectedLanguages)}");
-            }
-
-            var projects = a.Files
-                .Where(f => f.RelativePath.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
-                            || f.RelativePath.EndsWith(".sln", StringComparison.OrdinalIgnoreCase)
-                            || f.RelativePath.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
-                .Select(f => f.RelativePath.Replace('\\', '/'))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
-                .Take(15)
-                .ToList();
-            if (projects.Count > 0)
-            {
-                sb.AppendLine("- **Projects / solutions:**");
-                foreach (var p in projects)
-                {
-                    sb.AppendLine($"  - `{p}`");
-                }
-            }
-        }
-        else
-        {
-            sb.AppendLine("_Inventory not available for this member._");
+            sb.AppendLine($"- **Freshness:** {member.WikiStatus.Summary}");
         }
 
         if (member.Warnings.Count > 0)
@@ -537,7 +666,7 @@ public static class WorkspaceOfflineBuilder
             sb.AppendLine();
             sb.AppendLine("## Warnings");
             sb.AppendLine();
-            foreach (var w in member.Warnings)
+            foreach (var w in member.Warnings.Take(15))
             {
                 sb.AppendLine($"- {w}");
             }
@@ -546,31 +675,40 @@ public static class WorkspaceOfflineBuilder
         sb.AppendLine();
         sb.AppendLine("## Related system pages");
         sb.AppendLine();
-        sb.AppendLine("- [Index](../index.md)");
-        sb.AppendLine("- [Architecture](../architecture.md)");
-        sb.AppendLine("- [Dependency graph](../dependency-graph.md)");
-
-        // Cross-links: packages / contracts for this member
-        var memberPackages = analysis.Signals.SharedPackages
-            .Where(p => p.MemberIds.Contains(def.Id, StringComparer.OrdinalIgnoreCase) && p.MemberIds.Count >= 2)
-            .Take(10)
-            .ToList();
-        if (memberPackages.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("## Shared packages involving this member");
-            sb.AppendLine();
-            foreach (var p in memberPackages)
-            {
-                sb.AppendLine($"- `{p.PackageId}` with {string.Join(", ", p.MemberIds.Where(id => !id.Equals(def.Id, StringComparison.OrdinalIgnoreCase)).Select(id => $"`{id}`"))}");
-            }
-        }
+        sb.AppendLine("- [Index](../../index.md)");
+        sb.AppendLine("- [Routing guide](../../routing-guide.md)");
+        sb.AppendLine("- [Architecture](../../architecture.md)");
+        sb.AppendLine("- [Dependency graph](../../dependency-graph.md)");
 
         return EnsureTrailingNewline(sb.ToString());
     }
 
+    private static void AppendBulletSection(StringBuilder sb, string heading, IReadOnlyList<string>? items)
+    {
+        sb.AppendLine($"## {heading}");
+        sb.AppendLine();
+        if (items is { Count: > 0 })
+        {
+            foreach (var item in items)
+            {
+                sb.AppendLine($"- {item}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("_Not set_");
+        }
+
+        sb.AppendLine();
+    }
+
     private static string FormatMemberWikiLink(WorkspaceMemberAnalysis member)
     {
+        if (!string.IsNullOrWhiteSpace(member.WikiWebUrl))
+        {
+            return $"[wiki]({member.WikiWebUrl})";
+        }
+
         var def = member.Resolved.Definition;
         var wikiRel = def.WikiPath.Replace('\\', '/').TrimEnd('/');
         if (member.WikiStatus is not { Exists: true })
@@ -578,7 +716,6 @@ public static class WorkspaceOfflineBuilder
             return $"_missing_ (`{wikiRel}/`)";
         }
 
-        // Document path only — relative links across sibling repos are not stable on disk.
         return $"`{wikiRel}/index.md`";
     }
 

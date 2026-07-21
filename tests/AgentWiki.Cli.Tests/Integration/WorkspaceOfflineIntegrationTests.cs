@@ -102,28 +102,38 @@ public sealed class WorkspaceOfflineIntegrationTests
             File.Exists(Path.Combine(output, "dependency-graph.md")).ShouldBeTrue();
             File.Exists(Path.Combine(output, "data-flows.md")).ShouldBeTrue();
             File.Exists(Path.Combine(output, "ownership.md")).ShouldBeTrue();
-            File.Exists(Path.Combine(output, "members", "service-a.md")).ShouldBeTrue();
-            File.Exists(Path.Combine(output, "members", "service-b.md")).ShouldBeTrue();
+            File.Exists(Path.Combine(output, "routing-guide.md")).ShouldBeTrue();
+            File.Exists(Path.Combine(output, "members", "service-a", "index.md")).ShouldBeTrue();
+            File.Exists(Path.Combine(output, "members", "service-b", "index.md")).ShouldBeTrue();
+            File.Exists(Path.Combine(output, ".agentwiki-meta.json")).ShouldBeTrue();
             File.Exists(Path.Combine(workspace, "AGENTS.md")).ShouldBeTrue();
             File.Exists(Path.Combine(workspace, ".agentwiki", "workspace-last-run.json")).ShouldBeTrue();
 
-            // Member wikis ensured
+            // Member wikis ensured (+ workspace-manifest scaffold)
             File.Exists(Path.Combine(memberA, "docs", "wiki", "index.md")).ShouldBeTrue();
             File.Exists(Path.Combine(memberB, "docs", "wiki", "index.md")).ShouldBeTrue();
+            File.Exists(Path.Combine(memberA, "docs", "wiki", "workspace-manifest.md")).ShouldBeTrue();
 
             var index = await File.ReadAllTextAsync(Path.Combine(output, "index.md"));
             index.ShouldContain("service-a");
             index.ShouldContain("service-b");
-            index.ShouldContain("docs/wiki/index.md");
+            index.ShouldContain("routing-guide");
 
-            var memberPage = await File.ReadAllTextAsync(Path.Combine(output, "members", "service-a.md"));
-            memberPage.ShouldContain("docs/wiki/architecture.md");
+            var memberPage = await File.ReadAllTextAsync(Path.Combine(output, "members", "service-a", "index.md"));
+            memberPage.ShouldContain("Routing card");
+            memberPage.ShouldContain("service-a");
+
+            var meta = await File.ReadAllTextAsync(Path.Combine(output, ".agentwiki-meta.json"));
+            meta.ShouldContain("memberId");
+            meta.ShouldContain("service-a");
+            meta.ShouldContain("manifestPresent");
 
             var agents = await File.ReadAllTextAsync(Path.Combine(workspace, "AGENTS.md"));
             agents.ShouldContain("Start here (workspace)");
             agents.ShouldContain(Constants.AgentsMd.MarkerBegin);
             agents.ShouldContain(Constants.AgentsMd.SelfUpdateSectionHeading);
             agents.ShouldContain("docs/knowledge-base/");
+            agents.ShouldContain("routing-guide");
 
             var dep = await File.ReadAllTextAsync(Path.Combine(output, "dependency-graph.md"));
             dep.ShouldContain("Shared.Contracts");

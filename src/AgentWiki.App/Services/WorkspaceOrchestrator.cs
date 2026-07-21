@@ -290,12 +290,59 @@ public sealed class WorkspaceOrchestrator(
                     logger.LogWarning(ex, "Failed to analyze member {Id}", member.Definition.Id);
                 }
 
+                // Manifest + web links for routing cards
+                WorkspaceManifestDocument? manifest = null;
+                try
+                {
+                    manifest = await WorkspaceManifestParser
+                        .LoadFromWikiAsync(member.AbsolutePath, member.Definition.WikiPath, cancellationToken)
+                        .ConfigureAwait(false);
+                    memberWarnings.AddRange(manifest.Warnings);
+                }
+                catch (Exception ex)
+                {
+                    memberWarnings.Add($"Manifest load failed for '{member.Definition.Id}': {ex.Message}");
+                }
+
+                string? repoWebUrl = null;
+                string? wikiWebUrl = null;
+                string? hosting = null;
+                try
+                {
+                    var remoteInfo = await GitRemoteInfo
+                        .ResolveAsync(member.AbsolutePath, cancellationToken)
+                        .ConfigureAwait(false);
+                    memberWarnings.AddRange(remoteInfo.Warnings);
+                    var remoteUrl = remoteInfo.RemoteUrl
+                                    ?? member.Definition.Remote;
+                    var branch = remoteInfo.Branch
+                                 ?? member.ResolvedBranch
+                                 ?? member.Definition.Branch;
+                    var links = RepoWebLinkBuilder.Build(
+                        remoteUrl,
+                        branch,
+                        member.Definition.WikiPath,
+                        remoteInfo.RemoteName);
+                    repoWebUrl = links.RepoUrl;
+                    wikiWebUrl = links.WikiIndexWebUrl;
+                    hosting = links.Hosting;
+                    memberWarnings.AddRange(links.Warnings);
+                }
+                catch (Exception ex)
+                {
+                    memberWarnings.Add($"Web link resolve failed for '{member.Definition.Id}': {ex.Message}");
+                }
+
                 memberAnalyses.Add(new WorkspaceMemberAnalysis
                 {
                     Resolved = member,
                     WikiStatus = wikiStatus,
                     Analysis = analysis,
                     MemberGenerateResult = genResult,
+                    Manifest = manifest,
+                    RepoWebUrl = repoWebUrl,
+                    WikiWebUrl = wikiWebUrl,
+                    Hosting = hosting,
                     Warnings = memberWarnings
                 });
             }
@@ -344,24 +391,12 @@ public sealed class WorkspaceOrchestrator(
             var sections = WorkspaceOfflineBuilder.BuildSections(analysisResult).ToList();
             steps.Add("build-system-pages");
 
-            // Meta file
+            // Meta file (Phase 2 / MCP readiness — ids, layer, brands, apps, URLs)
             sections.Add(new WikiSection(
                 "meta",
                 "Meta",
                 Constants.Paths.MetaFileName,
-                JsonSerializer.Serialize(
-                    new
-                    {
-                        tool = Constants.Product.ToolName,
-                        version = Constants.Product.Version,
-                        mode = request.Incremental ? "workspace-update" : "workspace-generate",
-                        workspace = config.Name,
-                        correlationId = request.CorrelationId,
-                        generatedAtUtc = DateTimeOffset.UtcNow,
-                        memberCount = successful.Count,
-                        members = successful.Select(m => m.Definition.Id).ToList()
-                    },
-                    MetaJsonOptions)));
+                BuildPhase2MetaJson(request, config, memberAnalyses, successful.Count)));
 
             request.Progress?.Report(
                 request.DryRun ? "Dry-run: classifying system wiki files…" : "Writing system wiki…");
@@ -630,6 +665,49 @@ public sealed class WorkspaceOrchestrator(
         }
 
         return false;
+    }
+
+    private static string BuildPhase2MetaJson(
+        WorkspaceGenerationRequest request,
+        WorkspaceConfig config,
+        IReadOnlyList<WorkspaceMemberAnalysis> members,
+        int memberCount)
+    {
+        var payload = new
+        {
+            tool = Constants.Product.ToolName,
+            version = Constants.Product.Version,
+            phase = "02b",
+            mode = request.Incremental ? "workspace-update" : "workspace-generate",
+            workspace = config.Name,
+            correlationId = request.CorrelationId,
+            generatedAtUtc = DateTimeOffset.UtcNow,
+            memberCount,
+            pageType = "workspace-meta",
+            members = members
+                .Where(m => m.Resolved.Success)
+                .Select(m => new
+                {
+                    memberId = m.Resolved.Definition.Id,
+                    label = m.Resolved.Definition.DisplayName,
+                    layer = m.Manifest?.Layer,
+                    team = m.Manifest?.Team,
+                    brands = m.Manifest?.Brands ?? [],
+                    applications = (m.Manifest?.Applications ?? [])
+                        .Select(a => new { name = a.Name, description = a.Description })
+                        .ToList(),
+                    keywords = m.Manifest?.Keywords ?? [],
+                    repoUrl = m.RepoWebUrl,
+                    wikiWebUrl = m.WikiWebUrl,
+                    hosting = m.Hosting,
+                    headSha = m.Resolved.HeadSha,
+                    manifestPresent = m.Manifest?.Present == true,
+                    wikiPresent = m.WikiStatus?.Exists == true,
+                    pageType = "member-routing-card"
+                })
+                .ToList()
+        };
+        return JsonSerializer.Serialize(payload, MetaJsonOptions);
     }
 
     private static WorkspaceLastRunState BuildLastRunState(

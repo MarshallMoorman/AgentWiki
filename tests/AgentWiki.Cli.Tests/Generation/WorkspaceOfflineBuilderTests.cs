@@ -7,7 +7,7 @@ namespace AgentWiki.Cli.Tests.Generation;
 public sealed class WorkspaceOfflineBuilderTests
 {
     [Fact]
-    public void BuildSections_ProducesExpectedPagesAndMemberLinks()
+    public void BuildSections_ProducesCorpusLayoutAndRoutingCards()
     {
         var analysis = CreateSampleAnalysis();
         var sections = WorkspaceOfflineBuilder.BuildSections(analysis);
@@ -17,23 +17,60 @@ public sealed class WorkspaceOfflineBuilderTests
         sections.Select(s => s.RelativePath).ShouldContain("dependency-graph.md");
         sections.Select(s => s.RelativePath).ShouldContain("data-flows.md");
         sections.Select(s => s.RelativePath).ShouldContain("ownership.md");
-        sections.Select(s => s.RelativePath).ShouldContain("members/loan-service.md");
-        sections.Select(s => s.RelativePath).ShouldContain("members/shared-domain.md");
+        sections.Select(s => s.RelativePath).ShouldContain("routing-guide.md");
+        sections.Select(s => s.RelativePath).ShouldContain("members/loan-service/index.md");
+        sections.Select(s => s.RelativePath).ShouldContain("members/shared-domain/index.md");
 
         var index = sections.Single(s => s.RelativePath == "index.md").Content;
         index.ShouldContain("loan-service");
-        index.ShouldContain("docs/wiki/index.md");
+        index.ShouldContain("routing-guide");
+        index.ShouldContain("experience");
+        index.ShouldContain("Rise");
+        index.ShouldContain("LoanView.Api");
 
-        var member = sections.Single(s => s.RelativePath == "members/loan-service.md").Content;
-        member.ShouldContain("docs/wiki/architecture.md");
-        member.ShouldContain("loan-service");
+        var card = sections.Single(s => s.RelativePath == "members/loan-service/index.md").Content;
+        card.ShouldContain("Routing card");
+        card.ShouldContain("experience");
+        card.ShouldContain("Rise");
+        card.ShouldContain("LoanView.Api");
+        card.ShouldContain("github.com");
+        card.ShouldContain("## Brands");
+        card.ShouldContain("## Applications / Services");
+
+        var guide = sections.Single(s => s.RelativePath == "routing-guide.md").Content;
+        guide.ShouldContain("Candidate matrix");
+        guide.ShouldContain("loan-service");
 
         var dep = sections.Single(s => s.RelativePath == "dependency-graph.md").Content;
         dep.ShouldContain("shared-domain");
     }
 
     [Fact]
-    public void BuildAgentsMd_IncludesSelfUpdateAndMarkers()
+    public void BuildRoutingCard_DoesNotInventManifestFields()
+    {
+        var member = CreateMember("bare", "Bare", "service", wikiExists: true, packages: []);
+        member = new WorkspaceMemberAnalysis
+        {
+            Resolved = member.Resolved,
+            WikiStatus = member.WikiStatus,
+            Analysis = member.Analysis,
+            Manifest = new WorkspaceManifestDocument { Present = false },
+            Warnings = []
+        };
+        var analysis = new WorkspaceAnalysisResult
+        {
+            Config = new WorkspaceConfig { Name = "W", Members = [member.Resolved.Definition] },
+            Members = [member],
+            Signals = new CrossRepoSignals()
+        };
+
+        var card = WorkspaceOfflineBuilder.BuildRoutingCard(member, analysis);
+        card.ShouldContain("_Not set in workspace-manifest.md_");
+        card.ShouldNotContain("## Brands\n\nRise");
+    }
+
+    [Fact]
+    public void BuildAgentsMd_IncludesSelfUpdateAndRouting()
     {
         var analysis = CreateSampleAnalysis();
         var agents = WorkspaceOfflineBuilder.BuildAgentsMd(analysis);
@@ -43,6 +80,7 @@ public sealed class WorkspaceOfflineBuilderTests
         agents.ShouldContain(Constants.AgentsMd.MarkerEnd);
         agents.ShouldContain(Constants.AgentsMd.SelfUpdateSectionHeading);
         agents.ShouldContain("docs/knowledge-base/");
+        agents.ShouldContain("routing-guide");
         agents.ShouldContain("workspace generate");
         agents.ShouldContain("loan-service");
     }
@@ -67,12 +105,37 @@ public sealed class WorkspaceOfflineBuilderTests
             "service",
             wikiExists: true,
             packages: []);
+        loan = WithManifest(loan, new WorkspaceManifestDocument
+        {
+            Present = true,
+            Layer = "experience",
+            Team = "@loan-team",
+            Applications =
+            [
+                new WorkspaceManifestApplication
+                {
+                    Name = "LoanView.Api",
+                    Description = "Experience API"
+                }
+            ],
+            Brands = ["Rise", "Shine"],
+            RouteWhen = ["Loan view stories"],
+            Keywords = ["loan-view"]
+        }, repoWeb: "https://github.com/org/LoanService", wikiWeb: "https://github.com/org/LoanService/blob/main/docs/wiki/index.md");
+
         var shared = CreateMember(
             "shared-domain",
             "Shared Domain",
             "library",
             wikiExists: true,
             packages: []);
+        shared = WithManifest(shared, new WorkspaceManifestDocument
+        {
+            Present = true,
+            Layer = "domain",
+            Brands = ["Blueprint"],
+            Applications = [new WorkspaceManifestApplication { Name = "Shared.Domain" }]
+        });
 
         return new WorkspaceAnalysisResult
         {
@@ -99,40 +162,27 @@ public sealed class WorkspaceOfflineBuilderTests
                         MemberIds = ["loan-service", "shared-domain"],
                         Versions = ["13.0.3"]
                     }
-                ],
-                ProjectReferences =
-                [
-                    new ProjectReferenceSignal
-                    {
-                        FromMemberId = "loan-service",
-                        FromProject = "src/Loan.csproj",
-                        ToReference = "../Shared.Domain/Shared.Domain.csproj",
-                        MatchedMemberId = "shared-domain"
-                    }
-                ],
-                Ownership =
-                [
-                    new OwnershipSignal
-                    {
-                        MemberId = "loan-service",
-                        SourcePath = "CODEOWNERS",
-                        Excerpt = "* @lending-team"
-                    }
-                ],
-                Contracts =
-                [
-                    new ContractSignal
-                    {
-                        MemberId = "loan-service",
-                        RelativePath = "openapi/loan.json",
-                        Kind = "openapi"
-                    }
-                ],
-                Notes = ["Detected 1 package(s) shared by 2+ members."]
-            },
-            Warnings = []
+                ]
+            }
         };
     }
+
+    private static WorkspaceMemberAnalysis WithManifest(
+        WorkspaceMemberAnalysis baseMember,
+        WorkspaceManifestDocument manifest,
+        string? repoWeb = null,
+        string? wikiWeb = null) =>
+        new()
+        {
+            Resolved = baseMember.Resolved,
+            WikiStatus = baseMember.WikiStatus,
+            Analysis = baseMember.Analysis,
+            Manifest = manifest,
+            RepoWebUrl = repoWeb,
+            WikiWebUrl = wikiWeb,
+            Hosting = repoWeb?.Contains("github", StringComparison.OrdinalIgnoreCase) == true ? "github" : null,
+            Warnings = []
+        };
 
     private static WorkspaceMemberAnalysis CreateMember(
         string id,
@@ -150,7 +200,6 @@ public sealed class WorkspaceOfflineBuilderTests
             Path = $"../{id}",
             WikiPath = "docs/wiki"
         };
-
         return new WorkspaceMemberAnalysis
         {
             Resolved = new ResolvedWorkspaceMember
@@ -158,7 +207,7 @@ public sealed class WorkspaceOfflineBuilderTests
                 Definition = def,
                 AbsolutePath = $"/tmp/{id}",
                 IsRemote = false,
-                HeadSha = "abc123"
+                HeadSha = "abc123def456"
             },
             WikiStatus = new MemberWikiStatus
             {
@@ -167,36 +216,24 @@ public sealed class WorkspaceOfflineBuilderTests
                 Exists = wikiExists,
                 HasIndex = wikiExists,
                 HasArchitecture = wikiExists,
-                LastWriteUtc = DateTimeOffset.UtcNow,
                 IsStale = false,
                 Summary = wikiExists ? "ok" : "missing"
             },
             Analysis = new RepoAnalysisResult
             {
                 RepoPath = $"/tmp/{id}",
-                RepoName = label,
-                Files =
-                [
-                    new RepoFile
-                    {
-                        RelativePath = $"src/{label.Replace(" ", "")}.csproj",
-                        AbsolutePath = $"/tmp/{id}/src/x.csproj",
-                        Extension = ".csproj",
-                        Category = FileCategory.Configuration,
-                        SizeBytes = 100,
-                        LineCount = 10
-                    }
-                ],
+                RepoName = id,
+                Files = [],
+                Summary = "test",
+                DiscoveryMethod = "FileSystemWalk",
                 Stats = new RepoStats
                 {
                     TotalFiles = 10,
                     SelectedFiles = 5,
-                    DetectedLanguages = ["C#"],
-                    TopFolders = [new FolderStat("src", 8, 1000)]
-                },
-                Summary = "test",
-                DiscoveryMethod = "FileSystemWalk"
-            }
+                    DetectedLanguages = ["C#"]
+                }
+            },
+            Warnings = []
         };
     }
 }

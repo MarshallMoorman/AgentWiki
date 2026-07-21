@@ -229,6 +229,10 @@ public sealed class WorkspaceMemberAnalysis
     public MemberWikiStatus? WikiStatus { get; init; }
     public RepoAnalysisResult? Analysis { get; init; }
     public GenerationResult? MemberGenerateResult { get; init; }
+    public WorkspaceManifestDocument? Manifest { get; init; }
+    public string? RepoWebUrl { get; init; }
+    public string? WikiWebUrl { get; init; }
+    public string? Hosting { get; init; }
     public IReadOnlyList<string> Warnings { get; init; } = [];
 }
 
