@@ -207,6 +207,30 @@ public sealed class SemanticWikiGenerator(
                 }
             }
 
+            // Scaffold human-owned workspace contribution manifest when missing (never overwrite).
+            request.Progress?.Report(
+                request.DryRun
+                    ? "Checking workspace contribution manifest (dry-run)…"
+                    : "Ensuring workspace contribution manifest…");
+            var manifestResult = await WorkspaceManifestScaffold
+                .EnsureAsync(request.OutputPath, request.DryRun, cancellationToken)
+                .ConfigureAwait(false);
+            if (!manifestResult.Success)
+            {
+                warnings.Add(manifestResult.Message);
+            }
+            else if (manifestResult.Created || manifestResult.DryRun)
+            {
+                warnings.Add(manifestResult.Message);
+                if (manifestResult is { Created: true, Path: not null }
+                    && !request.DryRun
+                    && !filesWritten.Contains(manifestResult.Path, StringComparer.OrdinalIgnoreCase))
+                {
+                    // Track for result reporting (path may be absolute).
+                    filesWritten = [..filesWritten, manifestResult.Path];
+                }
+            }
+
             if (!request.DryRun)
             {
                 request.Progress?.Report("Updating meta and agent docs…");

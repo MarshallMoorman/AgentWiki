@@ -40,6 +40,15 @@ public static class Constants
         /// <summary>Subdirectory under the user cache for remote member clones.</summary>
         public const string WorkspaceCacheDirectoryName = "workspaces";
 
+        /// <summary>
+        /// Human-owned workspace contribution manifest file name under a member wiki root
+        /// (e.g. <c>docs/wiki/workspace-manifest.md</c>).
+        /// </summary>
+        public const string WorkspaceManifestFileName = "workspace-manifest.md";
+
+        /// <summary>Default relative path of the member contribution manifest.</summary>
+        public const string DefaultWorkspaceManifestPath = "docs/wiki/workspace-manifest.md";
+
         public const string EnvFileName = ".env";
         public const string EnvExampleFileName = ".env.example";
 
@@ -48,6 +57,64 @@ public static class Constants
 
         /// <summary>Less common root-level Copilot instructions path.</summary>
         public const string CopilotInstructionsRoot = "copilot-instructions.md";
+    }
+
+    /// <summary>Workspace contribution manifest headings, brands, and related constants.</summary>
+    public static class WorkspaceManifest
+    {
+        public const string FileName = Paths.WorkspaceManifestFileName;
+        public const string DefaultRelativePath = Paths.DefaultWorkspaceManifestPath;
+
+        // Data section headings (case-sensitive match preferred; parser tolerates surrounding whitespace).
+        public const string HeadingLayer = "Layer";
+        public const string HeadingTeam = "Team";
+        public const string HeadingApplications = "Applications / Services";
+        public const string HeadingBrands = "Brands";
+        public const string HeadingResponsibilities = "Responsibilities";
+        public const string HeadingRouteWhen = "Route work here when";
+        public const string HeadingDoNotRoute = "Do not route work here when";
+        public const string HeadingRelatedSystems = "Related systems";
+        public const string HeadingKeywords = "Keywords";
+        public const string HeadingAdditionalContext = "Additional context";
+
+        /// <summary>Controlled brand vocabulary (normalize case to these tokens when known).</summary>
+        public static IReadOnlyList<string> KnownBrands { get; } =
+        [
+            "Rise",
+            "Shine",
+            "Elastic",
+            "Blueprint"
+        ];
+
+        /// <summary>Suggested layer tokens (not exclusive).</summary>
+        public static IReadOnlyList<string> SuggestedLayers { get; } =
+        [
+            "experience",
+            "process",
+            "domain",
+            "ui",
+            "data",
+            "shared",
+            "infrastructure",
+            "other"
+        ];
+    }
+
+    /// <summary>Workspace member wiki orchestration policy defaults (Step 02b).</summary>
+    public static class Workspace
+    {
+        public const bool EnsureMissingDefault = true;
+        public const string UpdateMembersNever = "never";
+        public const string UpdateMembersStale = "stale";
+        public const string UpdateMembersAll = "all";
+        public const string DefaultUpdateMembers = UpdateMembersNever;
+
+        /// <summary>Subfolder under system KB for per-member routing cards.</summary>
+        public const string MembersFolderName = "members";
+
+        public const string RoutingGuideFileName = "routing-guide.md";
+        public const string MemberRoutingCardFileName = "index.md";
+        public const string MemberOverviewFileName = "overview.md";
     }
 
     /// <summary>Default values for <see cref="Models.AgentWikiConfig"/> and matching scaffolds.</summary>
