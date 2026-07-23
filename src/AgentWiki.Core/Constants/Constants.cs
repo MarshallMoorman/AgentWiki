@@ -11,7 +11,7 @@ public static class Constants
     {
         public const string ToolName = "agent-wiki";
         public const string ProductName = "AgentWiki";
-        public const string Version = "1.5.0";
+        public const string Version = "1.5.1";
     }
 
     /// <summary>Filesystem paths and well-known file names (repo-relative unless noted).</summary>
@@ -19,6 +19,8 @@ public static class Constants
     {
         public const string ConfigDirectoryName = ".agentwiki";
         public const string ConfigFileName = "config.json";
+        /// <summary>Full reference config written by <c>init</c> (all properties documented).</summary>
+        public const string ConfigExampleFileName = "config.example.json";
         public const string LastRunFileName = "last-run.json";
         public const string MetaFileName = ".agentwiki-meta.json";
         public const string PromptsDirectoryName = "prompts";
@@ -120,8 +122,8 @@ public static class Constants
     /// <summary>Default values for <see cref="Models.AgentWikiConfig"/> and matching scaffolds.</summary>
     public static class Config
     {
-        public const string DefaultModel = "gpt-4o";
-        public const string DefaultProvider = Providers.AzureOpenAi;
+        public const string DefaultModel = "gpt-chat-latest";
+        public const string DefaultProvider = Providers.OpenAi;
 
         public const int MaxFilesToAnalyze = 500;
         public const bool EnableIncrementalUpdates = true;
