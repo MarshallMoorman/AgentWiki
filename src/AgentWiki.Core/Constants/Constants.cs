@@ -135,10 +135,11 @@ public static class Constants
         public const int MaxLlmSummaryChars = 32_000;
 
         /// <summary>
-        /// When true (default), transport/parse failures fall back to offline generators.
-        /// Set false for production runs that should fail loudly rather than write inventory-only docs.
+        /// When true, transport/parse failures fall back to offline generators.
+        /// Default is false so failed LLM/parse runs fail loudly rather than writing inventory-only docs.
+        /// Missing credentials still use offline generators regardless of this flag.
         /// </summary>
-        public const bool AllowOfflineFallback = true;
+        public const bool AllowOfflineFallback = false;
 
         public const bool EnablePostProcessing = true;
         public const string PostProcessingModeLenient = "lenient";

@@ -129,7 +129,7 @@ flowchart TB
 
 | Command | Description |
 |---------|-------------|
-| `agent-wiki init` | Create `.agentwiki/config.json`, sample prompts, `.env.example` |
+| `agent-wiki init` | Create minimal `.agentwiki/config.json`, full `config.example.json`, sample prompts, `.env.example` |
 | `agent-wiki generate` | Full multi-step wiki generation; also full AGENTS.md if missing/trivial and README.md if missing/generic |
 | `agent-wiki update` | Incremental update from git changes since last run (same AGENTS/README rules when applicable) |
 | `agent-wiki agents` | Generate a **complete** `AGENTS.md` from analysis, wiki, and instruction files |
@@ -213,8 +213,8 @@ Example shape (abbreviated):
   "outputPath": "docs/knowledge-base",
   "memberWikiPolicy": { "ensureMissing": true, "updateMembers": "never" },
   "memberDefaults": {
-    "provider": "azure-openai",
-    "defaultModel": "gpt-4o",
+    "provider": "openai",
+    "defaultModel": "gpt-chat-latest",
     "outputPath": "docs/wiki"
   },
   "members": [
@@ -267,13 +267,15 @@ Also writes/refreshes **workspace `AGENTS.md`** (routing-guide → cards → web
 
 ## Configuration
 
-**Priority (highest wins):** CLI flags → repo `.env` → `.agentwiki/config.json` → process `AGENTWIKI_*` env → tool `appsettings.json`.
+**Priority (highest wins):** CLI flags → repo `.env` → `.agentwiki/config.json` → process `AGENTWIKI_*` / `OPENAI_*` env → tool `appsettings.json`.
+
+**Defaults after `init`:** provider `openai`, model `gpt-chat-latest`. Committed `config.json` is intentionally **minimal** (provider, defaultModel, outputPath). Full property list lives in `.agentwiki/config.example.json` (and [`examples/agentwiki.config.json`](examples/agentwiki.config.json)). API keys are **not** scaffolded — set `OPENAI_API_KEY` globally, or add a repo `.env` / config override.
 
 | Source | Best for | Required? |
 |--------|----------|-----------|
-| `.env` | Secrets and local overrides (wins over config.json) | Optional |
-| `config.json` | Provider, model, paths, timeouts, ignore patterns | Recommended |
-| Process env | CI secrets / non-interactive runs | Optional |
+| Process env | `OPENAI_API_KEY` / CI secrets (preferred for keys) | Recommended for LLM |
+| `.env` | Repo-local secrets and overrides (wins over config.json) | Optional |
+| `config.json` | Minimal provider/model/paths; copy extras from `config.example.json` | Scaffolded by `init` |
 
 All LLM settings can be set via environment variables (process env or `.env`):
 
@@ -293,12 +295,14 @@ All LLM settings can be set via environment variables (process env or `.env`):
 | OpenAI endpoint / model / key | `AGENTWIKI_OpenAI__Endpoint`, `__Model`, `__ApiKey` |
 | OpenAI key (shorthand / industry) | `AGENTWIKI_ApiKey` or `OPENAI_API_KEY` (fill-if-empty) |
 
-See [`examples/agentwiki.config.json`](examples/agentwiki.config.json) and `.env.example` from `agent-wiki init`.
+See `agent-wiki init` → `.agentwiki/config.example.json`, plus [`examples/agentwiki.config.json`](examples/agentwiki.config.json) and `.env.example`.
 
-Useful knobs:
+Useful knobs (see `config.example.json` for the full surface):
 
-- `llmTimeoutSeconds` (default **300**)
-- `maxLlmSummaryChars` (default **16000**)
+- `llmTimeoutSeconds` (default **1200**)
+- `maxLlmSummaryChars` (default **32000**)
+- `allowOfflineFallback` (default **false**) — when true, live LLM transport/parse failures fall back to offline generators; when false (default), those failures fail the run
+- **LLM required for live providers:** `openai` / `azure-openai` / `github-models` need working credentials (e.g. `OPENAI_API_KEY`). Without them, generate **errors** instead of silently writing inventory-only docs. For inventory-only mode set `"provider": "offline"` (or `none` / `mock`)
 - `enablePostProcessing` (default **true**) — guardrails after LLM/offline generation
 - `postProcessingMode` — `lenient` (default) or `strict` (drops unverified deprecation claims more aggressively)
 - `enableRoslynAnalysis` (default **true**) — optional C# syntax analysis for richer offline wikis

@@ -156,6 +156,7 @@ public sealed class WikiGenerationOrchestrator(
 
             if (request.Config.EnableEndpointLlmEnrichment
                 && filtered.Count > 0
+                && !LlmSettings.IsExplicitOfflineMode(request.ProviderOverride ?? request.Config.Provider)
                 && llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
             {
                 try
@@ -262,17 +263,17 @@ public sealed class WikiGenerationOrchestrator(
 
         if (anyOffline)
         {
-            // Distinguish credential-less offline from partial LLM runs that fell back mid-pipeline.
-            if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+            if (LlmSettings.IsExplicitOfflineMode(request.ProviderOverride ?? request.Config.Provider))
             {
                 warnings.Add(
-                    "One or more pipeline steps used offline generation because LLM credentials are not configured.");
+                    "One or more pipeline steps used offline generation because provider is set to offline.");
             }
             else
             {
                 warnings.Add(
                     "One or more pipeline steps fell back to offline generation after LLM errors "
-                    + "(see logs for transport/timeout/parse failures). Other steps may still be LLM-assisted.");
+                    + "(allowOfflineFallback=true; see logs for transport/timeout/parse failures). "
+                    + "Other steps may still be LLM-assisted.");
             }
         }
 
@@ -331,12 +332,19 @@ public sealed class WikiGenerationOrchestrator(
         CancellationToken cancellationToken)
     {
         // Module inventory structure is cheap offline; only spend LLM tokens on full runs.
-        if (!scope.IsFull || !llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+        // Explicit offline provider, or selective incremental scopes, use the offline planner.
+        if (LlmSettings.IsExplicitOfflineMode(request.ProviderOverride ?? request.Config.Provider)
+            || !scope.IsFull)
         {
             var offlineOnly = OfflineModulePlanner.Plan(analysis, request.Config);
             StabilizeModulePlanIds(offlineOnly, request);
             return offlineOnly;
         }
+
+        LlmSettings.EnsureLiveLlmConfigured(
+            request.Config,
+            request.ProviderOverride,
+            llm.CanUseLiveLlm(request.Config, request.ProviderOverride));
 
         try
         {
@@ -395,10 +403,15 @@ public sealed class WikiGenerationOrchestrator(
         WikiGenerationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+        if (LlmSettings.IsExplicitOfflineMode(request.ProviderOverride ?? request.Config.Provider))
         {
             return OfflineModulePlanner.BuildModuleDocument(descriptor, analysis, request.Config);
         }
+
+        LlmSettings.EnsureLiveLlmConfigured(
+            request.Config,
+            request.ProviderOverride,
+            llm.CanUseLiveLlm(request.Config, request.ProviderOverride));
 
         try
         {
@@ -466,15 +479,23 @@ public sealed class WikiGenerationOrchestrator(
         IncrementalScope scope,
         CancellationToken cancellationToken)
     {
-        // Offline heuristics are solid; use LLM only to enrich when available and in scope.
+        // Offline heuristics for inventory; live providers use LLM when the scope wants it.
         var offline = OfflineModulePlanner.BuildCrossCutting(analysis).ToList();
-        var allowLlm = (scope.IsFull || scope.AllCrossCutting || scope.CrossCuttingIds.Count > 0)
-                       && llm.CanUseLiveLlm(request.Config, request.ProviderOverride);
-
-        if (!allowLlm)
+        var wantsLlm = scope.IsFull || scope.AllCrossCutting || scope.CrossCuttingIds.Count > 0;
+        if (!wantsLlm)
         {
             return offline;
         }
+
+        if (LlmSettings.IsExplicitOfflineMode(request.ProviderOverride ?? request.Config.Provider))
+        {
+            return offline;
+        }
+
+        LlmSettings.EnsureLiveLlmConfigured(
+            request.Config,
+            request.ProviderOverride,
+            llm.CanUseLiveLlm(request.Config, request.ProviderOverride));
 
         try
         {
@@ -993,7 +1014,7 @@ public sealed class WikiGenerationOrchestrator(
         sb.AppendLine("| Inventory | Filtered file list produced by RepoAnalyzer |");
         sb.AppendLine("| Module | Bounded project/folder area documented under `modules/` |");
         sb.AppendLine("| Cross-cutting | Concern spanning modules (logging, config, errors) |");
-        sb.AppendLine("| Offline generation | Inventory heuristics used when LLM credentials are unavailable |");
+        sb.AppendLine("| Offline generation | Inventory-only mode when `provider` is `offline` (live providers require an LLM) |");
         foreach (var module in modules.Take(12))
         {
             sb.AppendLine($"| {module.Title} | Module documented at `{module.RelativePath}` |");

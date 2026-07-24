@@ -124,7 +124,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var result = await sut.GenerateAsync(new AgentsMdGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path },
             RepoPath = temp.Path,
             Force = false,
             DryRun = false
@@ -162,7 +162,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var result = await sut.GenerateAsync(new AgentsMdGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path, MigrateCopilotInstructions = true },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path, MigrateCopilotInstructions = true },
             RepoPath = temp.Path,
             DryRun = true
         });
@@ -199,7 +199,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var result = await sut.GenerateAsync(new AgentsMdGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path, MigrateCopilotInstructions = true },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path, MigrateCopilotInstructions = true },
             RepoPath = temp.Path
         });
 
@@ -235,7 +235,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var result = await sut.GenerateAsync(new AgentsMdGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path },
             RepoPath = temp.Path,
             Force = false
         });
@@ -260,7 +260,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var created = await sut.GenerateAsync(new ReadmeGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path },
             RepoPath = temp.Path
         });
         created.Success.ShouldBeTrue(created.Error);
@@ -293,7 +293,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var skipped = await sut.GenerateAsync(new ReadmeGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path },
             RepoPath = temp.Path
         });
         skipped.Action.ShouldBe(ReadmeAction.Skipped);
@@ -316,7 +316,7 @@ public sealed class AgentsMdAndReadmeTests
 
         var result = await sut.GenerateAsync(new ReadmeGenerationRequest
         {
-            Config = new AgentWikiConfig { RepoPath = temp.Path },
+            Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, RepoPath = temp.Path },
             RepoPath = temp.Path,
             DryRun = true
         });
@@ -388,6 +388,7 @@ public sealed class AgentsMdAndReadmeTests
             {
                 Config = new AgentWikiConfig
                 {
+                    Provider = Constants.Providers.Offline,
                     OutputPath = "docs/wiki",
                     AgentMdPath = "AGENTS.md",
                     GenerateAgentsMdIfMissing = true,

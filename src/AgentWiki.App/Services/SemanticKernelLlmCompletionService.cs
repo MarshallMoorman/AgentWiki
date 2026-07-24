@@ -369,15 +369,109 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         !string.IsNullOrWhiteSpace(config.OpenAI.ApiKey)
         || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(Constants.Env.GitHubToken));
 
-    private static TokenUsage? TryReadUsage(ChatMessageContent message)
+    /// <summary>
+    /// Reads token usage from a chat completion result.
+    /// Current OpenAI / Azure connectors put counts on <c>ChatMessageContent.InnerContent</c>
+    /// (<c>OpenAI.Chat.ChatCompletion.Usage</c>) or under metadata key <c>Usage</c> as
+    /// <c>ChatTokenUsage</c> — not as flat integer metadata keys.
+    /// </summary>
+    /// <remarks>Public for unit tests.</remarks>
+    public static TokenUsage? TryReadUsage(ChatMessageContent message)
     {
-        if (message.Metadata is null)
+        ArgumentNullException.ThrowIfNull(message);
+
+        // Preferred: OpenAI SDK ChatCompletion on InnerContent (SK 1.x + OpenAI 2.x).
+        if (message.InnerContent is OpenAI.Chat.ChatCompletion chatCompletion
+            && chatCompletion.Usage is { } chatUsage)
         {
-            return null;
+            return new TokenUsage
+            {
+                InputTokens = chatUsage.InputTokenCount,
+                OutputTokens = chatUsage.OutputTokenCount
+            };
         }
 
-        var input = ReadInt(message.Metadata, "PromptTokenCount", "InputTokenCount", "prompt_tokens");
-        var output = ReadInt(message.Metadata, "CompletionTokenCount", "OutputTokenCount", "completion_tokens");
+        if (message.Metadata is { } metadata)
+        {
+            // Metadata["Usage"] — ChatTokenUsage (OpenAI) or CompletionsUsage-like shapes.
+            if (TryGetMetadataValue(metadata, "Usage", out var usageObj)
+                && usageObj is not null
+                && TryReadUsageFromObject(usageObj) is { } fromUsage)
+            {
+                return fromUsage;
+            }
+
+            // Legacy / alternate flat metadata keys (older SK connectors).
+            var input = ReadInt(
+                metadata,
+                "PromptTokenCount",
+                "InputTokenCount",
+                "InputTokens",
+                "prompt_tokens");
+            var output = ReadInt(
+                metadata,
+                "CompletionTokenCount",
+                "OutputTokenCount",
+                "OutputTokens",
+                "completion_tokens");
+            if (input is not null || output is not null)
+            {
+                return new TokenUsage
+                {
+                    InputTokens = input ?? 0,
+                    OutputTokens = output ?? 0
+                };
+            }
+        }
+
+        // Last resort: any object-shaped InnerContent with usage-like properties.
+        if (message.InnerContent is not null
+            && TryReadUsageFromObject(message.InnerContent) is { } fromInner)
+        {
+            return fromInner;
+        }
+
+        return null;
+    }
+
+    private static TokenUsage? TryReadUsageFromObject(object usageObj)
+    {
+        // OpenAI.Chat.ChatTokenUsage
+        if (usageObj is OpenAI.Chat.ChatTokenUsage openAiUsage)
+        {
+            return new TokenUsage
+            {
+                InputTokens = openAiUsage.InputTokenCount,
+                OutputTokens = openAiUsage.OutputTokenCount
+            };
+        }
+
+        // Nested .Usage property (e.g. ChatCompletion-like without direct type match).
+        var type = usageObj.GetType();
+        var nestedUsage = type.GetProperty("Usage")?.GetValue(usageObj);
+        if (nestedUsage is not null && !ReferenceEquals(nestedUsage, usageObj))
+        {
+            var nested = TryReadUsageFromObject(nestedUsage);
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        // Reflection for CompletionsUsage (PromptTokens/CompletionTokens) and similar DTOs.
+        var input = ReadPropertyInt(
+            usageObj,
+            "InputTokenCount",
+            "InputTokens",
+            "PromptTokens",
+            "PromptTokenCount");
+        var output = ReadPropertyInt(
+            usageObj,
+            "OutputTokenCount",
+            "OutputTokens",
+            "CompletionTokens",
+            "CompletionTokenCount");
+
         if (input is null && output is null)
         {
             return null;
@@ -390,28 +484,81 @@ public sealed class SemanticKernelLlmCompletionService : ILlmCompletionService, 
         };
     }
 
-    private static int? ReadInt(IReadOnlyDictionary<string, object?> metadata, params string[] keys)
+    private static int? ReadPropertyInt(object target, params string[] propertyNames)
     {
-        foreach (var key in keys)
+        var type = target.GetType();
+        foreach (var name in propertyNames)
         {
-            if (!metadata.TryGetValue(key, out var value) || value is null)
+            var prop = type.GetProperty(name);
+            if (prop is null)
             {
                 continue;
             }
 
-            switch (value)
+            var value = prop.GetValue(target);
+            var parsed = CoerceToInt(value);
+            if (parsed is not null)
             {
-                case int i:
-                    return i;
-                case long l:
-                    return (int)l;
-                case string s when int.TryParse(s, out var parsed):
-                    return parsed;
+                return parsed;
             }
         }
 
         return null;
     }
+
+    private static bool TryGetMetadataValue(
+        IReadOnlyDictionary<string, object?> metadata,
+        string key,
+        out object? value)
+    {
+        foreach (var pair in metadata)
+        {
+            if (pair.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+            {
+                value = pair.Value;
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static int? ReadInt(IReadOnlyDictionary<string, object?> metadata, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (!TryGetMetadataValue(metadata, key, out var value) || value is null)
+            {
+                continue;
+            }
+
+            var parsed = CoerceToInt(value);
+            if (parsed is not null)
+            {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
+
+    private static int? CoerceToInt(object? value) =>
+        value switch
+        {
+            null => null,
+            int i => i,
+            long l => (int)l,
+            uint u => (int)u,
+            ulong ul => (int)ul,
+            short s => s,
+            ushort us => us,
+            float f => (int)f,
+            double d => (int)d,
+            decimal m => (int)m,
+            string s when int.TryParse(s, out var parsed) => parsed,
+            _ => null
+        };
 
     public void Dispose()
     {

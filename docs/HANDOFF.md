@@ -100,6 +100,16 @@ AgentWiki.slnx
 
 ## 4. What landed recently
 
+### Init defaults + fail-loud LLM (1.5.1+)
+
+- **`agent-wiki init`** writes **minimal** `.agentwiki/config.json` (`provider`, `defaultModel`, `outputPath` only)
+- Full property surface → **`.agentwiki/config.example.json`**
+- Product defaults: **`openai`** / **`gpt-chat-latest`** (was azure-openai / gpt-4o)
+- API key via **`OPENAI_API_KEY`** (global env), process `AGENTWIKI_*`, or repo `.env` — not scaffolded into config.json
+- Still writes `.env.example`, sample prompts, `.agentwiki/.gitignore`
+- **`allowOfflineFallback` default is `false`**: live LLM transport/parse failures fail the run (no silent inventory-only wiki). Opt in with `allowOfflineFallback: true` or `AGENTWIKI_AllowOfflineFallback=true`.
+- **Live providers require LLM**: for `openai` / `azure-openai` / `github-models`, missing credentials **fail** with a clear error. Inventory-only generation requires explicit `provider: offline` (or `none` / `mock`).
+
 ### v1.5.0 — Step 02b: Workspace corpus, routing & member orchestration
 
 **Still file-based only** — no embeddings, Azure AI Search, or MCP.

@@ -1,4 +1,5 @@
 using AgentWiki.App.Services;
+using AgentWiki.Core;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -28,7 +29,7 @@ public sealed class PlaceholderWikiGeneratorTests
 
             var result = await sut.GenerateAsync(new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { OutputPath = "docs/wiki" },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, OutputPath = "docs/wiki" },
                 RepoPath = root,
                 OutputPath = output,
                 Force = true

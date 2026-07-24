@@ -1,5 +1,6 @@
 using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
+using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
 using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
@@ -63,8 +64,14 @@ public sealed class ReadmeGenerator(
                 excerpts);
 
             var content = offline;
-            if (llm.CanUseLiveLlm(request.Config, null))
+            var offlineMode = LlmSettings.IsExplicitOfflineMode(request.Config.Provider);
+            if (!offlineMode)
             {
+                LlmSettings.EnsureLiveLlmConfigured(
+                    request.Config,
+                    providerOverride: null,
+                    llm.CanUseLiveLlm(request.Config, null));
+
                 try
                 {
                     request.Progress?.Report("Enriching README.md with LLM…");
@@ -76,9 +83,20 @@ public sealed class ReadmeGenerator(
                     {
                         content = polished.TrimEnd() + Environment.NewLine;
                     }
+                    else
+                    {
+                        logger.LogInformation(
+                            "README LLM polish not applied (quality/shape); keeping offline template");
+                    }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    if (!request.Config.AllowOfflineFallback)
+                    {
+                        logger.LogError(ex, "README LLM polish failed and AllowOfflineFallback=false");
+                        throw;
+                    }
+
                     logger.LogWarning(ex, "README LLM polish failed; using offline template");
                 }
             }

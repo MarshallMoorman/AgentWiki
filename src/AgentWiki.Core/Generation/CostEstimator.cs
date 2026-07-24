@@ -14,6 +14,8 @@ public static class CostEstimator
         {
             ["gpt-4o"] = (2.50m, 10.00m),
             ["gpt-4o-mini"] = (0.15m, 0.60m),
+            // Alias often used for the latest chat model; rate treated like gpt-4o for estimates.
+            ["gpt-chat-latest"] = (2.50m, 10.00m),
             ["gpt-4.1"] = (2.00m, 8.00m),
             ["gpt-4.1-mini"] = (0.40m, 1.60m),
             ["gpt-4.1-nano"] = (0.10m, 0.40m),

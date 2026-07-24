@@ -23,6 +23,8 @@ public sealed class MemberDefaultsTests
         cfg.MaxModules.ShouldBe(Constants.Config.MaxModules);
         cfg.EnableRoslynAnalysis.ShouldBeTrue();
         cfg.EnableApiEndpointDocs.ShouldBeTrue();
+        cfg.AllowOfflineFallback.ShouldBe(Constants.Config.AllowOfflineFallback);
+        cfg.AllowOfflineFallback.ShouldBeFalse();
         cfg.IgnorePatterns.Count.ShouldBeGreaterThan(0);
         cfg.AzureOpenAI.ShouldNotBeNull();
         cfg.AzureOpenAI.Endpoint.ShouldNotBeNullOrWhiteSpace();

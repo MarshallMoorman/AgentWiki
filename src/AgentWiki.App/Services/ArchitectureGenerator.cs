@@ -29,13 +29,19 @@ public sealed class ArchitectureGenerator(
         ArgumentNullException.ThrowIfNull(analysis);
         ArgumentNullException.ThrowIfNull(config);
 
-        if (!llm.CanUseLiveLlm(config, providerOverride))
+        // Explicit offline/mock → inventory generators. Live providers require a working LLM.
+        if (LlmSettings.IsExplicitOfflineMode(providerOverride ?? config.Provider))
         {
-            logger.LogWarning(
-                "LLM credentials not configured (provider={Provider}); using offline architecture generator",
-                providerOverride ?? config.Provider);
+            logger.LogInformation(
+                "Provider is offline; using offline architecture generator for {Repo}",
+                analysis.RepoName);
             return OfflineArchitectureGenerator.Generate(analysis);
         }
+
+        LlmSettings.EnsureLiveLlmConfigured(
+            config,
+            providerOverride,
+            llm.CanUseLiveLlm(config, providerOverride));
 
         try
         {
@@ -118,8 +124,8 @@ public sealed class ArchitectureGenerator(
             {
                 logger.LogError(
                     ex,
-                    "LLM architecture generation failed (often JSON shape mismatch); falling back to offline generator. "
-                    + "Set allowOfflineFallback=false to fail the run instead.");
+                    "LLM architecture generation failed (often JSON shape mismatch); falling back to offline generator "
+                    + "(allowOfflineFallback=true). Default is false so production runs fail loudly.");
             }
 
             var offline = OfflineArchitectureGenerator.Generate(analysis);

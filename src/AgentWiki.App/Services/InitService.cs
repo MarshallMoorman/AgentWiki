@@ -4,22 +4,28 @@ using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core;
 using AgentWiki.Core.Generation;
-using AgentWiki.Core.Models;
 using Microsoft.Extensions.Logging;
 
 namespace AgentWiki.App.Services;
 
 /// <summary>
-/// Scaffolds <c>.agentwiki/</c> configuration, sample prompts, and <c>.env.example</c>.
+/// Scaffolds <c>.agentwiki/</c> configuration (minimal <c>config.json</c> + full
+/// <c>config.example.json</c>), sample prompts, and <c>.env.example</c>.
 /// </summary>
 public sealed class InitService(ILogger<InitService> logger) : IInitService
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private static readonly JsonSerializerOptions FullJsonOptions = new()
     {
         WriteIndented = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         // Keep empty strings so scaffolded keys (openAI.apiKey, etc.) are visible placeholders.
         DefaultIgnoreCondition = JsonIgnoreCondition.Never
+    };
+
+    private static readonly JsonSerializerOptions MinimalJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     /// <inheritdoc />
@@ -48,12 +54,26 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
             }
             else
             {
-                var defaultConfig = CreateDefaultConfig();
-                var json = JsonSerializer.Serialize(defaultConfig, JsonOptions);
+                var json = SerializeMinimalConfig();
                 await File.WriteAllTextAsync(configPath, json + Environment.NewLine, cancellationToken)
                     .ConfigureAwait(false);
                 created.Add(Rel(resolvedRepo, configPath));
                 logger.LogInformation("Wrote {Path}", configPath);
+            }
+
+            var configExamplePath = Path.Combine(agentWikiDir, Constants.Paths.ConfigExampleFileName);
+            if (!File.Exists(configExamplePath) || force)
+            {
+                var exampleJson = JsonSerializer.Serialize(
+                    AgentWikiConfigDefaults.CreateFullTemplate(),
+                    FullJsonOptions);
+                await File.WriteAllTextAsync(
+                        configExamplePath,
+                        exampleJson + Environment.NewLine,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                created.Add(Rel(resolvedRepo, configExamplePath));
+                logger.LogInformation("Wrote {Path}", configExamplePath);
             }
 
             var envExample = Path.Combine(resolvedRepo, ".env.example");
@@ -104,42 +124,62 @@ public sealed class InitService(ILogger<InitService> logger) : IInitService
         }
     }
 
-    private static AgentWikiConfig CreateDefaultConfig() =>
-        AgentWikiConfigDefaults.CreateFullTemplate();
+    /// <summary>
+    /// Serializes only the bare-minimum keys so committed config stays small.
+    /// Defaults (timeouts, ignore patterns, etc.) live in code / <c>config.example.json</c>.
+    /// </summary>
+    private static string SerializeMinimalConfig()
+    {
+        // Anonymous shape avoids serializing the full AgentWikiConfig property surface.
+        var minimal = new
+        {
+            provider = Constants.Config.DefaultProvider,
+            defaultModel = Constants.Config.DefaultModel,
+            outputPath = Constants.Paths.DefaultOutputPath
+        };
+        return JsonSerializer.Serialize(minimal, MinimalJsonOptions);
+    }
 
     private static string BuildEnvExample() =>
         $"""
         # AgentWiki environment variables
         # --------------------------------
-        # Prefer non-secrets in .agentwiki/config.json and secrets (API keys) here or in CI.
+        # Defaults: provider={Constants.Config.DefaultProvider}, model={Constants.Config.DefaultModel}
+        # API key: prefer a global shell/CI env var so nothing secret lands in the repo.
         #
         # How to use:
-        #   1. Copy this file to .env (never commit .env)
-        #   2. Fill in values — agent-wiki loads .env from the repo root automatically
-        #   3. Or export the same keys in your shell / CI pipeline
+        #   1. Export OPENAI_API_KEY (or AGENTWIKI_OpenAI__ApiKey) in your shell / CI — no .env required
+        #   2. Or copy this file to .env (never commit .env) and fill in values
+        #   3. Optional: copy keys from .agentwiki/config.example.json into config.json to override defaults
         #
         # Config priority (highest wins):
-        #   CLI flags > .env > .agentwiki/config.json > process env ({Constants.Env.Prefix}*) > appsettings
+        #   CLI flags > .env > .agentwiki/config.json > process env ({Constants.Env.Prefix}* / OPENAI_*) > appsettings
         #
         # Prefix: {Constants.Env.Prefix}   Nested keys use double underscore (__)
 
-        {Constants.Env.Prefix}Provider={Constants.Providers.OpenAi}
-        {Constants.Env.Prefix}DefaultModel={Constants.Config.DefaultModel}
-        {Constants.Env.Prefix}OutputPath={Constants.Paths.DefaultOutputPath}
-        {Constants.Env.Prefix}LlmTimeoutSeconds={Constants.Config.LlmTimeoutSeconds}
-        {Constants.Env.Prefix}MaxLlmSummaryChars={Constants.Config.MaxLlmSummaryChars}
+        # --- Recommended for OpenAI (default provider) ---
+        # Global / process (also accepted without AGENTWIKI_ prefix):
+        OPENAI_API_KEY=
+        # Or AgentWiki-scoped:
+        # {Constants.Env.Prefix}OpenAI__ApiKey=
+        # {Constants.Env.Prefix}OpenAI__Model={Constants.Config.DefaultModel}
+        # {Constants.Env.Prefix}Provider={Constants.Providers.OpenAi}
+        # {Constants.Env.Prefix}DefaultModel={Constants.Config.DefaultModel}
 
-        # Azure OpenAI
-        {Constants.Env.Prefix}AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
-        {Constants.Env.Prefix}AzureOpenAI__DeploymentName={Constants.Config.DefaultModel}
-        {Constants.Env.Prefix}AzureOpenAI__ApiKey=
-        {Constants.Env.Prefix}AzureOpenAI__UseManagedIdentity=false
+        # Optional overrides
+        # {Constants.Env.Prefix}OutputPath={Constants.Paths.DefaultOutputPath}
+        # {Constants.Env.Prefix}LlmTimeoutSeconds={Constants.Config.LlmTimeoutSeconds}
+        # {Constants.Env.Prefix}MaxLlmSummaryChars={Constants.Config.MaxLlmSummaryChars}
 
-        # OpenAI (public API) or OpenAI-compatible endpoint
-        # Leave Endpoint empty for https://api.openai.com
-        {Constants.Env.Prefix}OpenAI__Endpoint=
-        {Constants.Env.Prefix}OpenAI__ApiKey=
-        {Constants.Env.Prefix}OpenAI__Model={Constants.Config.DefaultModel}
+        # Azure OpenAI (set provider to azure-openai in config or env)
+        # {Constants.Env.Prefix}Provider={Constants.Providers.AzureOpenAi}
+        # {Constants.Env.Prefix}AzureOpenAI__Endpoint=https://YOUR_RESOURCE.openai.azure.com/
+        # {Constants.Env.Prefix}AzureOpenAI__DeploymentName=your-deployment
+        # {Constants.Env.Prefix}AzureOpenAI__ApiKey=
+        # {Constants.Env.Prefix}AzureOpenAI__UseManagedIdentity=false
+
+        # OpenAI-compatible endpoint (leave Endpoint empty for https://api.openai.com)
+        # {Constants.Env.Prefix}OpenAI__Endpoint=
         """;
 
     private static IEnumerable<(string Name, string Content)> SamplePrompts()

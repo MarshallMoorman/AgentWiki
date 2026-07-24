@@ -90,6 +90,7 @@ public sealed class WorkspaceOfflineIntegrationTests
                 Config = load.Config!,
                 WorkspaceRoot = workspace,
                 OutputPath = output,
+                ProviderOverride = Constants.Providers.Offline,
                 Force = true,
                 DryRun = false,
                 Incremental = false
@@ -185,6 +186,7 @@ public sealed class WorkspaceOfflineIntegrationTests
                 Config = load.Config!,
                 WorkspaceRoot = workspace,
                 OutputPath = output,
+                ProviderOverride = Constants.Providers.Offline,
                 DryRun = true,
                 Force = false
             });
@@ -235,6 +237,7 @@ public sealed class WorkspaceOfflineIntegrationTests
                 Config = load.Config!,
                 WorkspaceRoot = workspace,
                 OutputPath = output,
+                ProviderOverride = Constants.Providers.Offline,
                 Force = true
             });
             first.Success.ShouldBeTrue(first.Error);
@@ -244,6 +247,7 @@ public sealed class WorkspaceOfflineIntegrationTests
                 Config = load.Config!,
                 WorkspaceRoot = workspace,
                 OutputPath = output,
+                ProviderOverride = Constants.Providers.Offline,
                 Incremental = true,
                 Force = false
             });

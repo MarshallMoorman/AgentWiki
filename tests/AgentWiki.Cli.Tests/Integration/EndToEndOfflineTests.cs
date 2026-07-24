@@ -1,5 +1,6 @@
 using AgentWiki.App.Infrastructure;
 using AgentWiki.App.Services;
+using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
@@ -35,7 +36,7 @@ public sealed class EndToEndOfflineTests
             var output = Path.Combine(root, "docs", "wiki");
             var result = await generator.GenerateAsync(new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { OutputPath = "docs/wiki", AgentMdPath = "AGENTS.md" },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, OutputPath = "docs/wiki", AgentMdPath = "AGENTS.md" },
                 RepoPath = root,
                 OutputPath = output,
                 Force = true

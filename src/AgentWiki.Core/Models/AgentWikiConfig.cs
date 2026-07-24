@@ -71,9 +71,9 @@ public sealed class AgentWikiConfig
     public int MaxLlmSummaryChars { get; set; } = Constants.Config.MaxLlmSummaryChars;
 
     /// <summary>
-    /// When true (default), LLM transport/parse failures fall back to offline generators.
-    /// Set <c>false</c> for production so a bad architecture parse or network failure fails the run
-    /// instead of writing inventory-only architecture.
+    /// When true, LLM transport/parse failures fall back to offline generators.
+    /// Default is <c>false</c> so a bad architecture parse or network failure fails the run
+    /// instead of writing inventory-only architecture. Missing credentials still use offline generators.
     /// </summary>
     public bool AllowOfflineFallback { get; set; } = Constants.Config.AllowOfflineFallback;
 

@@ -26,6 +26,54 @@ public static class LlmSettings
         };
 
     /// <summary>
+    /// True when the user explicitly selected inventory-only / non-LLM mode
+    /// (<c>offline</c>, <c>mock</c>, or aliases like <c>none</c>).
+    /// </summary>
+    public static bool IsExplicitOfflineMode(string? provider) =>
+        NormalizeProvider(provider) is Constants.Providers.Offline or Constants.Providers.Mock;
+
+    /// <summary>
+    /// Live providers (OpenAI / Azure / GitHub Models) require a working LLM.
+    /// Call when credentials are missing so generate fails instead of silently going offline.
+    /// </summary>
+    public static void EnsureLiveLlmConfigured(
+        AgentWikiConfig config,
+        string? providerOverride,
+        bool canUseLiveLlm)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+
+        if (IsExplicitOfflineMode(providerOverride ?? config.Provider))
+        {
+            return;
+        }
+
+        if (canUseLiveLlm)
+        {
+            return;
+        }
+
+        throw CreateLiveLlmRequiredException(config, providerOverride);
+    }
+
+    /// <summary>
+    /// Exception used when a live provider is selected but the LLM cannot run.
+    /// </summary>
+    public static InvalidOperationException CreateLiveLlmRequiredException(
+        AgentWikiConfig config,
+        string? providerOverride = null)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        var provider = NormalizeProvider(providerOverride ?? config.Provider);
+        var reason = DescribeNotReadyReason(config, providerOverride)
+                     ?? "LLM credentials or endpoint are not configured";
+        return new InvalidOperationException(
+            $"LLM is required for provider '{provider}' but is not ready: {reason}. "
+            + "Set credentials (e.g. OPENAI_API_KEY / AGENTWIKI_OpenAI__ApiKey, or Azure settings) "
+            + "or set provider to 'offline' for inventory-only generation without an LLM.");
+    }
+
+    /// <summary>
     /// Model / deployment actually used for chat completions.
     /// Priority: CLI override → provider-specific non-empty model → <c>defaultModel</c> → built-in default.
     /// </summary>

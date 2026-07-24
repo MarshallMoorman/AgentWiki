@@ -43,7 +43,8 @@ try
         });
 
         config.AddCommand<InitCommand>("init")
-            .WithDescription("Scaffold .agentwiki/config.json, sample prompts, and .env.example")
+            .WithDescription(
+                "Scaffold minimal .agentwiki/config.json, full config.example.json, sample prompts, and .env.example")
             .WithExample("init")
             .WithExample("init", "--repo-path", ".")
             .WithExample("init", "--force");

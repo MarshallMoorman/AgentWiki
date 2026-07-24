@@ -1,5 +1,6 @@
 using AgentWiki.App.Infrastructure;
 using AgentWiki.App.Services;
+using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
@@ -26,7 +27,7 @@ public sealed class SemanticWikiGeneratorTests
 
             var result = await sut.GenerateAsync(new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { OutputPath = "docs/wiki", AgentMdPath = "AGENTS.md" },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, OutputPath = "docs/wiki", AgentMdPath = "AGENTS.md" },
                 RepoPath = root,
                 OutputPath = output,
                 Force = true
@@ -77,7 +78,7 @@ public sealed class SemanticWikiGeneratorTests
 
             var result = await sut.GenerateAsync(new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig(),
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline },
                 RepoPath = root,
                 OutputPath = output,
                 Incremental = true,

@@ -3,15 +3,27 @@ using AgentWiki.Core.Models;
 namespace AgentWiki.Core.Generation;
 
 /// <summary>
-/// Builds a complete single-repo <see cref="AgentWikiConfig"/> template
-/// matching <c>agent-wiki init</c> defaults. Used for memberDefaults scaffold
-/// and member config copy/replace.
+/// Builds single-repo <see cref="AgentWikiConfig"/> templates for <c>agent-wiki init</c>
+/// and workspace <c>memberDefaults</c> scaffold / replace-configs.
 /// </summary>
 public static class AgentWikiConfigDefaults
 {
     /// <summary>
-    /// Full config surface with the same defaults as single-repo init would write.
-    /// Nested provider objects include placeholder keys so the JSON shape is complete.
+    /// Bare-minimum config for <c>.agentwiki/config.json</c>: OpenAI provider, default model,
+    /// and wiki output path. API keys are expected from <c>OPENAI_API_KEY</c> / process env,
+    /// repo <c>.env</c>, or an explicit config override — not scaffolded into the committed file.
+    /// </summary>
+    public static AgentWikiConfig CreateMinimalTemplate() => new()
+    {
+        Provider = Constants.Config.DefaultProvider,
+        DefaultModel = Constants.Config.DefaultModel,
+        OutputPath = Constants.Paths.DefaultOutputPath
+    };
+
+    /// <summary>
+    /// Full config surface with every property set to product defaults (and provider placeholders).
+    /// Used for <c>config.example.json</c>, workspace <c>memberDefaults</c>, and replace-configs.
+    /// Nested provider objects include empty apiKey placeholders so the JSON shape is complete.
     /// </summary>
     public static AgentWikiConfig CreateFullTemplate() => new()
     {

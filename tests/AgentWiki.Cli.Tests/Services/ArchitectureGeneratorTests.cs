@@ -1,4 +1,5 @@
 using AgentWiki.App.Services;
+using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
@@ -57,7 +58,7 @@ public sealed class ArchitectureGeneratorTests
     }
 
     [Fact]
-    public async Task GenerateAsync_UsesOfflineWhenLlmUnavailable()
+    public async Task GenerateAsync_UsesOfflineWhenProviderIsOffline()
     {
         var llm = new Mock<ILlmCompletionService>();
         llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
@@ -67,7 +68,9 @@ public sealed class ArchitectureGeneratorTests
         var sut = new ArchitectureGenerator(llm.Object, prompts, NullLogger<ArchitectureGenerator>.Instance);
 
         var analysis = CreateMinimalAnalysis();
-        var doc = await sut.GenerateAsync(analysis, new AgentWikiConfig());
+        var doc = await sut.GenerateAsync(
+            analysis,
+            new AgentWikiConfig { Provider = Constants.Providers.Offline });
 
         doc.UsedOfflineFallback.ShouldBeTrue();
         doc.Summary.ShouldNotBeNullOrWhiteSpace();
@@ -81,6 +84,21 @@ public sealed class ArchitectureGeneratorTests
                 It.IsAny<LlmRequestOptions?>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_ThrowsWhenLiveProviderButLlmUnavailable()
+    {
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
+            .Returns(false);
+
+        var prompts = new PromptManager(NullLogger<PromptManager>.Instance);
+        var sut = new ArchitectureGenerator(llm.Object, prompts, NullLogger<ArchitectureGenerator>.Instance);
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() =>
+            sut.GenerateAsync(CreateMinimalAnalysis(), new AgentWikiConfig { Provider = Constants.Providers.OpenAi }));
+        ex.Message.ShouldContain("LLM is required");
     }
 
     [Fact]
@@ -129,7 +147,7 @@ public sealed class ArchitectureGeneratorTests
     }
 
     [Fact]
-    public async Task GenerateAsync_FallsBackWhenLlmThrows()
+    public async Task GenerateAsync_FallsBackWhenLlmThrows_AndFallbackAllowed()
     {
         var llm = new Mock<ILlmCompletionService>();
         llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
@@ -147,10 +165,37 @@ public sealed class ArchitectureGeneratorTests
         var prompts = new PromptManager(NullLogger<PromptManager>.Instance);
         var sut = new ArchitectureGenerator(llm.Object, prompts, NullLogger<ArchitectureGenerator>.Instance);
 
-        var doc = await sut.GenerateAsync(CreateMinimalAnalysis(), new AgentWikiConfig());
+        // Explicit opt-in: product default is AllowOfflineFallback=false.
+        var config = new AgentWikiConfig { AllowOfflineFallback = true };
+        var doc = await sut.GenerateAsync(CreateMinimalAnalysis(), config);
 
         doc.UsedOfflineFallback.ShouldBeTrue();
         doc.Gotchas.Any(g => g.Contains("boom", StringComparison.Ordinal)).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GenerateAsync_RethrowsWhenLlmThrows_AndFallbackDisabled()
+    {
+        var llm = new Mock<ILlmCompletionService>();
+        llm.Setup(x => x.CanUseLiveLlm(It.IsAny<AgentWikiConfig>(), It.IsAny<string?>()))
+            .Returns(true);
+        llm.Setup(x => x.CompleteAsync(
+                It.IsAny<AgentWikiConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<LlmRequestOptions?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        var prompts = new PromptManager(NullLogger<PromptManager>.Instance);
+        var sut = new ArchitectureGenerator(llm.Object, prompts, NullLogger<ArchitectureGenerator>.Instance);
+
+        // Default AllowOfflineFallback is false — live LLM failures must surface.
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() =>
+            sut.GenerateAsync(CreateMinimalAnalysis(), new AgentWikiConfig()));
+        ex.Message.ShouldContain("boom");
     }
 
     private static RepoAnalysisResult CreateMinimalAnalysis()

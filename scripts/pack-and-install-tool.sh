@@ -51,13 +51,23 @@ install_or_update_tool() {
   # so offline pack/install keeps working without interactive NuGet login.
   local nuget_flags=(--global --add-source "$ARTIFACTS_DIR" --ignore-failed-sources)
 
-  if dotnet tool list -g | awk '{print $1}' | grep -qx "$package_id"; then
-    echo "==> Updating global tool $package_id"
-    dotnet tool update "${nuget_flags[@]}" "$package_id"
+  # Case-insensitive match: `dotnet tool list` prints package ids lowercase.
+  local package_id_lc
+  package_id_lc="$(printf '%s' "$package_id" | tr '[:upper:]' '[:lower:]')"
+  local already_installed=0
+  if dotnet tool list -g | awk '{print tolower($1)}' | grep -qx "$package_id_lc"; then
+    already_installed=1
+  fi
+
+  # Always reinstall from local artifacts so same-version rebuilds (e.g. 1.5.0 → 1.5.0)
+  # actually pick up code changes. `dotnet tool update` skips when versions match.
+  if [[ "$already_installed" -eq 1 ]]; then
+    echo "==> Reinstalling global tool $package_id (local pack)"
+    dotnet tool uninstall --global "$package_id"
   else
     echo "==> Installing global tool $package_id"
-    dotnet tool install "${nuget_flags[@]}" "$package_id"
   fi
+  dotnet tool install "${nuget_flags[@]}" "$package_id"
 
   if command -v "$tool_command" >/dev/null 2>&1; then
     echo "==> Verified: $tool_command"

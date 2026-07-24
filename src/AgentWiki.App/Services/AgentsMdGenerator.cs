@@ -77,9 +77,16 @@ public sealed class AgentsMdGenerator(
             var content = offline;
             var usedOffline = true;
             var warnings = new List<string>();
+            var offlineMode = LlmSettings.IsExplicitOfflineMode(
+                request.ProviderOverride ?? request.Config.Provider);
 
-            if (llm.CanUseLiveLlm(request.Config, request.ProviderOverride))
+            if (!offlineMode)
             {
+                LlmSettings.EnsureLiveLlmConfigured(
+                    request.Config,
+                    request.ProviderOverride,
+                    llm.CanUseLiveLlm(request.Config, request.ProviderOverride));
+
                 try
                 {
                     request.Progress?.Report("Enriching AGENTS.md with LLM…");
@@ -96,13 +103,33 @@ public sealed class AgentsMdGenerator(
                         content = EnsureSelfUpdateAndTrailingNewline(enriched);
                         usedOffline = false;
                     }
-                    else if (!string.IsNullOrWhiteSpace(enriched))
+                    else if (request.Config.AllowOfflineFallback)
                     {
-                        warnings.Add("LLM AGENTS.md output missing required sections; using offline template.");
+                        warnings.Add(
+                            "LLM AGENTS.md output missing required sections or empty; using offline template.");
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException(
+                            "LLM AGENTS.md enrichment did not produce a valid document "
+                            + "(missing required sections or empty) and allowOfflineFallback=false.");
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
+                    // Re-throw intentional policy failures from the block above.
+                    if (ex is InvalidOperationException
+                        && ex.Message.Contains("allowOfflineFallback", StringComparison.Ordinal))
+                    {
+                        throw;
+                    }
+
+                    if (!request.Config.AllowOfflineFallback)
+                    {
+                        logger.LogError(ex, "LLM AGENTS.md enrichment failed and AllowOfflineFallback=false");
+                        throw;
+                    }
+
                     logger.LogWarning(ex, "LLM AGENTS.md enrichment failed; using offline template");
                     warnings.Add($"LLM enrichment failed: {ex.Message}");
                 }

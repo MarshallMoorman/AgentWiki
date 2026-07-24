@@ -1,4 +1,5 @@
 using AgentWiki.App.Services;
+using AgentWiki.Core;
 using AgentWiki.Core.Abstractions;
 using AgentWiki.Core.Analysis;
 using AgentWiki.Core.Generation;
@@ -39,7 +40,7 @@ public sealed class WikiGenerationOrchestratorTests
             analysis,
             new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig(),
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline },
                 RepoPath = analysis.RepoPath,
                 OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
             },
@@ -117,7 +118,7 @@ public sealed class WikiGenerationOrchestratorTests
             analysis,
             new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { EnableApiEndpointDocs = true },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, EnableApiEndpointDocs = true },
                 RepoPath = analysis.RepoPath,
                 OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
             },
@@ -183,7 +184,7 @@ public sealed class WikiGenerationOrchestratorTests
             analysis,
             new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { EnablePostProcessing = true },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, EnablePostProcessing = true },
                 RepoPath = analysis.RepoPath,
                 OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
             },
@@ -226,7 +227,7 @@ public sealed class WikiGenerationOrchestratorTests
             analysis,
             new WikiGenerationRequest
             {
-                Config = new AgentWikiConfig { EnablePostProcessing = false },
+                Config = new AgentWikiConfig { Provider = Constants.Providers.Offline, EnablePostProcessing = false },
                 RepoPath = analysis.RepoPath,
                 OutputPath = Path.Combine(analysis.RepoPath, "docs", "wiki")
             },

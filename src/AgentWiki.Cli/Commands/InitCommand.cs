@@ -54,9 +54,13 @@ public sealed class InitCommand(IInitService initService) : AsyncCommand<InitCom
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("Next steps:");
-        AnsiConsole.MarkupLine("  1. Review [cyan].agentwiki/config.json[/]");
-        AnsiConsole.MarkupLine("  2. Copy [cyan].env.example[/] → [cyan].env[/] and set credentials");
-        AnsiConsole.MarkupLine("  3. Run [cyan]agent-wiki generate[/]");
+        AnsiConsole.MarkupLine(
+            "  1. Ensure [cyan]OPENAI_API_KEY[/] is set globally (or in repo [cyan].env[/])");
+        AnsiConsole.MarkupLine(
+            "  2. Review minimal [cyan].agentwiki/config.json[/] (defaults: openai / gpt-chat-latest)");
+        AnsiConsole.MarkupLine(
+            "  3. Optional: copy keys from [cyan].agentwiki/config.example.json[/] into config.json");
+        AnsiConsole.MarkupLine("  4. Run [cyan]agent-wiki generate[/]");
 
         return 0;
     }
